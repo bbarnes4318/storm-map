@@ -14,14 +14,14 @@ services:
       - "traefik.docker.network=coolify"
       
       # Secure Router (HTTPS) - intercepts storm-map and API paths
-      - "traefik.http.routers.stormmap-secure.rule=Host(`storm.aurumshield.vip`, `stormmap.aurumshield.vip`, `app.aurumshield.vip`, `aurumshield.vip`) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
+      - "traefik.http.routers.stormmap-secure.rule=(Host(`storm.aurumshield.vip`) || Host(`stormmap.aurumshield.vip`) || Host(`app.aurumshield.vip`) || Host(`aurumshield.vip`)) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
       - "traefik.http.routers.stormmap-secure.entrypoints=https"
       - "traefik.http.routers.stormmap-secure.tls=true"
       - "traefik.http.routers.stormmap-secure.tls.certresolver=letsencrypt"
       - "traefik.http.routers.stormmap-secure.service=stormmap-service"
       
       # Insecure Router (HTTP) - intercepts storm-map and API paths for IP testing
-      - "traefik.http.routers.stormmap-insecure.rule=Host(`178.156.213.79`, `storm.aurumshield.vip`, `stormmap.aurumshield.vip`, `app.aurumshield.vip`, `aurumshield.vip`) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
+      - "traefik.http.routers.stormmap-insecure.rule=(Host(`178.156.213.79`) || Host(`storm.aurumshield.vip`) || Host(`stormmap.aurumshield.vip`) || Host(`app.aurumshield.vip`) || Host(`aurumshield.vip`)) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
       - "traefik.http.routers.stormmap-insecure.entrypoints=http"
       - "traefik.http.routers.stormmap-insecure.service=stormmap-service"
       
