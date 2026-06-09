@@ -3,7 +3,7 @@
 import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster } from "@/lib/weather/types";
 import { clusterStormReports } from "@/lib/weather/geo";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle } from "lucide-react";
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -262,7 +262,7 @@ export function StormSidebar({
 
                   <label className="flex items-center justify-between p-2 rounded bg-slate-900/40 border border-slate-900 hover:border-slate-800 transition-all cursor-pointer">
                     <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                      <AlertTriangle size={12} className="text-amber-500" />
+                      <AlertCircle size={12} className="text-amber-500" />
                       Active NWS Alert Polygons
                     </span>
                     <input

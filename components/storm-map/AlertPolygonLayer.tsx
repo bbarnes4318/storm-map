@@ -3,7 +3,7 @@
 import React from "react";
 import { Polygon, Popup } from "react-leaflet";
 import { NwsAlert } from "@/lib/weather/types";
-import { Calendar, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Calendar, Clock, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface AlertPolygonLayerProps {
   alerts: NwsAlert[];
@@ -75,7 +75,7 @@ export function AlertPolygonLayer({ alerts }: AlertPolygonLayerProps) {
               <div className="text-slate-100 flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
                 {/* Header */}
                 <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
-                  <AlertTriangle
+                  <AlertCircle
                     size={16}
                     className={
                       alert.event.includes("Tornado")
