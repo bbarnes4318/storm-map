@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: storm-map-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      
+      # Secure Router (HTTPS) - intercepts storm-map and API paths
+      - "traefik.http.routers.stormmap-secure.rule=Host(`storm.aurumshield.vip`, `stormmap.aurumshield.vip`, `app.aurumshield.vip`, `aurumshield.vip`) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
+      - "traefik.http.routers.stormmap-secure.entrypoints=https"
+      - "traefik.http.routers.stormmap-secure.tls=true"
+      - "traefik.http.routers.stormmap-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.stormmap-secure.service=stormmap-service"
+      
+      # Insecure Router (HTTP) - intercepts storm-map and API paths for IP testing
+      - "traefik.http.routers.stormmap-insecure.rule=Host(`178.156.213.79`, `storm.aurumshield.vip`, `stormmap.aurumshield.vip`, `app.aurumshield.vip`, `aurumshield.vip`) && (PathPrefix(`/storm-map`) || PathPrefix(`/api/weather`))"
+      - "traefik.http.routers.stormmap-insecure.entrypoints=http"
+      - "traefik.http.routers.stormmap-insecure.service=stormmap-service"
+      
+      # Target Port
+      - "traefik.http.services.stormmap-service.loadbalancer.server.port=3000"
+
+networks:
+  coolify:
+    name: coolify
+    external: true
