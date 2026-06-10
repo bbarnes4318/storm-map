@@ -2,11 +2,11 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import { StormFilterState, StormReport, NwsAlert } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
 
-// Dynamically import the map component with SSR disabled to prevent Leaflet window reference errors
+// Dynamically import the map component with SSR disabled to prevent Mapbox window reference errors
 const StormMap = dynamic(() => import("@/components/storm-map/StormMap"), {
   ssr: false,
   loading: () => (
@@ -30,6 +30,7 @@ export default function StormMapPage() {
     state: "",
     radius: 0,
     center: null,
+    targetZoom: undefined,
     showHail: true,
     showWind: true,
     showTornado: true,
@@ -42,6 +43,16 @@ export default function StormMapPage() {
     showHouseNumbers: true,
     showBuildings: true,
   });
+
+  const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
+
+  const handleLockProperty = (property: SelectedPropertyTarget) => {
+    setSelectedProperty({ ...property, locked: true });
+  };
+
+  const handleUnlockProperty = () => {
+    setSelectedProperty(null);
+  };
 
   const [reports, setReports] = React.useState<StormReport[]>([]);
   const [alerts, setAlerts] = React.useState<NwsAlert[]>([]);
@@ -117,11 +128,12 @@ export default function StormMapPage() {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
-  const handleSelectCoords = (coords: [number, number], label: string) => {
+  const handleSelectCoords = (coords: [number, number], label: string, targetZoom?: number) => {
     setFilters((prev) => ({
       ...prev,
       center: coords,
       searchQuery: label,
+      targetZoom: targetZoom,
       // Default to 50 miles search radius when a location is geocoded
       radius: prev.radius === 0 ? 50 : prev.radius,
     }));
@@ -133,6 +145,7 @@ export default function StormMapPage() {
       state: "",
       radius: 0,
       center: null,
+      targetZoom: undefined,
       showHail: true,
       showWind: true,
       showTornado: true,
@@ -163,6 +176,8 @@ export default function StormMapPage() {
         lastUpdated={lastUpdated}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        selectedProperty={selectedProperty}
+        onUnlockProperty={handleUnlockProperty}
       />
 
       {/* Main Map Viewer Panel */}
@@ -218,7 +233,7 @@ export default function StormMapPage() {
             </div>
           </div>
         ) : (
-          /* Client-side Hydrated Leaflet Canvas */
+          /* Client-side Hydrated Mapbox Canvas */
           <StormMap
             filters={filters}
             onFiltersChange={handleFiltersChange}
@@ -226,6 +241,9 @@ export default function StormMapPage() {
             alerts={alerts}
             onRefresh={() => fetchWeatherData(true)}
             isRefreshing={isRefreshing}
+            selectedProperty={selectedProperty}
+            onLockProperty={handleLockProperty}
+            onUnlockProperty={handleUnlockProperty}
           />
         )}
 

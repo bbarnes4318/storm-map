@@ -2,18 +2,61 @@
 
 import React from "react";
 // Import Mapbox GL JS and React Map GL wrapper
-import Map, { MapRef } from "react-map-gl";
+import Map, { Source, Layer, Marker, Popup, MapRef, ViewStateChangeEvent, MapLayerMouseEvent } from "react-map-gl";
+import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-// Import types and helper utilities
-import { StormFilterState, StormReport, NwsAlert } from "@/lib/weather/types";
+// Import types and custom components
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
+import { StormReportMarker } from "./StormReportMarker";
+import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { StormLegend } from "./StormLegend";
-import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle } from "lucide-react";
-import { getDistanceMiles, clusterStormReports } from "@/lib/weather/geo";
+import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
+import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
+import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target } from "lucide-react";
 
-// TODO: Phase 3 - Re-enable and adapt these overlay imports for Mapbox once migrated
-// import { StormReportMarker } from "./StormReportMarker";
-// import { AlertPolygonLayer } from "./AlertPolygonLayer";
+const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+// Custom GeoJSON circle geometry generator (radius in miles, outputs [lon, lat])
+function createGeoJsonCircle(
+  center: [number, number], // [lat, lon]
+  radiusMiles: number,
+  points: number = 64
+) {
+  const [lat, lon] = center;
+  const coordinates: [number, number][] = [];
+  const distanceRadians = radiusMiles / 3958.8; // Earth's radius in miles
+  const latRadians = (lat * Math.PI) / 180;
+  const lonRadians = (lon * Math.PI) / 180;
+
+  for (let i = 0; i < points; i++) {
+    const angle = (i * 2 * Math.PI) / points;
+    const drawLat = Math.asin(
+      Math.sin(latRadians) * Math.cos(distanceRadians) +
+        Math.cos(latRadians) * Math.sin(distanceRadians) * Math.cos(angle)
+    );
+    const drawLon =
+      lonRadians +
+      Math.atan2(
+        Math.sin(angle) * Math.sin(distanceRadians) * Math.cos(latRadians),
+        Math.cos(distanceRadians) - Math.sin(latRadians) * Math.sin(drawLat)
+      );
+
+    coordinates.push([(drawLon * 180) / Math.PI, (drawLat * 180) / Math.PI]);
+  }
+
+  // Close the polygon
+  coordinates.push(coordinates[0]);
+
+  return {
+    type: "Feature" as const,
+    geometry: {
+      type: "Polygon" as const,
+      coordinates: [coordinates],
+    },
+    properties: {},
+  };
+}
 
 interface StormMapProps {
   filters: StormFilterState;
@@ -22,6 +65,9 @@ interface StormMapProps {
   alerts: NwsAlert[];
   onRefresh: () => void;
   isRefreshing: boolean;
+  selectedProperty: SelectedPropertyTarget | null;
+  onLockProperty: (property: SelectedPropertyTarget) => void;
+  onUnlockProperty: () => void;
 }
 
 export function StormMap({
@@ -31,27 +77,27 @@ export function StormMap({
   alerts,
   onRefresh,
   isRefreshing,
+  selectedProperty,
+  onLockProperty,
+  onUnlockProperty,
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
 
   const [mapZoom, setMapZoom] = React.useState(defaultZoom);
   const [showLegend, setShowLegend] = React.useState(true);
-
-  // Initialize Mapbox camera state
-  const [viewState, setViewState] = React.useState({
-    latitude: filters.center ? filters.center[0] : defaultCenter.latitude,
-    longitude: filters.center ? filters.center[1] : defaultCenter.longitude,
-    zoom: filters.center ? 8.5 : defaultZoom,
-  });
+  const [selectedReport, setSelectedReport] = React.useState<StormReport | null>(null);
+  const [selectedAlert, setSelectedAlert] = React.useState<NwsAlert | null>(null);
+  const [clickedTarget, setClickedTarget] = React.useState<SelectedPropertyTarget | null>(null);
+  const [cursor, setCursor] = React.useState<string>("auto");
 
   const mapRef = React.useRef<MapRef>(null);
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  const geocodeAbortControllerRef = React.useRef<AbortController | null>(null);
 
   // Synchronize filters.center changes with Mapbox camera
   React.useEffect(() => {
     if (filters.center) {
-      const targetZoom = viewState.zoom < 7 ? 8.5 : viewState.zoom;
+      const targetZoom = filters.targetZoom ?? (viewState.zoom < 7 ? 8.5 : viewState.zoom);
       setViewState((prev) => ({
         ...prev,
         latitude: filters.center![0],
@@ -67,14 +113,14 @@ export function StormMap({
         });
       }
     }
-  }, [filters.center]);
+  }, [filters.center, filters.targetZoom]);
 
-  const handleMove = (evt: any) => {
+  const handleMove = (evt: ViewStateChangeEvent) => {
     setViewState(evt.viewState);
     setMapZoom(evt.viewState.zoom);
   };
 
-  // Filter reports (preserve data flow calculations)
+  // Filter reports according to active sidebar/filter states
   const filteredReports = React.useMemo(() => {
     return reports.filter((r) => {
       // State boundary filter
@@ -101,7 +147,7 @@ export function StormMap({
     });
   }, [reports, filters]);
 
-  // Cluster reports (preserve data flow calculations)
+  // Cluster reports when zoomed out
   const mapClusters = React.useMemo(() => {
     return clusterStormReports(filteredReports, alerts);
   }, [filteredReports, alerts]);
@@ -119,6 +165,7 @@ export function StormMap({
         onFiltersChange({
           center: [lat, lon],
           searchQuery: "My Current Location",
+          targetZoom: 16.5,
         });
       },
       (error) => {
@@ -129,20 +176,270 @@ export function StormMap({
   };
 
   const handleResetMap = () => {
-    onFiltersChange({ center: null, searchQuery: "", radius: 0, state: "" });
-    setViewState({
-      latitude: defaultCenter.latitude,
-      longitude: defaultCenter.longitude,
-      zoom: defaultZoom,
-    });
+    onFiltersChange({ center: null, searchQuery: "", radius: 0, state: "", targetZoom: undefined });
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [defaultCenter.longitude, defaultCenter.latitude],
         zoom: defaultZoom,
         duration: 1000,
       });
+    } else {
+      setViewState({
+        latitude: defaultCenter.latitude,
+        longitude: defaultCenter.longitude,
+        zoom: defaultZoom,
+      });
     }
   };
+
+  const handleZoomToStreetLevel = () => {
+    const map = mapRef.current;
+    if (map) {
+      let targetLat = map.getCenter().lat;
+      let targetLon = map.getCenter().lng;
+
+      const isDefaultCenter = Math.abs(targetLat - defaultCenter.latitude) < 0.1 && 
+                              Math.abs(targetLon - defaultCenter.longitude) < 0.1;
+
+      if (isDefaultCenter) {
+        if (selectedProperty) {
+          targetLat = selectedProperty.latitude;
+          targetLon = selectedProperty.longitude;
+        } else if (filteredReports.length > 0) {
+          targetLat = filteredReports[0].lat;
+          targetLon = filteredReports[0].lon;
+        } else {
+          targetLat = 35.2226; // Norman, OK
+          targetLon = -97.4395;
+        }
+      }
+
+      map.flyTo({
+        center: [targetLon, targetLat],
+        zoom: 16.5,
+        duration: 1200,
+      });
+    }
+  };
+
+  const handleClusterClick = (clusterCenter: [number, number]) => {
+    onFiltersChange({ center: clusterCenter, targetZoom: 8.5 });
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [clusterCenter[1], clusterCenter[0]],
+        zoom: 8.5,
+        duration: 1000,
+      });
+    } else {
+      setViewState((prev) => ({
+        ...prev,
+        latitude: clusterCenter[0],
+        longitude: clusterCenter[1],
+        zoom: 8.5,
+      }));
+    }
+  };
+
+  // Canvas map click geocoding interceptor for warnings clicks
+  const handleMapClick = (event: MapLayerMouseEvent) => {
+    const map = event.target;
+    const zoom = map.getZoom();
+
+    const features = event.features;
+    if (features && features.length > 0) {
+      const clickedWarning = features.find((f) => f.layer.id === "warnings-fill");
+      if (clickedWarning) {
+        const props = clickedWarning.properties;
+        if (props) {
+          setSelectedAlert({
+            id: props.id,
+            event: props.event,
+            headline: props.headline,
+            severity: props.severity,
+            certainty: props.certainty,
+            urgency: props.urgency || "Unknown",
+            effective: props.effective,
+            expires: props.expires,
+            areaDesc: props.areaDesc,
+            instruction: props.instruction || "",
+            source: props.source,
+            // Store click location to position popup
+            polygon: [[event.lngLat.lat, event.lngLat.lng]],
+          });
+          setSelectedReport(null);
+          setClickedTarget(null);
+          return;
+        }
+      }
+    }
+
+    if (zoom >= 15) {
+      // Clear alert and report selections
+      setSelectedAlert(null);
+      setSelectedReport(null);
+
+      // Abort previous geocoding request if active
+      if (geocodeAbortControllerRef.current) {
+        geocodeAbortControllerRef.current.abort();
+      }
+      geocodeAbortControllerRef.current = new AbortController();
+      const signal = geocodeAbortControllerRef.current.signal;
+
+      const clickLat = event.lngLat.lat;
+      const clickLon = event.lngLat.lng;
+
+      // Candidate layers to query at the clicked point
+      const candidateLayers = [
+        "aurum-house-number-labels",
+        "building-footprints",
+        "building",
+        "road-label"
+      ];
+      const layersToQuery = candidateLayers.filter((layerId) => map.getLayer(layerId));
+
+      let addressFeatureInfo: mapboxgl.MapboxGeoJSONFeature["properties"] | null = null;
+      if (layersToQuery.length > 0) {
+        const featuresAtPoint = map.queryRenderedFeatures(event.point, { layers: layersToQuery });
+        if (featuresAtPoint && featuresAtPoint.length > 0) {
+          const houseNumFeature = featuresAtPoint.find((f) => f.properties?.house_num || f.properties?.address_number);
+          const buildingFeature = featuresAtPoint.find((f) => f.layer.id === "building" || f.layer.id === "building-footprints");
+          if (houseNumFeature) {
+            addressFeatureInfo = houseNumFeature.properties;
+          } else if (buildingFeature) {
+            addressFeatureInfo = buildingFeature.properties;
+          }
+        }
+      }
+
+      reverseGeocodeAddress(clickLat, clickLon, signal)
+        .then((target) => {
+          if (signal.aborted) return;
+          if (target) {
+            // Merge neighborhood or details if we queried them from features
+            setClickedTarget(target);
+          } else {
+            setClickedTarget({
+              id: `fallback-${Date.now()}`,
+              latitude: clickLat,
+              longitude: clickLon,
+              fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
+              source: "fallback",
+              confidence: "unknown",
+              locked: false,
+            });
+          }
+        })
+        .catch((err) => {
+          if (signal.aborted) return;
+          console.error("Geocoding lookup error:", err);
+          setClickedTarget({
+            id: `fallback-err-${Date.now()}`,
+            latitude: clickLat,
+            longitude: clickLon,
+            fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
+            source: "fallback",
+            confidence: "unknown",
+            locked: false,
+          });
+        });
+
+      return;
+    }
+
+    // Clicking elsewhere closes popups
+    setSelectedAlert(null);
+    setSelectedReport(null);
+    setClickedTarget(null);
+  };
+
+  // Viewport camera tracking state
+  const [viewState, setViewState] = React.useState({
+    latitude: filters.center ? filters.center[0] : defaultCenter.latitude,
+    longitude: filters.center ? filters.center[1] : defaultCenter.longitude,
+    zoom: filters.center ? 8.5 : defaultZoom,
+  });
+
+  // Dynamically toggle neighborhood label style layer visibility
+  React.useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const toggleNeighborhoodLabels = () => {
+      try {
+        const layers = map.getStyle()?.layers || [];
+        const neighborhoodLayers = layers.filter(
+          (l) => l.id.includes("neighborhood") || l.id.includes("suburb")
+        );
+
+        const visibility = filters.showNeighborhoodLabels ? "visible" : "none";
+        neighborhoodLayers.forEach((layer) => {
+          if (map.getLayer(layer.id)) {
+            map.setLayoutProperty(layer.id, "visibility", visibility);
+          }
+        });
+      } catch (err) {
+        console.warn("Could not toggle neighborhood label layers:", err);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      toggleNeighborhoodLabels();
+    } else {
+      map.on("style.load", toggleNeighborhoodLabels);
+      return () => {
+        map.off("style.load", toggleNeighborhoodLabels);
+      };
+    }
+  }, [filters.showNeighborhoodLabels, filters.mapStyle, mapZoom]);
+
+  const handleMapLoad = (evt: mapboxgl.MapboxEvent) => {
+    const map = evt.target;
+    try {
+      const layers = map.getStyle()?.layers || [];
+      const neighborhoodLayers = layers.filter(
+        (l) => l.id.includes("neighborhood") || l.id.includes("suburb")
+      );
+      const visibility = filters.showNeighborhoodLabels ? "visible" : "none";
+      neighborhoodLayers.forEach((layer) => {
+        if (map.getLayer(layer.id)) {
+          map.setLayoutProperty(layer.id, "visibility", visibility);
+        }
+      });
+    } catch (err) {
+      console.warn("Could not initialize neighborhood label layers on load:", err);
+    }
+  };
+
+  // Hover pointers over warnings
+  const onMouseEnter = React.useCallback(() => setCursor("pointer"), []);
+  const onMouseLeave = React.useCallback(() => setCursor("auto"), []);
+
+  const shouldCluster = viewState.zoom <= 7;
+
+  // Generate target geocoded search radius GeoJSON polygon
+  const radiusCircleGeoJson = React.useMemo(() => {
+    if (!filters.center || filters.radius <= 0) return null;
+    return createGeoJsonCircle(filters.center, filters.radius);
+  }, [filters.center, filters.radius]);
+
+  // Generate cluster boundary concentric rings GeoJSON polygon FeatureCollection
+  const clusterCirclesGeoJson = React.useMemo(() => {
+    if (!shouldCluster) return null;
+    const features = mapClusters.map((cluster) => {
+      const circlePolygon = createGeoJsonCircle(cluster.center, 7.5);
+      return {
+        ...circlePolygon,
+        properties: {
+          id: cluster.id,
+          type: cluster.mainStormType,
+        },
+      };
+    });
+    return {
+      type: "FeatureCollection" as const,
+      features,
+    };
+  }, [mapClusters, shouldCluster]);
 
   // MapStyle URL mapper
   const getMapStyleUrl = (style: string) => {
@@ -154,6 +451,48 @@ export function StormMap({
       case "streets":
       default:
         return "mapbox://styles/mapbox/streets-v12";
+    }
+  };
+
+  // Calculations for report popup details
+  const reportOpportunityScore = React.useMemo(() => {
+    if (!selectedReport) return 0;
+    return calculateReportScore(selectedReport, alerts, reports);
+  }, [selectedReport, alerts, reports]);
+
+  const scoreBadgeColor = () => {
+    if (reportOpportunityScore >= 100) return "bg-red-500/20 text-red-300 border-red-500/40";
+    if (reportOpportunityScore >= 70) return "bg-orange-500/20 text-orange-300 border-orange-500/40";
+    return "bg-slate-700/50 text-slate-300 border-slate-600";
+  };
+
+  const scoreText = () => {
+    if (reportOpportunityScore >= 100) return "EXCELLENT TARGET";
+    if (reportOpportunityScore >= 70) return "HIGH PRIORITY";
+    return "STANDARD OPP";
+  };
+
+  const formattedReportTime = React.useMemo(() => {
+    if (!selectedReport) return "";
+    const report = selectedReport;
+    if (report.timeRaw && report.timeRaw.length === 4) {
+      const hh = report.timeRaw.slice(0, 2);
+      const mm = report.timeRaw.slice(2, 4);
+      let hourInt = parseInt(hh, 10);
+      const ampm = hourInt >= 12 ? "PM" : "AM";
+      hourInt = hourInt % 12 || 12;
+      return `${hourInt}:${mm} ${ampm} UTC`;
+    }
+    return report.timeRaw;
+  }, [selectedReport]);
+
+  const formatAlertTime = (isoString?: string) => {
+    if (!isoString) return "N/A";
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    } catch (e) {
+      return isoString;
     }
   };
 
@@ -170,6 +509,10 @@ export function StormMap({
     );
   }
 
+  // ArcGIS / NOAA REST export tile URL
+  const radarTileUrl =
+    "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&size=256,256&imageSR=3857&format=png32&transparent=true&f=image";
+
   return (
     <div className="relative w-full h-full bg-[#030712] overflow-hidden">
       {/* Mapbox GL Map Canvas */}
@@ -177,16 +520,478 @@ export function StormMap({
         {...viewState}
         ref={mapRef}
         onMove={handleMove}
+        onClick={handleMapClick}
+        onLoad={handleMapLoad}
+        interactiveLayerIds={filters.showAlerts ? ["warnings-fill"] : []}
+        onMouseEnter={filters.showAlerts ? onMouseEnter : undefined}
+        onMouseLeave={filters.showAlerts ? onMouseLeave : undefined}
+        cursor={cursor}
         style={{ width: "100%", height: "100%" }}
         mapStyle={getMapStyleUrl(filters.mapStyle)}
         mapboxAccessToken={mapboxToken}
         maxZoom={18}
         minZoom={2.5}
+        attributionControl={false}
       >
-        {/* TODO: Phase 3 - Port NOAA MapServer radar tiles raster source & layer */}
-        {/* TODO: Phase 3 - Port active NWS warnings GeoJSON overlay */}
-        {/* TODO: Phase 3 - Port storm reports and clusters markers */}
-        {/* TODO: Phase 3 - Port geocoding radius circle & target marker layers */}
+        {/* Layer 0: Building Footprints vector layer */}
+        {filters.showBuildings && (
+          <Layer
+            id="building-footprints"
+            source="composite"
+            source-layer="building"
+            type="fill"
+            minZoom={13}
+            paint={{
+              "fill-color": "#374151",
+              "fill-opacity": 0.25,
+              "fill-outline-color": "#4b5563",
+            }}
+          />
+        )}
+
+        {/* Layer 1: Live NOAA Base Reflectivity Radar Raster Layer */}
+        {filters.showRadar && (
+          <Source id="noaa-radar" type="raster" tiles={[radarTileUrl]} tileSize={256}>
+            <Layer
+              id="radar-layer"
+              type="raster"
+              paint={{
+                "raster-opacity": filters.radarOpacity,
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 2: Active NWS Alert Warning Polygons */}
+        {filters.showAlerts && <AlertPolygonLayer alerts={alerts} />}
+
+        {/* Layer 3: Target Search Radius Circle Layer */}
+        {radiusCircleGeoJson && (
+          <Source id="search-radius" type="geojson" data={radiusCircleGeoJson}>
+            <Layer
+              id="search-radius-fill"
+              type="fill"
+              paint={{
+                "fill-color": "#ef4444",
+                "fill-opacity": 0.04,
+              }}
+            />
+            <Layer
+              id="search-radius-outline"
+              type="line"
+              paint={{
+                "line-color": "#ef4444",
+                "line-width": 1.5,
+                "line-dasharray": [4, 4],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 4: Cluster boundary Concentric rings circles */}
+        {shouldCluster && clusterCirclesGeoJson && (
+          <Source id="cluster-circles" type="geojson" data={clusterCirclesGeoJson}>
+            <Layer
+              id="cluster-circles-layer"
+              type="fill"
+              paint={{
+                "fill-color": [
+                  "case",
+                  ["==", ["get", "type"], "tornado"], "#ef4444",
+                  ["==", ["get", "type"], "wind"], "#f97316",
+                  "#3b82f6"
+                ],
+                "fill-opacity": 0.05,
+              }}
+            />
+            <Layer
+              id="cluster-circles-outline"
+              type="line"
+              paint={{
+                "line-color": [
+                  "case",
+                  ["==", ["get", "type"], "tornado"], "#ef4444",
+                  ["==", ["get", "type"], "wind"], "#f97316",
+                  "#3b82f6"
+                ],
+                "line-width": 1,
+                "line-dasharray": [3, 3],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 5: Geocoding Target Pin marker */}
+        {filters.center && (
+          <Marker latitude={filters.center[0]} longitude={filters.center[1]} anchor="center">
+            <div className="relative flex items-center justify-center">
+              <div className="w-5 h-5 rounded-full bg-red-500/20 border-2 border-red-500/50 animate-ping absolute" />
+              <div className="w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-white shadow-glow-tornado relative" />
+            </div>
+          </Marker>
+        )}
+
+        {/* Layer 6: Storm Report Markers (Individual or Clustered based on zoom level) */}
+        {shouldCluster
+          ? mapClusters.map((cluster) => {
+              let bgClass = "bg-blue-600/90";
+              let borderClass = "border-blue-300";
+              let shadowClass = "shadow-glow-hail";
+
+              if (cluster.tornadoCount > 0) {
+                bgClass = "bg-red-600/90 animate-target-pulse";
+                borderClass = "border-red-200";
+                shadowClass = "shadow-glow-tornado";
+              } else if (cluster.windCount > 0) {
+                bgClass = "bg-orange-500/90";
+                borderClass = "border-orange-200";
+                shadowClass = "shadow-glow-wind";
+              }
+
+              return (
+                <Marker
+                  key={cluster.id}
+                  latitude={cluster.center[0]}
+                  longitude={cluster.center[1]}
+                  anchor="center"
+                  onClick={(e) => {
+                    e.originalEvent.stopPropagation();
+                    handleClusterClick(cluster.center);
+                  }}
+                >
+                  <div className={`w-10 h-10 rounded-full ${bgClass} border-2 ${borderClass} ${shadowClass} flex flex-col items-center justify-center text-white relative transition-transform hover:scale-105 cursor-pointer`}>
+                    <span className="text-[11px] font-black leading-none">{cluster.reportsCount}</span>
+                    <span className="text-[6.5px] font-black uppercase tracking-tighter leading-none mt-0.5">{cluster.mainStormType.slice(0, 4)}</span>
+                  </div>
+                </Marker>
+              );
+            })
+          : filteredReports.map((report) => (
+              <StormReportMarker
+                key={report.id}
+                report={report}
+                onClick={() => {
+                  setSelectedReport(report);
+                  setSelectedAlert(null);
+                }}
+              />
+            ))}
+
+        {/* Layer 6.5: House Number Labels */}
+        {filters.showHouseNumbers && (
+          <Layer
+            id="aurum-house-number-labels"
+            source="composite"
+            source-layer="housenum_label"
+            type="symbol"
+            minZoom={16}
+            layout={{
+              "text-field": ["get", "house_num"],
+              "text-size": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                16, 10,
+                18, 12
+              ],
+              "text-justify": "center",
+            }}
+            paint={{
+              "text-color": "#f3f4f6",
+              "text-halo-color": "#030712",
+              "text-halo-width": 1.5,
+            }}
+          />
+        )}
+
+        {/* Layer 6.6: Locked target marker */}
+        {selectedProperty && (
+          <Marker
+            latitude={selectedProperty.latitude}
+            longitude={selectedProperty.longitude}
+            anchor="center"
+          >
+            <div className="relative flex items-center justify-center cursor-pointer" onClick={() => {
+              setClickedTarget({ ...selectedProperty, locked: true });
+            }}>
+              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 animate-target-pulse absolute" />
+              <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-glow-hail relative flex items-center justify-center">
+                <MapPin size={8} className="text-white" />
+              </div>
+            </div>
+          </Marker>
+        )}
+
+        {/* Layer 7.5: Clicked Property Target Popup */}
+        {clickedTarget && (
+          <Popup
+            latitude={clickedTarget.latitude}
+            longitude={clickedTarget.longitude}
+            onClose={() => setClickedTarget(null)}
+            closeButton={true}
+            closeOnClick={false}
+            anchor="bottom"
+            offset={12}
+            maxWidth="310px"
+          >
+            <div className="text-slate-100 flex flex-col gap-3 p-1 select-none">
+              {/* Header with Title and Verification Status Badge */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="p-1 rounded bg-slate-900 border border-slate-800">
+                    <MapPin size={12} className="text-red-500" />
+                  </div>
+                  <span className="font-extrabold uppercase text-[10px] tracking-wider text-slate-300">
+                    Lead Target Info
+                  </span>
+                </div>
+                {clickedTarget.confidence === "exact" ? (
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-extrabold uppercase tracking-wider">
+                    Verified
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8px] font-extrabold uppercase tracking-wider">
+                    Approximate
+                  </span>
+                )}
+              </div>
+
+              {/* Main Address Display */}
+              <div className="space-y-2.5 text-xs">
+                <div className="bg-slate-900/30 p-2 rounded border border-slate-800/40">
+                  <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Street Address</span>
+                  <p className="font-black text-slate-100 text-sm leading-snug">
+                    {clickedTarget.fullAddress}
+                  </p>
+                </div>
+
+                {/* Subdetails Grid */}
+                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  {clickedTarget.neighborhood && (
+                    <div className="col-span-2 bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
+                      <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
+                      <p className="font-semibold text-slate-200">
+                        {clickedTarget.neighborhood}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
+                    <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
+                    <p className="font-semibold text-slate-200">
+                      {[clickedTarget.city, clickedTarget.state].filter(Boolean).join(", ") || "N/A"}
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
+                    <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
+                    <p className="font-semibold text-slate-200">
+                      {clickedTarget.postcode || "N/A"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer Metadata */}
+                <div className="text-[8px] text-slate-500 font-mono flex items-center justify-between pt-1.5 border-t border-slate-900">
+                  <span>GPS Coordinates</span>
+                  <span>{clickedTarget.latitude.toFixed(5)}, {clickedTarget.longitude.toFixed(5)}</span>
+                </div>
+              </div>
+
+              {/* Actions Section */}
+              <div className="mt-1 flex flex-col gap-1.5">
+                {selectedProperty?.latitude === clickedTarget.latitude && 
+                 selectedProperty?.longitude === clickedTarget.longitude ? (
+                  <div className="w-full text-center py-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Locked for Lead Route
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      onLockProperty(clickedTarget);
+                      setClickedTarget(null);
+                    }}
+                    className="w-full text-center py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-lg hover:shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    Lock Address for Lead Route
+                  </button>
+                )}
+              </div>
+            </div>
+          </Popup>
+        )}
+
+        {/* Layer 7: Individual Storm Report Popup Details */}
+        {selectedReport && (
+          <Popup
+            latitude={selectedReport.lat}
+            longitude={selectedReport.lon}
+            onClose={() => setSelectedReport(null)}
+            closeButton={true}
+            closeOnClick={false}
+            anchor="bottom"
+            offset={16}
+            maxWidth="320px"
+          >
+            <div className="text-slate-100 flex flex-col gap-2">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      selectedReport.type === "hail"
+                        ? "bg-blue-500"
+                        : selectedReport.type === "wind"
+                        ? "bg-orange-500"
+                        : "bg-red-500"
+                    }`}
+                  ></span>
+                  <span className="font-extrabold uppercase tracking-wider text-xs">
+                    {selectedReport.type} REPORT
+                  </span>
+                </span>
+                <span className="text-[10px] text-slate-400 capitalize">{selectedReport.eventDate}</span>
+              </div>
+
+              {/* Target Priority Score Badge */}
+              <div className={`flex items-center justify-between px-2 py-1 rounded border text-[10px] ${scoreBadgeColor()}`}>
+                <span className="font-semibold">TARGET VALUE: {reportOpportunityScore} pts</span>
+                <span className="font-extrabold text-[9px] tracking-wide uppercase">{scoreText()}</span>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-1.5 text-xs text-slate-300">
+                <div>
+                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Magnitude</span>
+                  <p className="font-semibold text-slate-200">
+                    {selectedReport.type === "hail" && selectedReport.magnitude
+                      ? `${(parseFloat(selectedReport.magnitude) > 10 ? parseFloat(selectedReport.magnitude) / 100 : parseFloat(selectedReport.magnitude)).toFixed(2)} in Hail`
+                      : selectedReport.type === "wind" && selectedReport.magnitude
+                      ? `${selectedReport.magnitude} mph Wind`
+                      : selectedReport.type === "tornado"
+                      ? `${selectedReport.magnitude || "Reported"} Tornado`
+                      : "N/A"}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-500 font-medium block text-[10px] uppercase">Time (UTC)</span>
+                    <p className="font-medium text-slate-200">{formattedReportTime}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-medium block text-[10px] uppercase">State / County</span>
+                    <p className="font-medium text-slate-200">{selectedReport.county}, {selectedReport.state}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Location Details</span>
+                  <p className="font-medium text-slate-200">{selectedReport.location}</p>
+                </div>
+
+                {selectedReport.comments && (
+                  <div>
+                    <span className="text-slate-500 font-medium block text-[10px] uppercase">SPC Comments</span>
+                    <p className="font-light italic text-slate-300 text-[11px] bg-slate-950/40 p-1.5 rounded border border-slate-900/60 leading-relaxed">
+                      "{selectedReport.comments}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer source info */}
+              <div className="mt-1 pt-1.5 border-t border-slate-800 text-[9px] text-slate-500 flex flex-col gap-0.5">
+                <div>Source: NOAA SPC preliminary storm report</div>
+                <div className="italic text-slate-500/80 leading-normal">
+                  * Storm reports are preliminary and may be updated by NOAA/SPC.
+                </div>
+              </div>
+            </div>
+          </Popup>
+        )}
+
+        {/* Layer 8: NWS Warning Polygons Details Popup */}
+        {selectedAlert && (
+          <Popup
+            latitude={selectedAlert.polygon![0][0]}
+            longitude={selectedAlert.polygon![0][1]}
+            onClose={() => setSelectedAlert(null)}
+            closeButton={true}
+            closeOnClick={false}
+            anchor="top"
+            offset={4}
+            maxWidth="360px"
+          >
+            <div className="text-slate-100 flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
+              <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
+                <AlertCircle
+                  size={16}
+                  className={
+                    selectedAlert.event.includes("Tornado")
+                      ? "text-red-500"
+                      : selectedAlert.event.includes("Severe")
+                      ? "text-orange-500"
+                      : "text-blue-500"
+                  }
+                />
+                <span className="font-extrabold uppercase text-xs tracking-wider">
+                  {selectedAlert.event}
+                </span>
+              </div>
+
+              <p className="text-xs font-semibold text-slate-200 leading-normal">
+                {selectedAlert.headline}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 bg-slate-950/50 p-2 rounded border border-slate-900 text-[10px]">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-slate-500 font-medium uppercase">Effective</span>
+                  <span className="text-slate-300 font-semibold">{formatAlertTime(selectedAlert.effective)}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-slate-500 font-medium uppercase">Expires</span>
+                  <span className="text-red-400 font-semibold">{formatAlertTime(selectedAlert.expires)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-slate-500 font-medium block text-[9px] uppercase tracking-wider">Severity & Certainty</span>
+                  <div className="flex gap-1.5 mt-0.5">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">
+                      {selectedAlert.severity} Severity
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">
+                      {selectedAlert.certainty} Certainty
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 font-medium block text-[9px] uppercase tracking-wider">Target Counties</span>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    {selectedAlert.areaDesc}
+                  </p>
+                </div>
+
+                {selectedAlert.instruction && (
+                  <div className="border-t border-slate-900/80 pt-2">
+                    <span className="text-red-400/90 font-bold block text-[9px] uppercase tracking-wider">NWS Instructions</span>
+                    <p className="text-slate-300 font-light text-[11px] leading-relaxed mt-0.5 bg-red-950/10 border border-red-500/10 p-2 rounded italic">
+                      {selectedAlert.instruction}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-1 pt-1.5 border-t border-slate-800 text-[9px] text-slate-500 flex justify-between">
+                <span>Source: {selectedAlert.source}</span>
+                <span className="text-slate-500/80">Active Alert Area</span>
+              </div>
+            </div>
+          </Popup>
+        )}
       </Map>
 
       {/* Floating Control Toolbar */}
@@ -196,6 +1001,7 @@ export function StormMap({
             onClick={handleGeolocate}
             className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
             title="Locate Me"
+            type="button"
           >
             <Compass size={16} />
           </button>
@@ -203,14 +1009,24 @@ export function StormMap({
             onClick={handleResetMap}
             className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
             title="Reset Map Bounds"
+            type="button"
           >
             <Maximize2 size={16} />
+          </button>
+          <button
+            onClick={handleZoomToStreetLevel}
+            className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+            title="Zoom to Street Level"
+            type="button"
+          >
+            <Target size={16} />
           </button>
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
             className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
             title="Manual Refresh Data"
+            type="button"
           >
             <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           </button>
@@ -220,6 +1036,7 @@ export function StormMap({
               showLegend ? "text-red-500 hover:bg-slate-900" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
             }`}
             title="Toggle Legend Panel"
+            type="button"
           >
             {showLegend ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>

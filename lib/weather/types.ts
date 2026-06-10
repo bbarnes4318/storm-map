@@ -52,6 +52,7 @@ export type StormFilterState = {
   state: string; // e.g. "TX"
   radius: number; // 0 for all, or 10, 25, 50, 100 miles
   center: [number, number] | null; // Selected search coordinates [lat, lon]
+  targetZoom?: number; // Target zoom level for map camera flight
   showHail: boolean;
   showWind: boolean;
   showTornado: boolean;

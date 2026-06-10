@@ -100,7 +100,7 @@ export async function fetchNwsAlerts(): Promise<NwsAlert[]> {
       const geom = feature.geometry;
 
       if (geom && geom.type === "Polygon" && Array.isArray(geom.coordinates)) {
-        // Swap coordinates from GeoJSON [lon, lat] to Leaflet [lat, lon]
+        // Swap coordinates from GeoJSON [lon, lat] to internal [lat, lon]
         const outerRing = geom.coordinates[0];
         if (Array.isArray(outerRing)) {
           polygon = outerRing.map((coord) => {

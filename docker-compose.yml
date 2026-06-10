@@ -21,12 +21,18 @@ services:
       - "traefik.http.routers.stormmap-secure.service=stormmap-service"
       
       # Insecure Router (HTTP) - intercepts storm-map path for IP testing
-      - "traefik.http.routers.stormmap-insecure.rule=(Host(`178.156.213.79`) || Host(`storm.aurumshield.vip`) || Host(`stormmap.aurumshield.vip`) || Host(`app.aurumshield.vip`) || Host(`aurumshield.vip`)) && PathPrefix(`/storm-map`)"
+      - "traefik.http.routers.stormmap-insecure.rule=(Host(`87.99.155.241`) || Host(`storm.aurumshield.vip`) || Host(`stormmap.aurumshield.vip`) || Host(`app.aurumshield.vip`) || Host(`aurumshield.vip`)) && PathPrefix(`/storm-map`)"
       - "traefik.http.routers.stormmap-insecure.entrypoints=http"
       - "traefik.http.routers.stormmap-insecure.service=stormmap-service"
       
       # Target Port
       - "traefik.http.services.stormmap-service.loadbalancer.server.port=3000"
+      
+      # Root Router for redirecting / to /storm-map
+      - "traefik.http.routers.stormmap-root.rule=(Host(`87.99.155.241`) || Host(`storm.aurumshield.vip`) || Host(`stormmap.aurumshield.vip`) || Host(`app.aurumshield.vip`) || Host(`aurumshield.vip`)) && Path(`/`)"
+      - "traefik.http.routers.stormmap-root.entrypoints=http"
+      - "traefik.http.routers.stormmap-root.middlewares=stormmap-redirect@file"
+      - "traefik.http.routers.stormmap-root.service=stormmap-service"
 
 networks:
   coolify:

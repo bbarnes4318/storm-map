@@ -118,3 +118,6 @@ export async function reverseGeocodeMapbox(
     return null;
   }
 }
+
+export const reverseGeocodeAddress = reverseGeocodeMapbox;
+

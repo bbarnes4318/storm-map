@@ -1,5 +1,3 @@
-@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -48,42 +46,6 @@
   }
 }
 
-/* Custom Leaflet Dark Mode Overrides */
-.leaflet-container {
-  background-color: #030712 !important;
-  outline: none;
-  font-family: inherit;
-}
-
-/* Leaflet Popups */
-.leaflet-popup-content-wrapper {
-  background-color: #0f172a !important;
-  color: #f8fafc !important;
-  border: 1px solid #1e293b !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5) !important;
-  padding: 0px !important;
-}
-
-.leaflet-popup-content {
-  margin: 12px 16px !important;
-  line-height: 1.4 !important;
-}
-
-.leaflet-popup-tip {
-  background-color: #0f172a !important;
-  border: 1px solid #1e293b !important;
-}
-
-.leaflet-popup-close-button {
-  color: #94a3b8 !important;
-  padding: 8px 12px 0 0 !important;
-}
-
-.leaflet-popup-close-button:hover {
-  color: #f8fafc !important;
-}
-
 /* Custom Scrollbars for Sidebar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -122,3 +84,65 @@
 .animate-target-pulse {
   animation: target-pulse 2s infinite;
 }
+
+/* Custom Mapbox GL Popup styling - Premium Dark Mode */
+.mapboxgl-popup-content {
+  background: rgba(3, 7, 18, 0.95) !important; /* Slate-950 backdrop with high opacity */
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important; /* Slate-700 border for sharp visibility */
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7) !important;
+  padding: 14px 16px !important;
+}
+
+/* Make the popup arrow anchor match the dark theme */
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip {
+  border-bottom-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
+  border-bottom-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip {
+  border-top-color: rgba(3, 7, 18, 0.95) !important;
+}
+.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-top-color: rgba(3, 7, 18, 0.95) !important;
+}
+
+/* Close button custom styling */
+.mapboxgl-popup-close-button {
+  color: #94a3b8 !important; /* Slate-400 */
+  font-size: 16px !important;
+  padding: 4px 8px !important;
+  top: 4px !important;
+  right: 4px !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.mapboxgl-popup-close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important; /* Slate-50 */
+}
+
+/* Hide Mapbox logo and attribution control completely to prevent redirects */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib,
+.mapbox-logo,
+.mapbox-attribution {
+  display: none !important;
+}
+
