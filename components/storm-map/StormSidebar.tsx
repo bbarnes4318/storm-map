@@ -3,7 +3,8 @@
 import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget } from "@/lib/weather/types";
 import { clusterStormReports } from "@/lib/weather/geo";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare } from "lucide-react";
+import { StormLegend } from "./StormLegend";
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -176,6 +177,16 @@ export function StormSidebar({
 
           {/* Control Actions */}
           <div className="flex items-center gap-1 shrink-0">
+            <a
+              href="https://sms.leadzer.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
+              title="Open SMS App"
+            >
+              <MessageSquare size={10} className="text-red-500 shrink-0" />
+              <span>SMS</span>
+            </a>
             <button
               onClick={onResetView}
               className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors"
@@ -322,7 +333,7 @@ export function StormSidebar({
                     <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Hail</span>
                   </div>
                   <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-orange-400">{windCount}</span>
+                    <span className="text-sm font-black text-cyan-400">{windCount}</span>
                     <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Wind</span>
                   </div>
                   <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
@@ -359,7 +370,7 @@ export function StormSidebar({
                     </label>
                     <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
                       <span className="text-[9.5px] text-slate-350 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-orange-500 shadow-glow-wind"></span>
+                        <span className="w-1 h-1 rounded-full bg-cyan-500 shadow-glow-wind"></span>
                         Wind Damage
                       </span>
                       <input
@@ -441,14 +452,14 @@ export function StormSidebar({
                 </div>
               </div>
 
-              {/* 4. Secondary Map Settings (Collapsible Accordion) */}
-              <div className="border-t border-slate-900 pt-3">
-                <details className="group border border-slate-900 rounded-lg bg-slate-950/20 overflow-hidden">
-                  <summary className="flex items-center justify-between p-2 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-900/30 select-none">
+              {/* 4. Secondary Map Settings (Collapsible Accordion) & Legend */}
+              <div className="border-t border-slate-900 pt-2 relative">
+                <details className="group border border-slate-900 rounded bg-slate-950/20 overflow-visible">
+                  <summary className="flex items-center justify-between p-1.5 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-900/30 select-none">
                     <span>Basemap & Layer Toggles</span>
                     <span className="text-[7px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="p-3 border-t border-slate-900 space-y-3 bg-slate-950/40">
+                  <div className="absolute left-0 right-0 z-[20] mt-1 p-2.5 border border-slate-900 rounded bg-slate-950 shadow-2xl space-y-2.5 hidden group-open:block">
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-400 block uppercase">Basemap style</label>
                       <select
@@ -537,6 +548,11 @@ export function StormSidebar({
                     </label>
                   </div>
                 </details>
+
+                {/* Map Legend */}
+                <div className="mt-2">
+                  <StormLegend className="bg-slate-900/10 border border-slate-900/60 rounded p-2 text-[10px] text-slate-400 w-full" />
+                </div>
               </div>
             </>
           ) : (
@@ -600,7 +616,7 @@ export function StormSidebar({
                               cluster.mainStormType === "hail"
                                 ? "text-blue-400"
                                 : cluster.mainStormType === "wind"
-                                ? "text-orange-400"
+                                ? "text-cyan-400"
                                 : "text-red-400 animate-pulse"
                             }`}>
                               {cluster.highestMagnitude !== "N/A" ? cluster.highestMagnitude : cluster.mainStormType}

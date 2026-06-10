@@ -28,7 +28,7 @@ export function StormReportMarker({ report, onClick }: StormReportMarkerProps) {
       speedText = "W";
     }
     innerText = speedText;
-    className = "w-7 h-7 rounded-full bg-orange-500 border border-orange-200 shadow-glow-wind flex items-center justify-center text-[9px] font-extrabold text-white relative transition-transform hover:scale-110 cursor-pointer";
+    className = "w-7 h-7 rounded-full bg-cyan-500 border border-cyan-200 shadow-glow-wind flex items-center justify-center text-[9px] font-extrabold text-white relative transition-transform hover:scale-110 cursor-pointer";
   } else if (report.type === "tornado") {
     innerText = report.magnitude || "T";
     className = "w-7 h-7 rounded-full bg-red-600 border border-red-200 shadow-glow-tornado flex items-center justify-center text-[10px] font-extrabold text-white relative animate-target-pulse transition-transform hover:scale-110 cursor-pointer";

@@ -10,7 +10,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
 import { StormReportMarker } from "./StormReportMarker";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
-import { StormLegend } from "./StormLegend";
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target } from "lucide-react";
@@ -85,7 +84,6 @@ export function StormMap({
   const defaultZoom = 3.8;
 
   const [mapZoom, setMapZoom] = React.useState(defaultZoom);
-  const [showLegend, setShowLegend] = React.useState(true);
   const [selectedReport, setSelectedReport] = React.useState<StormReport | null>(null);
   const [selectedAlert, setSelectedAlert] = React.useState<NwsAlert | null>(null);
   const [clickedTarget, setClickedTarget] = React.useState<SelectedPropertyTarget | null>(null);
@@ -240,13 +238,47 @@ export function StormMap({
     }
   };
 
-  // Canvas map click geocoding interceptor for warnings clicks
+  // Canvas map click geocoding interceptor for warnings/reports clicks
   const handleMapClick = (event: MapLayerMouseEvent) => {
     const map = event.target;
     const zoom = map.getZoom();
 
     const features = event.features;
     if (features && features.length > 0) {
+      // 1. Check if an individual storm report was clicked
+      const clickedReportFeature = features.find((f) => f.layer.id === "storm-reports-layer");
+      if (clickedReportFeature) {
+        const reportId = clickedReportFeature.properties?.id;
+        let report = reports.find((r) => r.id === reportId);
+        if (!report) {
+          // Reconstruct as fallback
+          const props = clickedReportFeature.properties;
+          if (props) {
+            report = {
+              id: props.id,
+              type: props.type,
+              timeRaw: props.timeRaw,
+              eventDate: props.eventDate,
+              location: props.location || "",
+              county: props.county || "",
+              state: props.state || "",
+              lat: props.lat,
+              lon: props.lon,
+              magnitude: props.magnitude,
+              comments: props.comments,
+              source: props.source || "SPC",
+            };
+          }
+        }
+        if (report) {
+          setSelectedReport(report);
+          setSelectedAlert(null);
+          setClickedTarget(null);
+          return;
+        }
+      }
+
+      // 2. Check if a warning was clicked
       const clickedWarning = features.find((f) => f.layer.id === "warnings-fill");
       if (clickedWarning) {
         const props = clickedWarning.properties;
@@ -441,6 +473,56 @@ export function StormMap({
     };
   }, [mapClusters, shouldCluster]);
 
+  // Generate GeoJSON FeatureCollection for individual storm reports
+  const reportsGeoJson = React.useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: filteredReports.map((report) => {
+        let label = "";
+        if (report.type === "hail") {
+          let sizeText = report.magnitude || "";
+          const sizeFloat = parseFloat(sizeText);
+          if (!isNaN(sizeFloat)) {
+            const displaySize = sizeFloat > 10 ? sizeFloat / 100 : sizeFloat;
+            sizeText = displaySize.toFixed(2);
+          }
+          label = sizeText;
+        } else if (report.type === "wind") {
+          let speedText = report.magnitude || "";
+          if (!speedText || speedText.toLowerCase() === "unk") {
+            speedText = "W";
+          }
+          label = speedText;
+        } else if (report.type === "tornado") {
+          label = report.magnitude || "T";
+        }
+
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [report.lon, report.lat], // [longitude, latitude]
+          },
+          properties: {
+            id: report.id,
+            type: report.type,
+            timeRaw: report.timeRaw,
+            eventDate: report.eventDate,
+            location: report.location || "",
+            county: report.county || "",
+            state: report.state || "",
+            lat: report.lat,
+            lon: report.lon,
+            magnitude: report.magnitude || "",
+            comments: report.comments || "",
+            source: report.source || "SPC",
+            label: label,
+          },
+        };
+      }),
+    };
+  }, [filteredReports]);
+
   // MapStyle URL mapper
   const getMapStyleUrl = (style: string) => {
     switch (style) {
@@ -522,9 +604,18 @@ export function StormMap({
         onMove={handleMove}
         onClick={handleMapClick}
         onLoad={handleMapLoad}
-        interactiveLayerIds={filters.showAlerts ? ["warnings-fill"] : []}
-        onMouseEnter={filters.showAlerts ? onMouseEnter : undefined}
-        onMouseLeave={filters.showAlerts ? onMouseLeave : undefined}
+        interactiveLayerIds={
+          [
+            filters.showAlerts && "warnings-fill",
+            !shouldCluster && "storm-reports-layer",
+          ].filter(Boolean) as string[]
+        }
+        onMouseEnter={
+          filters.showAlerts || !shouldCluster ? onMouseEnter : undefined
+        }
+        onMouseLeave={
+          filters.showAlerts || !shouldCluster ? onMouseLeave : undefined
+        }
         cursor={cursor}
         style={{ width: "100%", height: "100%" }}
         mapStyle={getMapStyleUrl(filters.mapStyle)}
@@ -557,6 +648,65 @@ export function StormMap({
               type="raster"
               paint={{
                 "raster-opacity": filters.radarOpacity,
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 1.5: Individual Storm Reports Vector Layers */}
+        {!shouldCluster && (
+          <Source id="storm-reports" type="geojson" data={reportsGeoJson}>
+            {/* Glow Layer */}
+            <Layer
+              id="storm-reports-glow"
+              type="circle"
+              paint={{
+                "circle-radius": 18,
+                "circle-color": [
+                  "case",
+                  ["==", ["get", "type"], "hail"], "#3b82f6",
+                  ["==", ["get", "type"], "wind"], "#06b6d4",
+                  "#ef4444"
+                ],
+                "circle-opacity": 0.4,
+                "circle-blur": 0.8,
+              }}
+            />
+            {/* Main Circle Layer */}
+            <Layer
+              id="storm-reports-layer"
+              type="circle"
+              paint={{
+                "circle-radius": 14,
+                "circle-color": [
+                  "case",
+                  ["==", ["get", "type"], "hail"], "#3b82f6",
+                  ["==", ["get", "type"], "wind"], "#06b6d4",
+                  "#ef4444"
+                ],
+                "circle-stroke-color": [
+                  "case",
+                  ["==", ["get", "type"], "hail"], "#bfdbfe",
+                  ["==", ["get", "type"], "wind"], "#a5f3fc",
+                  "#fecaca"
+                ],
+                "circle-stroke-width": 1,
+              }}
+            />
+            {/* Label Text Layer */}
+            <Layer
+              id="storm-reports-labels"
+              type="symbol"
+              minZoom={12}
+              layout={{
+                "text-field": ["get", "label"],
+                "text-size": 9,
+                "text-justify": "center",
+                "text-allow-overlap": true,
+                "text-ignore-placement": true,
+              }}
+              paint={{
+                "text-color": "#ffffff",
               }}
             />
           </Source>
@@ -598,7 +748,7 @@ export function StormMap({
                 "fill-color": [
                   "case",
                   ["==", ["get", "type"], "tornado"], "#ef4444",
-                  ["==", ["get", "type"], "wind"], "#f97316",
+                  ["==", ["get", "type"], "wind"], "#06b6d4",
                   "#3b82f6"
                 ],
                 "fill-opacity": 0.05,
@@ -611,7 +761,7 @@ export function StormMap({
                 "line-color": [
                   "case",
                   ["==", ["get", "type"], "tornado"], "#ef4444",
-                  ["==", ["get", "type"], "wind"], "#f97316",
+                  ["==", ["get", "type"], "wind"], "#06b6d4",
                   "#3b82f6"
                 ],
                 "line-width": 1,
@@ -643,8 +793,8 @@ export function StormMap({
                 borderClass = "border-red-200";
                 shadowClass = "shadow-glow-tornado";
               } else if (cluster.windCount > 0) {
-                bgClass = "bg-orange-500/90";
-                borderClass = "border-orange-200";
+                bgClass = "bg-cyan-500/90";
+                borderClass = "border-cyan-200";
                 shadowClass = "shadow-glow-wind";
               }
 
@@ -666,16 +816,7 @@ export function StormMap({
                 </Marker>
               );
             })
-          : filteredReports.map((report) => (
-              <StormReportMarker
-                key={report.id}
-                report={report}
-                onClick={() => {
-                  setSelectedReport(report);
-                  setSelectedAlert(null);
-                }}
-              />
-            ))}
+          : null}
 
         {/* Layer 6.5: House Number Labels */}
         {filters.showHouseNumbers && (
@@ -842,7 +983,7 @@ export function StormMap({
                       selectedReport.type === "hail"
                         ? "bg-blue-500"
                         : selectedReport.type === "wind"
-                        ? "bg-orange-500"
+                        ? "bg-cyan-500"
                         : "bg-red-500"
                     }`}
                   ></span>
@@ -1030,19 +1171,7 @@ export function StormMap({
           >
             <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           </button>
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            className={`p-2 rounded-md transition-colors ${
-              showLegend ? "text-red-500 hover:bg-slate-900" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-            }`}
-            title="Toggle Legend Panel"
-            type="button"
-          >
-            {showLegend ? <Eye size={16} /> : <EyeOff size={16} />}
-          </button>
         </div>
-
-        {showLegend && <StormLegend />}
       </div>
     </div>
   );

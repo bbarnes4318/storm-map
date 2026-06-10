@@ -1,8 +1,8 @@
 import React from "react";
 
-export function StormLegend() {
+export function StormLegend({ className }: { className?: string }) {
   return (
-    <div className="bg-slate-900/95 border border-slate-800 rounded-lg p-4 shadow-glass text-xs text-slate-300 w-64 pointer-events-auto">
+    <div className={className || "bg-slate-900/95 border border-slate-800 rounded-lg p-4 shadow-glass text-xs text-slate-300 w-64 pointer-events-auto"}>
       <h3 className="font-bold text-slate-200 mb-2 border-b border-slate-800 pb-1.5 flex items-center justify-between">
         <span>MAP LEGEND</span>
         <span className="text-[10px] text-slate-500 font-normal">STORM TARGET LIVE</span>
@@ -59,8 +59,8 @@ export function StormLegend() {
             <span className="flex-1">Hail Reports <span className="text-slate-500">(Ice/Blue)</span></span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-orange-500 border border-orange-300 shadow-glow-wind inline-block"></span>
-            <span className="flex-1">Damaging Wind <span className="text-slate-500">(Orange)</span></span>
+            <span className="w-3 h-3 rounded-full bg-cyan-500 border border-cyan-300 shadow-glow-wind inline-block"></span>
+            <span className="flex-1">Damaging Wind <span className="text-slate-500">(Cyan)</span></span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-red-600 border border-red-300 shadow-glow-tornado inline-block"></span>
