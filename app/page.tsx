@@ -37,6 +37,10 @@ export default function StormMapPage() {
     showRadar: true,
     radarOpacity: 0.6,
     timeWindow: "24h",
+    mapStyle: "streets",
+    showNeighborhoodLabels: true,
+    showHouseNumbers: true,
+    showBuildings: true,
   });
 
   const [reports, setReports] = React.useState<StormReport[]>([]);
@@ -136,6 +140,10 @@ export default function StormMapPage() {
       showRadar: true,
       radarOpacity: 0.6,
       timeWindow: "24h",
+      mapStyle: "streets",
+      showNeighborhoodLabels: true,
+      showHouseNumbers: true,
+      showBuildings: true,
     });
   };
 

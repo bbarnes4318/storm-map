@@ -28,6 +28,25 @@ export type NwsAlert = {
   source: string;
 };
 
+export type StormMapStyle = "streets" | "dark" | "satellite";
+
+export type SelectedPropertyTarget = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  fullAddress: string;
+  streetNumber?: string;
+  streetName?: string;
+  neighborhood?: string;
+  city?: string;
+  county?: string;
+  state?: string;
+  postcode?: string;
+  source: "mapbox-geocoding" | "map-feature" | "fallback";
+  confidence: "exact" | "approximate" | "unknown";
+  locked: boolean;
+};
+
 export type StormFilterState = {
   searchQuery: string;
   state: string; // e.g. "TX"
@@ -40,6 +59,10 @@ export type StormFilterState = {
   showRadar: boolean;
   radarOpacity: number;
   timeWindow: "today" | "yesterday" | "24h";
+  mapStyle: StormMapStyle;
+  showNeighborhoodLabels: boolean;
+  showHouseNumbers: boolean;
+  showBuildings: boolean;
 };
 
 export type TargetCluster = {
