@@ -8,7 +8,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 // Import types and custom components
 import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
-import { StormReportMarker } from "./StormReportMarker";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
@@ -221,11 +220,11 @@ export function StormMap({
   };
 
   const handleClusterClick = (clusterCenter: [number, number]) => {
-    onFiltersChange({ center: clusterCenter, targetZoom: 8.5 });
+    onFiltersChange({ center: clusterCenter, targetZoom: 9.5 });
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [clusterCenter[1], clusterCenter[0]],
-        zoom: 8.5,
+        zoom: 9.5,
         duration: 1000,
       });
     } else {
@@ -233,7 +232,7 @@ export function StormMap({
         ...prev,
         latitude: clusterCenter[0],
         longitude: clusterCenter[1],
-        zoom: 8.5,
+        zoom: 9.5,
       }));
     }
   };
@@ -247,7 +246,7 @@ export function StormMap({
     if (features && features.length > 0) {
       // 1. Check if an individual storm report was clicked
       const clickedReportFeature = features.find((f) => f.layer.id === "storm-reports-layer");
-      if (clickedReportFeature) {
+      if (clickedReportFeature && zoom >= 9) {
         const reportId = clickedReportFeature.properties?.id;
         let report = reports.find((r) => r.id === reportId);
         if (!report) {
@@ -274,6 +273,16 @@ export function StormMap({
           setSelectedReport(report);
           setSelectedAlert(null);
           setClickedTarget(null);
+          return;
+        }
+      }
+
+      // Check if a cluster was clicked (only clickable when visible at zoom < 9)
+      const clickedClusterFeature = features.find((f) => f.layer.id === "storm-clusters-layer");
+      if (clickedClusterFeature && zoom < 9) {
+        const props = clickedClusterFeature.properties;
+        if (props && props.lat !== undefined && props.lon !== undefined) {
+          handleClusterClick([Number(props.lat), Number(props.lon)]);
           return;
         }
       }
@@ -446,7 +455,7 @@ export function StormMap({
   const onMouseEnter = React.useCallback(() => setCursor("pointer"), []);
   const onMouseLeave = React.useCallback(() => setCursor("auto"), []);
 
-  const shouldCluster = viewState.zoom <= 7;
+  const shouldCluster = viewState.zoom < 9;
 
   // Generate target geocoded search radius GeoJSON polygon
   const radiusCircleGeoJson = React.useMemo(() => {
@@ -464,6 +473,36 @@ export function StormMap({
         properties: {
           id: cluster.id,
           type: cluster.mainStormType,
+        },
+      };
+    });
+    return {
+      type: "FeatureCollection" as const,
+      features,
+    };
+  }, [mapClusters, shouldCluster]);
+
+  // Generate cluster points GeoJSON FeatureCollection for cluster bubble centers
+  const clusterPointsGeoJson = React.useMemo(() => {
+    if (!shouldCluster) return null;
+    const features = mapClusters.map((cluster) => {
+      return {
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [cluster.center[1], cluster.center[0]], // [lon, lat]
+        },
+        properties: {
+          id: cluster.id,
+          reportsCount: cluster.reportsCount,
+          mainStormType: cluster.mainStormType,
+          tornadoCount: cluster.tornadoCount,
+          windCount: cluster.windCount,
+          hailCount: cluster.hailCount,
+          type: cluster.mainStormType,
+          label: String(cluster.reportsCount),
+          lat: cluster.center[0],
+          lon: cluster.center[1],
         },
       };
     });
@@ -607,15 +646,12 @@ export function StormMap({
         interactiveLayerIds={
           [
             filters.showAlerts && "warnings-fill",
-            !shouldCluster && "storm-reports-layer",
+            "storm-reports-layer",
+            "storm-clusters-layer",
           ].filter(Boolean) as string[]
         }
-        onMouseEnter={
-          filters.showAlerts || !shouldCluster ? onMouseEnter : undefined
-        }
-        onMouseLeave={
-          filters.showAlerts || !shouldCluster ? onMouseLeave : undefined
-        }
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
         cursor={cursor}
         style={{ width: "100%", height: "100%" }}
         mapStyle={getMapStyleUrl(filters.mapStyle)}
@@ -641,50 +677,69 @@ export function StormMap({
         )}
 
         {/* Layer 0.5: Individual Storm Reports Vector Layers */}
-        {!shouldCluster && (
-          <Source id="storm-reports" type="geojson" data={reportsGeoJson}>
-            {/* Glow Layer */}
+        {/* Layer 0.3: Cluster boundary Concentric rings circles */}
+        {clusterCirclesGeoJson && (
+          <Source id="cluster-circles" type="geojson" data={clusterCirclesGeoJson}>
             <Layer
-              id="storm-reports-glow"
-              type="circle"
+              id="cluster-circles-layer"
+              type="fill"
+              maxzoom={9}
               paint={{
-                "circle-radius": 10,
-                "circle-color": [
+                "fill-color": [
                   "case",
-                  ["==", ["get", "type"], "hail"], "#3b82f6",
-                  ["==", ["get", "type"], "wind"], "#06b6d4",
-                  "#ef4444"
+                  ["==", ["get", "type"], "tornado"], "#DC2626",
+                  ["==", ["get", "type"], "wind"], "#7C3AED",
+                  ["==", ["get", "type"], "hail"], "#2563EB",
+                  "#64748B"
                 ],
-                "circle-opacity": 0.4,
-                "circle-blur": 0.8,
+                "fill-opacity": 0.03,
               }}
             />
-            {/* Main Circle Layer */}
             <Layer
-              id="storm-reports-layer"
-              type="circle"
+              id="cluster-circles-outline"
+              type="line"
+              maxzoom={9}
               paint={{
-                "circle-radius": 7,
-                "circle-color": [
+                "line-color": [
                   "case",
-                  ["==", ["get", "type"], "hail"], "#3b82f6",
-                  ["==", ["get", "type"], "wind"], "#06b6d4",
-                  "#ef4444"
+                  ["==", ["get", "type"], "tornado"], "#DC2626",
+                  ["==", ["get", "type"], "wind"], "#7C3AED",
+                  ["==", ["get", "type"], "hail"], "#2563EB",
+                  "#64748B"
                 ],
-                "circle-stroke-color": [
-                  "case",
-                  ["==", ["get", "type"], "hail"], "#bfdbfe",
-                  ["==", ["get", "type"], "wind"], "#a5f3fc",
-                  "#fecaca"
+                "line-width": 0.75,
+                "line-dasharray": [3, 3],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 0.4: Storm Clusters WebGL Bubble Points */}
+        {clusterPointsGeoJson && (
+          <Source id="storm-clusters" type="geojson" data={clusterPointsGeoJson}>
+            <Layer
+              id="storm-clusters-layer"
+              type="circle"
+              maxzoom={9}
+              paint={{
+                "circle-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  3.8, 6.5,
+                  7, 9,
+                  9, 11.5
                 ],
+                "circle-color": "#111827",
+                "circle-opacity": 0.7,
+                "circle-stroke-color": "#F8FAFC",
                 "circle-stroke-width": 1,
               }}
             />
-            {/* Label Text Layer */}
             <Layer
-              id="storm-reports-labels"
+              id="storm-clusters-count"
               type="symbol"
-              minZoom={12}
+              maxzoom={9}
               layout={{
                 "text-field": ["get", "label"],
                 "text-size": 7,
@@ -698,6 +753,89 @@ export function StormMap({
             />
           </Source>
         )}
+
+        {/* Layer 0.5: Individual Storm Reports Vector Layers */}
+        <Source id="storm-reports" type="geojson" data={reportsGeoJson}>
+          {/* Glow Layer */}
+          <Layer
+            id="storm-reports-glow"
+            type="circle"
+            minzoom={10}
+            paint={{
+              "circle-radius": 10,
+              "circle-color": [
+                "case",
+                ["==", ["get", "type"], "hail"], "#2563EB",
+                ["==", ["get", "type"], "wind"], "#7C3AED",
+                ["==", ["get", "type"], "tornado"], "#DC2626",
+                "#64748B"
+              ],
+              "circle-opacity": [
+                "case",
+                ["==", ["get", "type"], "hail"], 0.28,
+                ["==", ["get", "type"], "wind"], 0.28,
+                ["==", ["get", "type"], "tornado"], 0.30,
+                0.18
+              ],
+              "circle-blur": 0.8,
+            }}
+          />
+          {/* Main Circle Layer */}
+          <Layer
+            id="storm-reports-layer"
+            type="circle"
+            minzoom={9}
+            paint={{
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                9, 3,
+                12, 4.5,
+                15, 6
+              ],
+              "circle-color": [
+                "case",
+                ["==", ["get", "type"], "hail"], "#2563EB",
+                ["==", ["get", "type"], "wind"], "#7C3AED",
+                ["==", ["get", "type"], "tornado"], "#DC2626",
+                "#64748B"
+              ],
+              "circle-opacity": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                9, 0.35,
+                12, 0.5,
+                15, 0.62
+              ],
+              "circle-stroke-color": [
+                "case",
+                ["==", ["get", "type"], "hail"], "#DBEAFE",
+                ["==", ["get", "type"], "wind"], "#EDE9FE",
+                ["==", ["get", "type"], "tornado"], "#FEE2E2",
+                "#E2E8F0"
+              ],
+              "circle-stroke-width": 1,
+            }}
+          />
+          {/* Label Text Layer */}
+          <Layer
+            id="storm-reports-labels"
+            type="symbol"
+            minzoom={11}
+            layout={{
+              "text-field": ["get", "label"],
+              "text-size": 7,
+              "text-justify": "center",
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+            }}
+            paint={{
+              "text-color": "#ffffff",
+            }}
+          />
+        </Source>
 
         {/* Layer 1: Live NOAA Base Reflectivity Radar Raster Layer */}
         {filters.showRadar && (
@@ -738,39 +876,6 @@ export function StormMap({
           </Source>
         )}
 
-        {/* Layer 4: Cluster boundary Concentric rings circles */}
-        {shouldCluster && clusterCirclesGeoJson && (
-          <Source id="cluster-circles" type="geojson" data={clusterCirclesGeoJson}>
-            <Layer
-              id="cluster-circles-layer"
-              type="fill"
-              paint={{
-                "fill-color": [
-                  "case",
-                  ["==", ["get", "type"], "tornado"], "#ef4444",
-                  ["==", ["get", "type"], "wind"], "#06b6d4",
-                  "#3b82f6"
-                ],
-                "fill-opacity": 0.05,
-              }}
-            />
-            <Layer
-              id="cluster-circles-outline"
-              type="line"
-              paint={{
-                "line-color": [
-                  "case",
-                  ["==", ["get", "type"], "tornado"], "#ef4444",
-                  ["==", ["get", "type"], "wind"], "#06b6d4",
-                  "#3b82f6"
-                ],
-                "line-width": 1,
-                "line-dasharray": [3, 3],
-              }}
-            />
-          </Source>
-        )}
-
         {/* Layer 5: Geocoding Target Pin marker */}
         {filters.center && (
           <Marker latitude={filters.center[0]} longitude={filters.center[1]} anchor="center">
@@ -780,43 +885,6 @@ export function StormMap({
             </div>
           </Marker>
         )}
-
-        {/* Layer 6: Storm Report Markers (Individual or Clustered based on zoom level) */}
-        {shouldCluster
-          ? mapClusters.map((cluster) => {
-              let bgClass = "bg-blue-600/90";
-              let borderClass = "border-blue-300";
-              let shadowClass = "shadow-glow-hail";
-
-              if (cluster.tornadoCount > 0) {
-                bgClass = "bg-red-600/90 animate-target-pulse";
-                borderClass = "border-red-200";
-                shadowClass = "shadow-glow-tornado";
-              } else if (cluster.windCount > 0) {
-                bgClass = "bg-cyan-500/90";
-                borderClass = "border-cyan-200";
-                shadowClass = "shadow-glow-wind";
-              }
-
-              return (
-                <Marker
-                  key={cluster.id}
-                  latitude={cluster.center[0]}
-                  longitude={cluster.center[1]}
-                  anchor="center"
-                  onClick={(e) => {
-                    e.originalEvent.stopPropagation();
-                    handleClusterClick(cluster.center);
-                  }}
-                >
-                  <div className={`w-10 h-10 rounded-full ${bgClass} border-2 ${borderClass} ${shadowClass} flex flex-col items-center justify-center text-white relative transition-transform hover:scale-105 cursor-pointer`}>
-                    <span className="text-[11px] font-black leading-none">{cluster.reportsCount}</span>
-                    <span className="text-[6.5px] font-black uppercase tracking-tighter leading-none mt-0.5">{cluster.mainStormType.slice(0, 4)}</span>
-                  </div>
-                </Marker>
-              );
-            })
-          : null}
 
         {/* Layer 6.5: House Number Labels */}
         {filters.showHouseNumbers && (
@@ -981,10 +1049,10 @@ export function StormMap({
                   <span
                     className={`w-2 h-2 rounded-full ${
                       selectedReport.type === "hail"
-                        ? "bg-blue-500"
+                        ? "bg-[#2563EB]"
                         : selectedReport.type === "wind"
-                        ? "bg-cyan-500"
-                        : "bg-red-500"
+                        ? "bg-[#7C3AED]"
+                        : "bg-[#DC2626]"
                     }`}
                   ></span>
                   <span className="font-extrabold uppercase tracking-wider text-xs">

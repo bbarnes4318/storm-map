@@ -10,6 +10,7 @@ export function StormLegend({ className }: { className?: string }) {
 
       {/* Radar Reflectivity Scale */}
       <div className="mb-3">
+        <span className="text-[10px] font-extrabold text-slate-200 block mb-1 uppercase tracking-wider">Primary Visual Layers</span>
         <span className="font-semibold text-slate-400 block mb-1">Live NOAA Radar (dBZ)</span>
         <div className="h-2.5 w-full rounded flex overflow-hidden mb-1">
           <div className="h-full flex-1 bg-[#4ade80]" title="Light Rain / Fog (5-15 dBZ)"></div>
@@ -52,19 +53,20 @@ export function StormLegend({ className }: { className?: string }) {
 
       {/* Storm Reports */}
       <div>
+        <span className="text-[10px] font-extrabold text-slate-200 block mb-1 uppercase tracking-wider">Supporting Context Only</span>
         <span className="font-semibold text-slate-400 block mb-1.5">SPC Storm Reports</span>
         <div className="space-y-1.5 text-[10px]">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-blue-500 border border-blue-300 shadow-glow-hail inline-block"></span>
-            <span className="flex-1">Hail Reports <span className="text-slate-500">(Ice/Blue)</span></span>
+            <span className="w-3 h-3 rounded-full bg-[#2563EB] border border-[#DBEAFE] shadow-glow-hail inline-block"></span>
+            <span className="flex-1">Hail Reports <span className="text-slate-500">(Royal Blue)</span></span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-cyan-500 border border-cyan-300 shadow-glow-wind inline-block"></span>
-            <span className="flex-1">Damaging Wind <span className="text-slate-500">(Cyan)</span></span>
+            <span className="w-3 h-3 rounded-full bg-[#7C3AED] border border-[#EDE9FE] shadow-glow-wind inline-block"></span>
+            <span className="flex-1">Damaging Wind <span className="text-slate-500">(Violet)</span></span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-600 border border-red-300 shadow-glow-tornado inline-block"></span>
-            <span className="flex-1">Tornado Reports <span className="text-slate-500">(Red)</span></span>
+            <span className="w-3 h-3 rounded-full bg-[#DC2626] border border-[#FEE2E2] shadow-glow-tornado inline-block"></span>
+            <span className="flex-1">Tornado Reports <span className="text-slate-500">(Crimson Red)</span></span>
           </div>
         </div>
       </div>

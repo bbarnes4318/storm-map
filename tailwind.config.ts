@@ -32,7 +32,7 @@ const config: Config = {
         },
         storm: {
           hail: "#3b82f6", // Ice/blue
-          wind: "#06b6d4", // Cyan/teal
+          wind: "#7C3AED", // Violet/purple
           tornado: "#ef4444", // Red
           severe: "#ea580c", // Severe thunderstorm orange
           flood: "#2563eb", // Flash flood blue
@@ -47,7 +47,7 @@ const config: Config = {
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
         'glow-hail': '0 0 12px rgba(59, 130, 246, 0.5)',
-        'glow-wind': '0 0 12px rgba(6, 182, 212, 0.5)',
+        'glow-wind': '0 0 12px rgba(124, 58, 237, 0.5)',
         'glow-tornado': '0 0 12px rgba(239, 68, 68, 0.5)',
       }
     },

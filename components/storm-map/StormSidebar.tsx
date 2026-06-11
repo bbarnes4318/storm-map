@@ -333,7 +333,7 @@ export function StormSidebar({
                     <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Hail</span>
                   </div>
                   <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-cyan-400">{windCount}</span>
+                    <span className="text-sm font-black text-violet-400">{windCount}</span>
                     <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Wind</span>
                   </div>
                   <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
@@ -357,7 +357,7 @@ export function StormSidebar({
                   <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Show Reports</span>
                   <div className="flex flex-col gap-0.5">
                     <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
-                      <span className="text-[9.5px] text-slate-350 flex items-center gap-1">
+                      <span className="text-[9.5px] text-slate-355 flex items-center gap-1">
                         <span className="w-1 h-1 rounded-full bg-blue-500 shadow-glow-hail"></span>
                         Hail Hits
                       </span>
@@ -369,8 +369,8 @@ export function StormSidebar({
                       />
                     </label>
                     <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
-                      <span className="text-[9.5px] text-slate-350 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-cyan-500 shadow-glow-wind"></span>
+                      <span className="text-[9.5px] text-slate-355 flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-violet-500 shadow-glow-wind"></span>
                         Wind Damage
                       </span>
                       <input
@@ -616,7 +616,7 @@ export function StormSidebar({
                               cluster.mainStormType === "hail"
                                 ? "text-blue-400"
                                 : cluster.mainStormType === "wind"
-                                ? "text-cyan-400"
+                                ? "text-violet-400"
                                 : "text-red-400 animate-pulse"
                             }`}>
                               {cluster.highestMagnitude !== "N/A" ? cluster.highestMagnitude : cluster.mainStormType}
