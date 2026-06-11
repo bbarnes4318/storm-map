@@ -975,7 +975,6 @@ export function StormMap({
             onClose={() => setClickedTarget(null)}
             closeButton={true}
             closeOnClick={false}
-            anchor="bottom"
             offset={12}
             maxWidth="310px"
           >
@@ -1074,7 +1073,6 @@ export function StormMap({
             onClose={() => setSelectedReport(null)}
             closeButton={true}
             closeOnClick={false}
-            anchor="bottom"
             offset={16}
             maxWidth="320px"
           >
@@ -1159,7 +1157,6 @@ export function StormMap({
             onClose={() => setSelectedCluster(null)}
             closeButton={true}
             closeOnClick={false}
-            anchor="bottom"
             offset={16}
             maxWidth="340px"
           >
