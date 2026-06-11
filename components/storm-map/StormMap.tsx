@@ -224,7 +224,15 @@ export function StormMap({
   };
 
   const handleClusterClick = (clusterCenter: [number, number]) => {
-    onFiltersChange({ center: clusterCenter, targetZoom: 9.5 });
+    const targetZoom = 9.5;
+    onFiltersChange({ center: clusterCenter, targetZoom });
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [clusterCenter[1], clusterCenter[0]], // [lon, lat]
+        zoom: targetZoom,
+        duration: 1200,
+      });
+    }
   };
 
   // Canvas map click geocoding interceptor for warnings/reports clicks
