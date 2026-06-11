@@ -94,6 +94,8 @@
   border-radius: 12px !important;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7) !important;
   padding: 14px 16px !important;
+  max-height: 70vh !important;
+  overflow-y: auto !important;
 }
 
 /* Make the popup arrow anchor match the dark theme */

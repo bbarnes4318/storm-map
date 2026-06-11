@@ -45,13 +45,52 @@ export default function StormMapPage() {
   });
 
   const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
+  const [leads, setLeads] = React.useState<SelectedPropertyTarget[]>([]);
+
+  // Load from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("storm_map_locked_leads");
+      if (saved) {
+        setLeads(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load leads from localStorage", e);
+    }
+  }, []);
+
+  // Save to localStorage helper
+  const saveLeads = (updatedLeads: SelectedPropertyTarget[]) => {
+    setLeads(updatedLeads);
+    try {
+      localStorage.setItem("storm_map_locked_leads", JSON.stringify(updatedLeads));
+    } catch (e) {
+      console.error("Failed to save leads to localStorage", e);
+    }
+  };
 
   const handleLockProperty = (property: SelectedPropertyTarget) => {
+    const isAlreadyLead = leads.some(
+      (l) => l.latitude === property.latitude && l.longitude === property.longitude
+    );
+    if (!isAlreadyLead) {
+      const newLead = { ...property, locked: true, id: property.id || `lead-${Date.now()}` };
+      const updatedLeads = [...leads, newLead];
+      saveLeads(updatedLeads);
+    }
     setSelectedProperty({ ...property, locked: true });
   };
 
   const handleUnlockProperty = () => {
     setSelectedProperty(null);
+  };
+
+  const handleRemoveLead = (leadId: string) => {
+    const updatedLeads = leads.filter((l) => l.id !== leadId);
+    saveLeads(updatedLeads);
+    if (selectedProperty && selectedProperty.id === leadId) {
+      setSelectedProperty(null);
+    }
   };
 
   const [reports, setReports] = React.useState<StormReport[]>([]);
@@ -178,6 +217,8 @@ export default function StormMapPage() {
         setSidebarOpen={setSidebarOpen}
         selectedProperty={selectedProperty}
         onUnlockProperty={handleUnlockProperty}
+        leads={leads}
+        onRemoveLead={handleRemoveLead}
       />
 
       {/* Main Map Viewer Panel */}
@@ -244,13 +285,12 @@ export default function StormMapPage() {
             selectedProperty={selectedProperty}
             onLockProperty={handleLockProperty}
             onUnlockProperty={handleUnlockProperty}
+            leads={leads}
           />
         )}
 
-        {/* Corporate compliance credits note footer */}
-        <div className="absolute bottom-2 left-2 z-[1000] pointer-events-none hidden sm:block bg-slate-950/70 border border-slate-900/40 rounded px-2 py-1 text-[9px] text-slate-500 backdrop-blur-xs">
-          <span>Data sources: NOAA/NWS Radar Base Reflectivity, National Weather Service Alerts API, NOAA Storm Prediction Center preliminary storm reports.</span>
-        </div>
+
+
       </div>
     </div>
   );
