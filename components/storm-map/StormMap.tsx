@@ -640,20 +640,7 @@ export function StormMap({
           />
         )}
 
-        {/* Layer 1: Live NOAA Base Reflectivity Radar Raster Layer */}
-        {filters.showRadar && (
-          <Source id="noaa-radar" type="raster" tiles={[radarTileUrl]} tileSize={256}>
-            <Layer
-              id="radar-layer"
-              type="raster"
-              paint={{
-                "raster-opacity": filters.radarOpacity,
-              }}
-            />
-          </Source>
-        )}
-
-        {/* Layer 1.5: Individual Storm Reports Vector Layers */}
+        {/* Layer 0.5: Individual Storm Reports Vector Layers */}
         {!shouldCluster && (
           <Source id="storm-reports" type="geojson" data={reportsGeoJson}>
             {/* Glow Layer */}
@@ -661,7 +648,7 @@ export function StormMap({
               id="storm-reports-glow"
               type="circle"
               paint={{
-                "circle-radius": 18,
+                "circle-radius": 10,
                 "circle-color": [
                   "case",
                   ["==", ["get", "type"], "hail"], "#3b82f6",
@@ -677,7 +664,7 @@ export function StormMap({
               id="storm-reports-layer"
               type="circle"
               paint={{
-                "circle-radius": 14,
+                "circle-radius": 7,
                 "circle-color": [
                   "case",
                   ["==", ["get", "type"], "hail"], "#3b82f6",
@@ -700,13 +687,26 @@ export function StormMap({
               minZoom={12}
               layout={{
                 "text-field": ["get", "label"],
-                "text-size": 9,
+                "text-size": 7,
                 "text-justify": "center",
                 "text-allow-overlap": true,
                 "text-ignore-placement": true,
               }}
               paint={{
                 "text-color": "#ffffff",
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 1: Live NOAA Base Reflectivity Radar Raster Layer */}
+        {filters.showRadar && (
+          <Source id="noaa-radar" type="raster" tiles={[radarTileUrl]} tileSize={256}>
+            <Layer
+              id="radar-layer"
+              type="raster"
+              paint={{
+                "raster-opacity": filters.radarOpacity,
               }}
             />
           </Source>
