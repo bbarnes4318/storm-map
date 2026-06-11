@@ -245,10 +245,12 @@ export function StormMap({
     const features = event.features;
     if (features && features.length > 0) {
       // 1. Check if an individual storm report was clicked
-      const clickedReportFeature = features.find((f) => f.layer.id === "storm-reports-layer");
+      const clickedReportFeature = features.find(
+        (f) => f.layer.id === "storm-reports-layer" || f.layer.id === "storm-reports-labels"
+      );
       if (clickedReportFeature && zoom >= 9) {
         const reportId = clickedReportFeature.properties?.id;
-        let report = reports.find((r) => r.id === reportId);
+        let report = reports.find((r) => String(r.id) === String(reportId));
         if (!report) {
           // Reconstruct as fallback
           const props = clickedReportFeature.properties;
@@ -278,7 +280,9 @@ export function StormMap({
       }
 
       // Check if a cluster was clicked (only clickable when visible at zoom < 9)
-      const clickedClusterFeature = features.find((f) => f.layer.id === "storm-clusters-layer");
+      const clickedClusterFeature = features.find(
+        (f) => f.layer.id === "storm-clusters-layer" || f.layer.id === "storm-clusters-count"
+      );
       if (clickedClusterFeature && zoom < 9) {
         const props = clickedClusterFeature.properties;
         if (props && props.lat !== undefined && props.lon !== undefined) {
@@ -647,7 +651,9 @@ export function StormMap({
           [
             filters.showAlerts && "warnings-fill",
             "storm-reports-layer",
+            "storm-reports-labels",
             "storm-clusters-layer",
+            "storm-clusters-count",
           ].filter(Boolean) as string[]
         }
         onMouseEnter={onMouseEnter}
