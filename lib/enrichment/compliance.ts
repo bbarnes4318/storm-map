@@ -1,0 +1,176 @@
+/**
+ * Server-only compliance helpers for TCPA/DNC attestation and suppression.
+ *
+ * Provides function boundaries for attestation checking, creation,
+ * suppression hashing, and contact redaction. In mock mode (no DB),
+ * attestation state is held in a server-side in-memory map.
+ *
+ * Once database persistence is active (post-migration), these functions
+ * should be updated to query the complianceAttestations and suppressionList
+ * tables via Drizzle.
+ */
+
+// SERVER-ONLY: This module must only be imported by server-side code (API routes,
+// other lib/ modules). Do not import from client components. The `server-only`
+// package is not currently installed; server-only enforcement is structural.
+import * as crypto from "crypto";
+import { NormalizedContactData, NormalizedEnrichmentResult } from "./schemas";
+import {
+  normalizePhoneNumberForHashing,
+  normalizeEmailForHashing,
+  sha256Hex,
+} from "./providers/normalizers";
+
+// ==============================================================================
+// In-memory attestation store (mock mode only)
+// ==============================================================================
+
+interface MockAttestation {
+  accountId: string;
+  attestedAt: Date;
+  attestationText: string;
+}
+
+/**
+ * Server-scoped in-memory attestation map.
+ * Keyed by accountId. Only used when ENRICHMENT_MOCK_MODE=true.
+ * Will be replaced by DB queries once migrations are run.
+ */
+const mockAttestations = new Map<string, MockAttestation>();
+
+// ==============================================================================
+// Attestation Helpers
+// ==============================================================================
+
+/** Maximum age of an attestation before re-attestation is required (24 hours). */
+const ATTESTATION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Checks whether the given account has a recent (within 24h) compliance attestation.
+ *
+ * @param accountId - The account UUID to check.
+ * @returns true if a valid, non-expired attestation exists.
+ */
+export async function hasRecentAttestation(accountId: string): Promise<boolean> {
+  // TODO: When DB is active, query complianceAttestations table:
+  //   SELECT 1 FROM compliance_attestations
+  //   WHERE account_id = $1 AND attested_at > NOW() - INTERVAL '24 hours'
+  //   LIMIT 1;
+
+  const stored = mockAttestations.get(accountId);
+  if (!stored) return false;
+
+  const age = Date.now() - stored.attestedAt.getTime();
+  return age < ATTESTATION_MAX_AGE_MS;
+}
+
+/**
+ * Throws a structured error if the account does not have a recent attestation.
+ * Call this at the top of quote/unlock routes.
+ *
+ * @param accountId - The account UUID to check.
+ * @throws Error with code COMPLIANCE_ATTESTATION_REQUIRED if no valid attestation.
+ */
+export async function requireAttestation(accountId: string): Promise<void> {
+  const valid = await hasRecentAttestation(accountId);
+  if (!valid) {
+    const err = new Error("Compliance attestation is required before accessing enrichment data.");
+    (err as Error & { code: string }).code = "COMPLIANCE_ATTESTATION_REQUIRED";
+    throw err;
+  }
+}
+
+/**
+ * Records a compliance attestation for the given account.
+ *
+ * @param accountId - The account UUID.
+ * @param request - The incoming HTTP request (used to extract IP and User-Agent for audit).
+ * @param attestationText - The full legal text the user agreed to.
+ */
+export async function createAttestation(
+  accountId: string,
+  request: Request,
+  attestationText: string
+): Promise<void> {
+  // TODO: When DB is active, INSERT into compliance_attestations:
+  //   { accountId, attestedAt: now, ipAddress, userAgent, attestationText }
+
+  mockAttestations.set(accountId, {
+    accountId,
+    attestedAt: new Date(),
+    attestationText,
+  });
+}
+
+// ==============================================================================
+// Suppression Helpers
+// ==============================================================================
+
+/**
+ * Hashes a contact value (phone, email, or address) for suppression list lookup.
+ *
+ * @param type - The suppression type: "PHONE", "EMAIL", or "ADDRESS".
+ * @param value - The raw contact value to hash.
+ * @returns SHA-256 hex digest of the normalized value.
+ */
+export function hashSuppressionValue(
+  type: "PHONE" | "EMAIL" | "ADDRESS",
+  value: string
+): string {
+  let normalized: string;
+  switch (type) {
+    case "PHONE":
+      normalized = normalizePhoneNumberForHashing(value);
+      break;
+    case "EMAIL":
+      normalized = normalizeEmailForHashing(value);
+      break;
+    case "ADDRESS":
+      normalized = value.trim().toLowerCase().replace(/\s+/g, " ");
+      break;
+    default:
+      normalized = value.trim().toLowerCase();
+  }
+  return sha256Hex(normalized);
+}
+
+/**
+ * Redacts suppressed contacts from an enrichment result.
+ *
+ * Removes phone numbers and email addresses whose hashed values
+ * appear in the provided suppression hash set.
+ *
+ * @param result - The normalized enrichment result to filter.
+ * @param suppressionHashes - Set of SHA-256 hashes to suppress.
+ * @returns A new result with suppressed contacts removed.
+ */
+export function redactSuppressedContacts(
+  result: NormalizedEnrichmentResult,
+  suppressionHashes: Set<string>
+): NormalizedEnrichmentResult {
+  if (!result.contactData || suppressionHashes.size === 0) {
+    return result;
+  }
+
+  const contactData = { ...result.contactData };
+
+  // Redact suppressed phone numbers
+  if (contactData.phones?.value) {
+    const filteredPhones = contactData.phones.value.filter((phone) => {
+      const hash = hashSuppressionValue("PHONE", phone.number);
+      return !suppressionHashes.has(hash);
+    });
+    contactData.phones = { ...contactData.phones, value: filteredPhones };
+  }
+
+  // Redact suppressed email addresses
+  if (contactData.emails?.value) {
+    const filteredEmails = contactData.emails.value.filter((email) => {
+      const hash = hashSuppressionValue("EMAIL", email.address);
+      return !suppressionHashes.has(hash);
+    });
+    contactData.emails = { ...contactData.emails, value: filteredEmails };
+  }
+
+  return { ...result, contactData };
+}
