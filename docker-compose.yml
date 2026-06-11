@@ -7,6 +7,9 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
+    environment:
+      - ENRICHMENT_MOCK_MODE=true
+      - ENRICHMENT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     networks:
       - coolify
     labels:
