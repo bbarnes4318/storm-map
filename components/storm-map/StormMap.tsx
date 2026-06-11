@@ -7,7 +7,8 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Import types and custom components
-import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster } from "@/lib/weather/types";
+import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
@@ -66,6 +67,7 @@ interface StormMapProps {
   selectedProperty: SelectedPropertyTarget | null;
   onLockProperty: (property: SelectedPropertyTarget) => void;
   onUnlockProperty: () => void;
+  leads: SelectedPropertyTarget[];
 }
 
 export function StormMap({
@@ -78,6 +80,7 @@ export function StormMap({
   selectedProperty,
   onLockProperty,
   onUnlockProperty,
+  leads = [],
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
@@ -86,6 +89,7 @@ export function StormMap({
   const [selectedReport, setSelectedReport] = React.useState<StormReport | null>(null);
   const [selectedAlert, setSelectedAlert] = React.useState<NwsAlert | null>(null);
   const [clickedTarget, setClickedTarget] = React.useState<SelectedPropertyTarget | null>(null);
+  const [selectedCluster, setSelectedCluster] = React.useState<TargetCluster | null>(null);
   const [cursor, setCursor] = React.useState<string>("auto");
 
   const mapRef = React.useRef<MapRef>(null);
@@ -228,17 +232,38 @@ export function StormMap({
     const map = event.target;
     const zoom = map.getZoom();
 
-    const features = event.features;
+    // Build the list of clickable layers that actually exist on the map right now
+    const clickableLayers = [
+      "storm-reports-glow",
+      "storm-reports-layer",
+      "storm-reports-labels",
+      "cluster-circles-layer",
+      "cluster-circles-outline",
+      "storm-clusters-layer",
+      "storm-clusters-count",
+      "warnings-fill",
+    ].filter((layerId) => map.getLayer(layerId));
+
+    // Use event.features when available; fall back to direct query at click point
+    const features =
+      event.features && event.features.length > 0
+        ? event.features
+        : map.queryRenderedFeatures(event.point, { layers: clickableLayers });
+
     if (features && features.length > 0) {
-      // 1. Check if an individual storm report was clicked
+      // A. Individual storm report click (glow, circle, or label)
+      const reportLayerIds = ["storm-reports-glow", "storm-reports-layer", "storm-reports-labels"];
       const clickedReportFeature = features.find(
-        (f) => f.layer.id === "storm-reports-layer" || f.layer.id === "storm-reports-labels"
+        (f) => reportLayerIds.includes(f.layer.id)
       );
       if (clickedReportFeature) {
         const reportId = clickedReportFeature.properties?.id;
         let report = reports.find((r) => String(r.id) === String(reportId));
         if (!report) {
-          // Reconstruct as fallback
+          report = filteredReports.find((r) => String(r.id) === String(reportId));
+        }
+        if (!report) {
+          // Reconstruct as fallback from feature properties
           const props = clickedReportFeature.properties;
           if (props) {
             report = {
@@ -249,8 +274,8 @@ export function StormMap({
               location: props.location || "",
               county: props.county || "",
               state: props.state || "",
-              lat: props.lat,
-              lon: props.lon,
+              lat: Number(props.lat),
+              lon: Number(props.lon),
               magnitude: props.magnitude,
               comments: props.comments,
               source: props.source || "SPC",
@@ -261,23 +286,37 @@ export function StormMap({
           setSelectedReport(report);
           setSelectedAlert(null);
           setClickedTarget(null);
+          setSelectedCluster(null);
           return;
         }
       }
 
-      // Check if a cluster was clicked
+      // B. Cluster/area circle click (ring, outline, bubble, or count label)
+      const clusterLayerIds = [
+        "cluster-circles-layer",
+        "cluster-circles-outline",
+        "storm-clusters-layer",
+        "storm-clusters-count",
+      ];
       const clickedClusterFeature = features.find(
-        (f) => f.layer.id === "storm-clusters-layer" || f.layer.id === "storm-clusters-count"
+        (f) => clusterLayerIds.includes(f.layer.id)
       );
       if (clickedClusterFeature) {
         const props = clickedClusterFeature.properties;
-        if (props && props.lat !== undefined && props.lon !== undefined) {
-          handleClusterClick([Number(props.lat), Number(props.lon)]);
-          return;
+        if (props?.id) {
+          // Look up the full cluster from mapClusters to get the reports array
+          const cluster = mapClusters.find((c) => c.id === props.id);
+          if (cluster) {
+            setSelectedCluster(cluster);
+            setSelectedReport(null);
+            setSelectedAlert(null);
+            setClickedTarget(null);
+            return;
+          }
         }
       }
 
-      // 2. Check if a warning was clicked
+      // C. Warning polygon click
       const clickedWarning = features.find((f) => f.layer.id === "warnings-fill");
       if (clickedWarning) {
         const props = clickedWarning.properties;
@@ -299,15 +338,18 @@ export function StormMap({
           });
           setSelectedReport(null);
           setClickedTarget(null);
+          setSelectedCluster(null);
           return;
         }
       }
     }
 
+    // D. Street-level geocode click (zoom >= 15, no storm layer hit)
     if (zoom >= 15) {
-      // Clear alert and report selections
+      // Clear all popup selections
       setSelectedAlert(null);
       setSelectedReport(null);
+      setSelectedCluster(null);
 
       // Abort previous geocoding request if active
       if (geocodeAbortControllerRef.current) {
@@ -377,10 +419,11 @@ export function StormMap({
       return;
     }
 
-    // Clicking elsewhere closes popups
+    // E. Clicking elsewhere closes all popups
     setSelectedAlert(null);
     setSelectedReport(null);
     setClickedTarget(null);
+    setSelectedCluster(null);
   };
 
   // Viewport camera tracking state
@@ -463,6 +506,17 @@ export function StormMap({
         properties: {
           id: cluster.id,
           type: cluster.mainStormType,
+          name: cluster.name,
+          county: cluster.county,
+          state: cluster.state,
+          reportsCount: cluster.reportsCount,
+          hailCount: cluster.hailCount,
+          windCount: cluster.windCount,
+          tornadoCount: cluster.tornadoCount,
+          highestMagnitude: cluster.highestMagnitude,
+          suggestedRadius: cluster.suggestedRadius,
+          lat: cluster.center[0],
+          lon: cluster.center[1],
         },
       };
     });
@@ -493,6 +547,11 @@ export function StormMap({
           label: String(cluster.reportsCount),
           lat: cluster.center[0],
           lon: cluster.center[1],
+          name: cluster.name,
+          county: cluster.county,
+          state: cluster.state,
+          highestMagnitude: cluster.highestMagnitude,
+          suggestedRadius: cluster.suggestedRadius,
         },
       };
     });
@@ -636,8 +695,11 @@ export function StormMap({
         interactiveLayerIds={
           [
             filters.showAlerts && "warnings-fill",
+            "storm-reports-glow",
             "storm-reports-layer",
             "storm-reports-labels",
+            "cluster-circles-layer",
+            "cluster-circles-outline",
             "storm-clusters-layer",
             "storm-clusters-count",
           ].filter(Boolean) as string[]
@@ -668,7 +730,22 @@ export function StormMap({
           />
         )}
 
-        {/* Layer 0.5: Individual Storm Reports Vector Layers */}
+        {/* Layer 0.1: Live NOAA Base Reflectivity Radar Raster Layer (below storm circles) */}
+        {filters.showRadar && (
+          <Source id="noaa-radar" type="raster" tiles={[radarTileUrl]} tileSize={256}>
+            <Layer
+              id="radar-layer"
+              type="raster"
+              paint={{
+                "raster-opacity": filters.radarOpacity,
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 0.2: Active NWS Alert Warning Polygons */}
+        {filters.showAlerts && <AlertPolygonLayer alerts={alerts} />}
+
         {/* Layer 0.3: Cluster boundary Concentric rings circles */}
         {clusterCirclesGeoJson && (
           <Source id="cluster-circles" type="geojson" data={clusterCirclesGeoJson}>
@@ -677,13 +754,7 @@ export function StormMap({
               type="fill"
               maxzoom={9}
               paint={{
-                "fill-color": [
-                  "case",
-                  ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
-                  ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
-                  ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
-                  "#64748B"
-                ],
+                "fill-color": stormFillColorExpression,
                 "fill-opacity": 0.03,
               }}
             />
@@ -692,17 +763,12 @@ export function StormMap({
               type="line"
               maxzoom={9}
               paint={{
-                "line-color": [
-                  "case",
-                  ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
-                  ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
-                  ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
-                  "#64748B"
-                ],
+                "line-color": stormFillColorExpression,
                 "line-width": 0.75,
                 "line-dasharray": [3, 3],
               }}
             />
+
           </Source>
         )}
 
@@ -722,9 +788,9 @@ export function StormMap({
                   7, 9,
                   9, 11.5
                 ],
-                "circle-color": "#111827",
+                "circle-color": stormFillColorExpression,
                 "circle-opacity": 0.7,
-                "circle-stroke-color": "#F8FAFC",
+                "circle-stroke-color": stormStrokeColorExpression,
                 "circle-stroke-width": 1,
               }}
             />
@@ -755,13 +821,7 @@ export function StormMap({
             minzoom={10}
             paint={{
               "circle-radius": 10,
-              "circle-color": [
-                "case",
-                ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
-                ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
-                ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
-                "#64748B"
-              ],
+              "circle-color": stormFillColorExpression,
               "circle-opacity": [
                 "case",
                 ["==", ["downcase", ["get", "type"]], "hail"], 0.28,
@@ -786,13 +846,7 @@ export function StormMap({
                 12, 4.5,
                 15, 6
               ],
-              "circle-color": [
-                "case",
-                ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
-                ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
-                ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
-                "#64748B"
-              ],
+              "circle-color": stormFillColorExpression,
               "circle-opacity": [
                 "interpolate",
                 ["linear"],
@@ -801,13 +855,7 @@ export function StormMap({
                 12, 0.5,
                 15, 0.62
               ],
-              "circle-stroke-color": [
-                "case",
-                ["==", ["downcase", ["get", "type"]], "hail"], "#DBEAFE",
-                ["==", ["downcase", ["get", "type"]], "wind"], "#EDE9FE",
-                ["==", ["downcase", ["get", "type"]], "tornado"], "#FEE2E2",
-                "#E2E8F0"
-              ],
+              "circle-stroke-color": stormStrokeColorExpression,
               "circle-stroke-width": 1,
             }}
           />
@@ -828,22 +876,6 @@ export function StormMap({
             }}
           />
         </Source>
-
-        {/* Layer 1: Live NOAA Base Reflectivity Radar Raster Layer */}
-        {filters.showRadar && (
-          <Source id="noaa-radar" type="raster" tiles={[radarTileUrl]} tileSize={256}>
-            <Layer
-              id="radar-layer"
-              type="raster"
-              paint={{
-                "raster-opacity": filters.radarOpacity,
-              }}
-            />
-          </Source>
-        )}
-
-        {/* Layer 2: Active NWS Alert Warning Polygons */}
-        {filters.showAlerts && <AlertPolygonLayer alerts={alerts} />}
 
         {/* Layer 3: Target Search Radius Circle Layer */}
         {radiusCircleGeoJson && (
@@ -905,23 +937,35 @@ export function StormMap({
           />
         )}
 
-        {/* Layer 6.6: Locked target marker */}
-        {selectedProperty && (
-          <Marker
-            latitude={selectedProperty.latitude}
-            longitude={selectedProperty.longitude}
-            anchor="center"
-          >
-            <div className="relative flex items-center justify-center cursor-pointer" onClick={() => {
-              setClickedTarget({ ...selectedProperty, locked: true });
-            }}>
-              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 animate-target-pulse absolute" />
-              <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-glow-hail relative flex items-center justify-center">
-                <MapPin size={8} className="text-white" />
+        {/* Layer 6.6: Persistent locked lead markers */}
+        {leads && leads.map((lead) => {
+          const isActive = selectedProperty?.latitude === lead.latitude && selectedProperty?.longitude === lead.longitude;
+          return (
+            <Marker
+              key={lead.id}
+              latitude={lead.latitude}
+              longitude={lead.longitude}
+              anchor="center"
+            >
+              <div
+                className="relative flex items-center justify-center cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setClickedTarget({ ...lead, locked: true });
+                }}
+              >
+                <div className={`rounded-full bg-emerald-500/25 border-2 border-emerald-500/50 absolute transition-all ${
+                  isActive ? "w-8 h-8 animate-target-pulse" : "w-6 h-6 animate-ping duration-1000"
+                }`} />
+                <div className={`rounded-full bg-emerald-500 border-2 border-white shadow-glow-hail relative flex items-center justify-center transition-all ${
+                  isActive ? "w-5 h-5 scale-110 bg-emerald-600" : "w-4 h-4 hover:scale-110"
+                }`}>
+                  <MapPin size={isActive ? 10 : 8} className="text-white" />
+                </div>
               </div>
-            </div>
-          </Marker>
-        )}
+            </Marker>
+          );
+        })}
 
         {/* Layer 7.5: Clicked Property Target Popup */}
         {clickedTarget && (
@@ -1039,13 +1083,8 @@ export function StormMap({
               <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                 <span className="flex items-center gap-1.5">
                   <span
-                    className={`w-2 h-2 rounded-full ${
-                      selectedReport.type === "hail"
-                        ? "bg-[#2563EB]"
-                        : selectedReport.type === "wind"
-                        ? "bg-[#7C3AED]"
-                        : "bg-[#DC2626]"
-                    }`}
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: STORM_TYPE_COLORS[selectedReport.type]?.fill ?? "#64748B" }}
                   ></span>
                   <span className="font-extrabold uppercase tracking-wider text-xs">
                     {selectedReport.type} REPORT
@@ -1107,6 +1146,118 @@ export function StormMap({
                 <div className="italic text-slate-500/80 leading-normal">
                   * Storm reports are preliminary and may be updated by NOAA/SPC.
                 </div>
+              </div>
+            </div>
+          </Popup>
+        )}
+
+        {/* Layer 7.5: Storm Cluster/Area Profile Popup */}
+        {selectedCluster && (
+          <Popup
+            latitude={selectedCluster.center[0]}
+            longitude={selectedCluster.center[1]}
+            onClose={() => setSelectedCluster(null)}
+            closeButton={true}
+            closeOnClick={false}
+            anchor="bottom"
+            offset={16}
+            maxWidth="340px"
+          >
+            <div className="text-slate-100 flex flex-col gap-2">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: STORM_TYPE_COLORS[selectedCluster.mainStormType]?.fill ?? "#64748B" }}
+                  ></span>
+                  <span className="font-extrabold uppercase tracking-wider text-xs">
+                    {selectedCluster.mainStormType} AREA
+                  </span>
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] font-bold text-slate-300">
+                  Score: {selectedCluster.totalScore}
+                </span>
+              </div>
+
+              {/* Area Name */}
+              <div>
+                <span className="text-slate-500 font-medium block text-[10px] uppercase">Area / Location</span>
+                <p className="font-bold text-slate-200 text-sm">{selectedCluster.name || "Unknown Area"}</p>
+                <p className="text-[10px] text-slate-400">
+                  {selectedCluster.county ? `${selectedCluster.county} County, ` : ""}{selectedCluster.state}
+                </p>
+              </div>
+
+              {/* Report Counts */}
+              <div className="grid grid-cols-4 gap-1 bg-slate-950/40 border border-slate-900/60 p-1.5 rounded text-[10px] text-center">
+                <div>
+                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Total</span>
+                  <span className="font-bold text-slate-200">{selectedCluster.reportsCount}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Hail</span>
+                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.hail.fill }}>{selectedCluster.hailCount}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Wind</span>
+                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.wind.fill }}>{selectedCluster.windCount}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Tornado</span>
+                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>{selectedCluster.tornadoCount}</span>
+                </div>
+              </div>
+
+              {/* Magnitude & Radius */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Highest Magnitude</span>
+                  <p className="font-semibold text-slate-200">{selectedCluster.highestMagnitude}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Target Radius</span>
+                  <p className="font-semibold text-slate-200">{selectedCluster.suggestedRadius} mi</p>
+                </div>
+              </div>
+
+              {/* Top 3 Report Summaries */}
+              {selectedCluster.reports.length > 0 && (
+                <div>
+                  <span className="text-slate-500 font-medium block text-[10px] uppercase mb-1">Top Reports</span>
+                  <div className="space-y-1">
+                    {selectedCluster.reports.slice(0, 3).map((r, i) => (
+                      <div key={r.id || i} className="bg-slate-950/40 p-1.5 rounded border border-slate-900/60 text-[10px] flex items-start gap-1.5">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
+                          style={{ backgroundColor: STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B" }}
+                        ></span>
+                        <div className="truncate">
+                          <span className="font-semibold text-slate-200 uppercase">{r.type}</span>
+                          {r.magnitude && <span className="text-slate-400"> — {r.magnitude}</span>}
+                          {r.location && <span className="text-slate-500 block truncate">{r.location}, {r.county} {r.state}</span>}
+                          {r.comments && <span className="text-slate-500 italic block truncate">"{r.comments}"</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Zoom to Area Button */}
+              <button
+                onClick={() => {
+                  handleClusterClick(selectedCluster.center);
+                  setSelectedCluster(null);
+                }}
+                className="w-full text-center py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-extrabold uppercase tracking-widest border border-slate-700 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                Zoom to Area
+              </button>
+
+              {/* Footer */}
+              <div className="text-[8px] text-slate-500 italic">
+                Click individual storm circles for detailed reports.
               </div>
             </div>
           </Popup>

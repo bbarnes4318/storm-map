@@ -1,4 +1,5 @@
 import React from "react";
+import { STORM_TYPE_COLORS } from "@/lib/weather/stormStyles";
 
 export function StormLegend({ className }: { className?: string }) {
   return (
@@ -57,16 +58,16 @@ export function StormLegend({ className }: { className?: string }) {
         <span className="font-semibold text-slate-400 block mb-1.5">SPC Storm Reports</span>
         <div className="space-y-1.5 text-[10px]">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-[#2563EB] border border-[#DBEAFE] shadow-glow-hail inline-block"></span>
-            <span className="flex-1">Hail Reports <span className="text-slate-500">(Royal Blue)</span></span>
+            <span className="w-3 h-3 rounded-full shadow-glow-hail inline-block" style={{ backgroundColor: STORM_TYPE_COLORS.hail.fill, borderWidth: 1, borderStyle: "solid", borderColor: STORM_TYPE_COLORS.hail.stroke }}></span>
+            <span className="flex-1">{STORM_TYPE_COLORS.hail.label} <span className="text-slate-500">(Royal Blue)</span></span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-[#7C3AED] border border-[#EDE9FE] shadow-glow-wind inline-block"></span>
-            <span className="flex-1">Damaging Wind <span className="text-slate-500">(Violet)</span></span>
+            <span className="w-3 h-3 rounded-full shadow-glow-wind inline-block" style={{ backgroundColor: STORM_TYPE_COLORS.wind.fill, borderWidth: 1, borderStyle: "solid", borderColor: STORM_TYPE_COLORS.wind.stroke }}></span>
+            <span className="flex-1">{STORM_TYPE_COLORS.wind.label} <span className="text-slate-500">(Violet)</span></span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-[#DC2626] border border-[#FEE2E2] shadow-glow-tornado inline-block"></span>
-            <span className="flex-1">Tornado Reports <span className="text-slate-500">(Crimson Red)</span></span>
+            <span className="w-3 h-3 rounded-full shadow-glow-tornado inline-block" style={{ backgroundColor: STORM_TYPE_COLORS.tornado.fill, borderWidth: 1, borderStyle: "solid", borderColor: STORM_TYPE_COLORS.tornado.stroke }}></span>
+            <span className="flex-1">{STORM_TYPE_COLORS.tornado.label} <span className="text-slate-500">(Crimson Red)</span></span>
           </div>
         </div>
       </div>
