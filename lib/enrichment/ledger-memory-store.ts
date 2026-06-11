@@ -1,6 +1,13 @@
 import { CreditLedgerStore, Account, CreditLedgerEntry } from "./ledger";
 
 /**
+ * @deprecated Phase 1G — This module is superseded by lib/enrichment/stores/mock-store-adapter.ts.
+ * The MockCreditLedgerStore in stores/mock-store-adapter.ts provides the same
+ * functionality as part of the unified EnrichmentStore interface. This file
+ * is retained only for reference and backwards compatibility with the deprecated
+ * mock-store.ts. Do not import in new code.
+ *
+ * Original purpose:
  * A lightweight, in-memory implementation of the CreditLedgerStore interface.
  * Useful for local development, mock flows, and unit testing where a live
  * PostgreSQL connection is not available or desired.

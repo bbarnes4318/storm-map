@@ -6,9 +6,8 @@
  * Returns an EncryptedPayloadEnvelope compatible with crypto-types.ts.
  */
 
-// SERVER-ONLY: This module must only be imported by server-side code (API routes,
-// other lib/ modules). Do not import from client components. The `server-only`
-// package is not currently installed; server-only enforcement is structural.
+import "server-only";
+
 import * as crypto from "crypto";
 import {
   EncryptedPayloadEnvelope,

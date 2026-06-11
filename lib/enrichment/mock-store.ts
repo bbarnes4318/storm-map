@@ -1,19 +1,15 @@
 /**
+ * @deprecated Phase 1G — This module is superseded by lib/enrichment/stores/.
+ * All API routes now use getEnrichmentStore() from lib/enrichment/stores/index.ts.
+ * The MockEnrichmentStore in stores/mock-store-adapter.ts replaces this module.
+ * This file is retained only for reference. Do not import in new code.
+ *
+ * Original purpose:
  * Centralized in-memory mock stores for enrichment API routes.
  *
  * !! DEVELOPMENT / MOCK-MODE ONLY !!
  * This module is NOT production persistence. All state held here is
- * ephemeral and lost on server restart. It exists solely to allow the
- * enrichment API routes to function end-to-end when ENRICHMENT_MOCK_MODE=true
- * and no database is connected.
- *
- * When database persistence is active (post-Phase 1F migrations), route
- * handlers should query the Drizzle DB tables directly and bypass this
- * module entirely.
- *
- * This module consolidates mock state that was previously scattered across
- * individual route files, eliminating cross-route imports and keeping API
- * route handlers thin.
+ * ephemeral and lost on server restart.
  */
 
 // NOTE: This module is server-only. It must only be imported by server-side

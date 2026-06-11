@@ -5,14 +5,14 @@
  * The user must agree to TCPA/DNC compliance terms before
  * accessing enrichment data.
  *
- * Mock mode: Attestation is stored in server-side memory.
- * Production: Will persist to compliance_attestations table.
+ * Uses the unified EnrichmentStore via getEnrichmentStore().
+ * Works in both mock mode and with real database.
  */
 
 import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
-import { createAttestation } from "@/lib/enrichment/compliance";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
+import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
 import { z } from "zod";
 
 const AttestRequestSchema = z.object({
@@ -28,6 +28,9 @@ const ATTESTATION_TEXT =
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Resolve store
+    const store = getEnrichmentStore();
+
     // 1. Resolve account
     const account = await getCurrentEnrichmentAccount(request);
 
@@ -48,13 +51,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Store attestation
-    await createAttestation(account.accountId, request, ATTESTATION_TEXT);
+    // 3. Extract request metadata for audit trail
+    const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
+    // 4. Store attestation via store abstraction
+    await store.compliance.createAttestation({
+      accountId: account.accountId,
+      ipAddress,
+      userAgent,
+      attestationText: ATTESTATION_TEXT,
+    });
+
+    // 5. Write audit log
+    await store.audit.createAuditLog({
+      accountId: account.accountId,
+      action: "COMPLIANCE_ATTESTATION",
+      ipAddress,
+      userAgent,
+      metadata: { attestedAt: new Date().toISOString() },
+    });
 
     return apiSuccess({ attested: true });
   } catch (err) {
     if (err instanceof AuthNotConfiguredError) {
       return apiError("AUTH_NOT_CONFIGURED", err.message, 501);
+    }
+    if (err instanceof StoreConfigurationError) {
+      return apiError("INTERNAL_ERROR", err.message, 503);
     }
     console.error("[POST /api/enrichment/attest] Unhandled error:", err);
     return apiError("INTERNAL_ERROR", "An internal error occurred.", 500);

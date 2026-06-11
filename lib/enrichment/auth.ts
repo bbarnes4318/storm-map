@@ -8,9 +8,8 @@
  * No password auth. No login/signup. No auth UI.
  */
 
-// SERVER-ONLY: This module must only be imported by server-side code (API routes,
-// other lib/ modules). Do not import from client components. The `server-only`
-// package is not currently installed; server-only enforcement is structural.
+import "server-only";
+
 
 export interface EnrichmentAccountContext {
   accountId: string;

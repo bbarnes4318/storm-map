@@ -1,13 +1,14 @@
 /**
  * Server-only compliance helpers for TCPA/DNC attestation and suppression.
  *
- * Provides function boundaries for attestation checking, creation,
- * suppression hashing, and contact redaction. In mock mode (no DB),
- * attestation state is held in a server-side in-memory map.
+ * Pure helper functions (hashSuppressionValue, redactSuppressedContacts)
+ * are still actively used by API routes.
  *
- * Once database persistence is active (post-migration), these functions
- * should be updated to query the complianceAttestations and suppressionList
- * tables via Drizzle.
+ * @deprecated (attestation functions only) Phase 1G — The attestation
+ * functions (hasRecentAttestation, requireAttestation, createAttestation)
+ * are superseded by ComplianceStore in lib/enrichment/stores/types.ts.
+ * API routes now use store.compliance.createAttestation() and
+ * store.compliance.hasRecentAttestation() instead.
  */
 
 // SERVER-ONLY: This module must only be imported by server-side code (API routes,
@@ -39,24 +40,17 @@ interface MockAttestation {
 const mockAttestations = new Map<string, MockAttestation>();
 
 // ==============================================================================
-// Attestation Helpers
+// Attestation Helpers (DEPRECATED — use store.compliance instead)
 // ==============================================================================
 
 /** Maximum age of an attestation before re-attestation is required (24 hours). */
 const ATTESTATION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * @deprecated Use store.compliance.hasRecentAttestation() instead.
  * Checks whether the given account has a recent (within 24h) compliance attestation.
- *
- * @param accountId - The account UUID to check.
- * @returns true if a valid, non-expired attestation exists.
  */
 export async function hasRecentAttestation(accountId: string): Promise<boolean> {
-  // TODO: When DB is active, query complianceAttestations table:
-  //   SELECT 1 FROM compliance_attestations
-  //   WHERE account_id = $1 AND attested_at > NOW() - INTERVAL '24 hours'
-  //   LIMIT 1;
-
   const stored = mockAttestations.get(accountId);
   if (!stored) return false;
 
@@ -65,11 +59,8 @@ export async function hasRecentAttestation(accountId: string): Promise<boolean> 
 }
 
 /**
+ * @deprecated Use store.compliance.hasRecentAttestation() instead.
  * Throws a structured error if the account does not have a recent attestation.
- * Call this at the top of quote/unlock routes.
- *
- * @param accountId - The account UUID to check.
- * @throws Error with code COMPLIANCE_ATTESTATION_REQUIRED if no valid attestation.
  */
 export async function requireAttestation(accountId: string): Promise<void> {
   const valid = await hasRecentAttestation(accountId);
@@ -81,20 +72,14 @@ export async function requireAttestation(accountId: string): Promise<void> {
 }
 
 /**
+ * @deprecated Use store.compliance.createAttestation() instead.
  * Records a compliance attestation for the given account.
- *
- * @param accountId - The account UUID.
- * @param request - The incoming HTTP request (used to extract IP and User-Agent for audit).
- * @param attestationText - The full legal text the user agreed to.
  */
 export async function createAttestation(
   accountId: string,
-  request: Request,
+  _request: Request,
   attestationText: string
 ): Promise<void> {
-  // TODO: When DB is active, INSERT into compliance_attestations:
-  //   { accountId, attestedAt: now, ipAddress, userAgent, attestationText }
-
   mockAttestations.set(accountId, {
     accountId,
     attestedAt: new Date(),

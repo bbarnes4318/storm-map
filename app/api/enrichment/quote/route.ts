@@ -4,17 +4,16 @@
  * Generates a credit cost quote for a property enrichment product.
  * Does NOT charge credits. Returns a quoteId for use in the /unlock route.
  *
- * Mock mode: Quote is stored in server-side memory via mock-store.
- * Production: Will persist to enrichment_quotes table.
+ * Uses the unified EnrichmentStore via getEnrichmentStore().
+ * Works in both mock mode and with real database.
  */
 
 import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
-import { requireAttestation } from "@/lib/enrichment/compliance";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
+import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
 import { QuoteRequestSchema, DataProductType } from "@/lib/enrichment/schemas";
 import { createPropertyHash } from "@/lib/enrichment/providers/normalizers";
-import { saveMockQuote, StoredQuote } from "@/lib/enrichment/mock-store";
 
 // Server-side credit price table
 const CREDIT_COSTS: Record<DataProductType, number> = {
@@ -24,24 +23,25 @@ const CREDIT_COSTS: Record<DataProductType, number> = {
   FULL_STORM_LEAD: 20,
 };
 
+/** Quote validity window: 15 minutes */
+const QUOTE_EXPIRY_MS = 15 * 60 * 1000;
+
 export async function POST(request: NextRequest) {
   try {
+    // 0. Resolve store
+    const store = getEnrichmentStore();
+
     // 1. Resolve account
     const account = await getCurrentEnrichmentAccount(request);
 
-    // 2. Require compliance attestation
-    try {
-      await requireAttestation(account.accountId);
-    } catch (attErr) {
-      const code = (attErr as Error & { code?: string }).code;
-      if (code === "COMPLIANCE_ATTESTATION_REQUIRED") {
-        return apiError(
-          "COMPLIANCE_ATTESTATION_REQUIRED",
-          "You must complete compliance attestation before generating quotes.",
-          403
-        );
-      }
-      throw attErr;
+    // 2. Require compliance attestation via store
+    const hasAttestation = await store.compliance.hasRecentAttestation(account.accountId);
+    if (!hasAttestation) {
+      return apiError(
+        "COMPLIANCE_ATTESTATION_REQUIRED",
+        "You must complete compliance attestation before generating quotes.",
+        403
+      );
     }
 
     // 3. Parse and validate body
@@ -58,28 +58,39 @@ export async function POST(request: NextRequest) {
     // 4. Generate property hash and credit cost
     const propertyHash = createPropertyHash(address, latitude, longitude);
     const creditCost = CREDIT_COSTS[productType];
+    const expiresAt = new Date(Date.now() + QUOTE_EXPIRY_MS);
 
-    // 5. Generate quote with 15-minute expiry
-    const quoteId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-    // 6. Store quote via centralized mock store
-    const storedQuote: StoredQuote = {
-      quoteId,
+    // 5. Store quote via unified store
+    const storedQuote = await store.quotes.createQuote({
       accountId: account.accountId,
       propertyHash,
-      address,
       latitude,
       longitude,
+      addressText: address,
       productType,
       creditCost,
       expiresAt,
-      createdAt: new Date(),
-    };
-    saveMockQuote(storedQuote);
+    });
+
+    // 6. Write audit log
+    const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    await store.audit.createAuditLog({
+      accountId: account.accountId,
+      action: "GENERATE_QUOTE",
+      ipAddress,
+      userAgent,
+      metadata: {
+        quoteId: storedQuote.id,
+        productType,
+        creditCost,
+        propertyHash,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
 
     return apiSuccess({
-      quoteId,
+      quoteId: storedQuote.id,
       propertyHash,
       productType,
       creditCost,
@@ -88,6 +99,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     if (err instanceof AuthNotConfiguredError) {
       return apiError("AUTH_NOT_CONFIGURED", err.message, 501);
+    }
+    if (err instanceof StoreConfigurationError) {
+      return apiError("INTERNAL_ERROR", err.message, 503);
     }
     console.error("[POST /api/enrichment/quote] Unhandled error:", err);
     return apiError("INTERNAL_ERROR", "An internal error occurred.", 500);

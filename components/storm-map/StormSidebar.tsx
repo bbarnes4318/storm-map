@@ -3,7 +3,7 @@
 import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget } from "@/lib/weather/types";
 import { clusterStormReports } from "@/lib/weather/geo";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 
 interface StormSidebarProps {
@@ -20,6 +20,8 @@ interface StormSidebarProps {
   setSidebarOpen: (open: boolean) => void;
   selectedProperty: SelectedPropertyTarget | null;
   onUnlockProperty: () => void;
+  leads: SelectedPropertyTarget[];
+  onRemoveLead: (leadId: string) => void;
 }
 
 const US_STATES = [
@@ -49,10 +51,12 @@ export function StormSidebar({
   setSidebarOpen,
   selectedProperty,
   onUnlockProperty,
+  leads = [],
+  onRemoveLead,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"filters" | "targets">("filters");
+  const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
 
   // Geocoding search using free Nominatim API
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -103,6 +107,39 @@ export function StormSidebar({
   const handleClearSearch = () => {
     setSearchQuery("");
     onFiltersChange({ center: null, searchQuery: "" });
+  };
+
+  const handleExportCSV = () => {
+    if (leads.length === 0) return;
+    const headers = ["ID", "Full Address", "Street Number", "Street Name", "Neighborhood", "City", "County", "State", "Postal Code", "Latitude", "Longitude", "Confidence"];
+    const rows = leads.map((lead) => [
+      lead.id,
+      `"${lead.fullAddress.replace(/"/g, '""')}"`,
+      lead.streetNumber || "",
+      `"${(lead.streetName || "").replace(/"/g, '""')}"`,
+      `"${(lead.neighborhood || "").replace(/"/g, '""')}"`,
+      `"${(lead.city || "").replace(/"/g, '""')}"`,
+      `"${(lead.county || "").replace(/"/g, '""')}"`,
+      lead.state || "",
+      lead.postcode || "",
+      lead.latitude,
+      lead.longitude,
+      lead.confidence
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `stormtarget_leads_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Filter reports according to current map filters
@@ -233,62 +270,22 @@ export function StormSidebar({
             </button>
           </div>
         )}
-
-        {/* Active Target Property Card */}
+        {/* Sleek Active Target Property Indicator */}
         {selectedProperty && (
-          <div className="mx-4 my-2.5 p-3.5 bg-red-950/15 border border-red-500/35 rounded-lg shadow-glow-tornado flex flex-col gap-2 relative">
-            <div className="flex justify-between items-start gap-2">
-              <span className="flex items-center gap-1.5 text-red-400 font-extrabold text-[10px] tracking-wider uppercase">
-                <MapPin size={12} className="animate-pulse" />
-                Active Target Property
+          <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px]">
+            <div className="flex items-center gap-1.5 truncate text-emerald-400">
+              <MapPin size={11} className="animate-pulse shrink-0" />
+              <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
+                Active Target: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
               </span>
-              <button
-                type="button"
-                onClick={onUnlockProperty}
-                className="text-[9px] text-slate-500 hover:text-red-400 font-extrabold uppercase transition-colors px-1.5 py-0.5 rounded border border-slate-900 bg-slate-950 hover:bg-slate-900 shrink-0"
-              >
-                Clear Target
-              </button>
             </div>
-            
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold text-slate-100 leading-tight">
-                {selectedProperty.fullAddress}
-              </h4>
-              {selectedProperty.neighborhood && (
-                <p className="text-[10px] text-slate-400 font-medium">
-                  Neighborhood: {selectedProperty.neighborhood}
-                </p>
-              )}
-              <p className="text-[10px] text-slate-500">
-                {[
-                  selectedProperty.city,
-                  selectedProperty.state,
-                  selectedProperty.postcode
-                ].filter(Boolean).join(", ")}
-              </p>
-              <div className="flex justify-between items-center text-[9px] text-slate-500 border-t border-slate-900/60 pt-1.5 mt-1">
-                <span>Lat: {selectedProperty.latitude.toFixed(5)}, Lon: {selectedProperty.longitude.toFixed(5)}</span>
-                <span className={`px-1 rounded-sm text-[8px] font-extrabold uppercase ${
-                  selectedProperty.confidence === "exact"
-                    ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                }`}>
-                  {selectedProperty.confidence}
-                </span>
-              </div>
-            </div>
-
-            {/* Lead Routing Placeholder */}
-            <div className="mt-1 p-2 bg-slate-950/40 border border-slate-900 rounded-md text-[9px] text-slate-400">
-              <span className="font-extrabold text-[8px] text-slate-500 uppercase tracking-wide block mb-1">
-                Lead Routing Workflow
-              </span>
-              <div className="flex items-center gap-1.5 text-slate-600">
-                <Zap size={10} />
-                <span>Locked for dispatch sequence (Future module)</span>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={onUnlockProperty}
+              className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
+            >
+              Clear
+            </button>
           </div>
         )}
 
@@ -296,26 +293,41 @@ export function StormSidebar({
         <div className="flex border-b border-slate-900 bg-slate-950">
           <button
             onClick={() => setActiveTab("filters")}
-            className={`flex-1 py-2.5 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
               activeTab === "filters"
                 ? "border-red-500 text-slate-200 bg-slate-900/20"
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            FILTERS & METRICS
+            FILTERS
           </button>
           <button
             onClick={() => setActiveTab("targets")}
-            className={`flex-1 py-2.5 text-center text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "targets"
                 ? "border-red-500 text-slate-200 bg-slate-900/20"
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            LEAD TARGETS
+            OPPORTUNITIES
             {clusters.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[9px]">
+              <span className="px-1 py-0.2 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[8px]">
                 {clusters.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("leads")}
+            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+              activeTab === "leads"
+                ? "border-red-500 text-slate-200 bg-slate-900/20"
+                : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            LOCKED LEADS
+            {leads.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold animate-pulse">
+                {leads.length}
               </span>
             )}
           </button>
@@ -323,7 +335,7 @@ export function StormSidebar({
 
         {/* Tab Contents */}
         <div className="flex-1 overflow-y-auto p-2 space-y-2.5">
-          {activeTab === "filters" ? (
+          {activeTab === "filters" && (
             <>
               {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
               <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-1.5 space-y-1.5">
@@ -555,8 +567,9 @@ export function StormSidebar({
                 </div>
               </div>
             </>
-          ) : (
-            /* Lead Targets Tab */
+          )}
+
+          {activeTab === "targets" && (
             <div className="space-y-4">
               <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-3 text-[11px] text-slate-400 flex items-start gap-2">
                 <Info size={14} className="text-red-500 shrink-0 mt-0.5" />
@@ -642,6 +655,109 @@ export function StormSidebar({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "leads" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <ClipboardList size={14} className="text-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Leads</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold">
+                    {leads.length}
+                  </span>
+                </div>
+                {leads.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-extrabold uppercase rounded shadow transition-colors cursor-pointer"
+                    >
+                      <Download size={10} />
+                      Export CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to clear all saved leads?")) {
+                          leads.forEach(l => onRemoveLead(l.id));
+                        }
+                      }}
+                      className="px-2 py-1 bg-slate-905 hover:bg-red-950/40 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-900/30 text-[9px] font-extrabold uppercase rounded transition-all cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {leads.length === 0 ? (
+                <div className="py-10 text-center border border-dashed border-slate-805 rounded-lg text-slate-500 flex flex-col items-center justify-center gap-2">
+                  <MapPin size={20} className="text-slate-700 animate-pulse" />
+                  <p className="text-[11px] font-bold text-slate-350">No saved leads yet</p>
+                  <p className="text-[9.5px] text-slate-600 max-w-[220px] leading-normal">
+                    Click on any location or address on the map, then click <strong className="text-slate-400">"Lock Address for Lead Route"</strong> to add it here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {leads.map((lead) => {
+                    const isActive = selectedProperty?.id === lead.id;
+                    return (
+                      <div
+                        key={lead.id}
+                        onClick={() => onSelectCoords([lead.latitude, lead.longitude], lead.fullAddress, 16.5)}
+                        className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
+                          isActive
+                            ? "bg-emerald-950/15 border-emerald-500/40 hover:border-emerald-500/60 shadow-md shadow-emerald-950/20"
+                            : "bg-slate-900/40 hover:bg-slate-900/80 border-slate-900 hover:border-slate-800"
+                        }`}
+                      >
+                        <div className="flex gap-2 truncate">
+                          <MapPin
+                            size={12}
+                            className={`shrink-0 mt-0.5 ${isActive ? "text-emerald-500 animate-bounce" : "text-slate-600 group-hover:text-slate-450"}`}
+                          />
+                          <div className="truncate flex flex-col gap-0.5">
+                            <span className={`text-[11px] font-bold leading-tight truncate ${isActive ? "text-slate-100 animate-pulse" : "text-slate-300"}`}>
+                              {lead.fullAddress}
+                            </span>
+                            <span className="text-[9.5px] text-slate-550 font-medium">
+                              {[lead.city, lead.state, lead.postcode].filter(Boolean).join(", ")}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-[8.5px] text-slate-600 font-mono">
+                                {lead.latitude.toFixed(4)}, {lead.longitude.toFixed(4)}
+                              </span>
+                              <span className={`px-1 rounded-sm text-[7px] font-bold uppercase ${
+                                lead.confidence === "exact"
+                                  ? "bg-emerald-500/10 text-emerald-400/90 border border-emerald-500/20"
+                                  : "bg-amber-500/10 text-amber-400/90 border border-amber-500/20"
+                              }`}>
+                                {lead.confidence}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // prevent map panning
+                            onRemoveLead(lead.id);
+                          }}
+                          className="text-slate-600 hover:text-red-400 p-1 rounded bg-slate-950/20 hover:bg-red-500/10 border border-slate-900/40 hover:border-red-950/40 transition-colors shrink-0"
+                          title="Remove lead"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

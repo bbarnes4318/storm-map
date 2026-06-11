@@ -12,10 +12,8 @@
  * handlers can detect the absence and fall back to mock behavior.
  */
 
-// SERVER-ONLY: This module must only be imported by server-side code (API routes,
-// other lib/ modules). Do not import from client components. The `server-only`
-// package is not currently installed; server-only enforcement is structural.
-// Both `pg` and `drizzle-orm` are listed in package.json dependencies.
+import "server-only";
+
 
 import { Pool } from "pg";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";

@@ -4,43 +4,39 @@
  * Charges credits and returns enrichment data for a quoted property.
  * Requires an Idempotency-Key header to prevent double-charging.
  *
- * Mock mode: Uses centralized mock-store for quotes, ledger, and unlock cache.
- * Production: Will use Drizzle DB transactions and real providers.
+ * Uses the unified EnrichmentStore via getEnrichmentStore() and the
+ * Phase 1C ledger service via StoreLedgerBridge.
+ *
+ * Works in both mock mode and with real database.
  */
 
 import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
-import { requireAttestation, redactSuppressedContacts } from "@/lib/enrichment/compliance";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
+import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
+import { StoreLedgerBridge } from "@/lib/enrichment/stores/ledger-bridge";
 import { UnlockRequestSchema } from "@/lib/enrichment/schemas";
 import { getProviderForProduct } from "@/lib/enrichment/providers";
-import { debitAccount } from "@/lib/enrichment/ledger";
+import { debitAccount, CreditLedgerError } from "@/lib/enrichment/ledger";
+import { redactSuppressedContacts, hashSuppressionValue } from "@/lib/enrichment/compliance";
 import { encryptContactPayload, EncryptionNotConfiguredError } from "@/lib/enrichment/crypto";
-import {
-  getMockQuote,
-  getMockUnlock,
-  saveMockUnlock,
-  getMockLedgerStore,
-} from "@/lib/enrichment/mock-store";
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Resolve store
+    const store = getEnrichmentStore();
+
     // 1. Resolve account
     const account = await getCurrentEnrichmentAccount(request);
 
-    // 2. Require compliance attestation
-    try {
-      await requireAttestation(account.accountId);
-    } catch (attErr) {
-      const code = (attErr as Error & { code?: string }).code;
-      if (code === "COMPLIANCE_ATTESTATION_REQUIRED") {
-        return apiError(
-          "COMPLIANCE_ATTESTATION_REQUIRED",
-          "Compliance attestation is required before unlocking data.",
-          403
-        );
-      }
-      throw attErr;
+    // 2. Require compliance attestation via store
+    const hasAttestation = await store.compliance.hasRecentAttestation(account.accountId);
+    if (!hasAttestation) {
+      return apiError(
+        "COMPLIANCE_ATTESTATION_REQUIRED",
+        "Compliance attestation is required before unlocking data.",
+        403
+      );
     }
 
     // 3. Require Idempotency-Key header
@@ -53,18 +49,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Check cached unlock for idempotent replay
-    const cached = getMockUnlock(idempotencyKey);
-    if (cached) {
+    // 4. Check for existing unlock by this idempotency key (via ledger)
+    const ledgerBridge = new StoreLedgerBridge(store);
+    const existingEntry = await ledgerBridge.getLedgerEntryByIdempotencyKey(idempotencyKey);
+    if (existingEntry) {
+      // Idempotent replay: return cached result if we have an unlock record
+      // The unlock was already persisted with the original request
       return apiSuccess({
-        unlockId: cached.unlockId,
-        productType: cached.productType,
-        creditsCharged: cached.creditsCharged,
+        message: "This unlock was already processed (idempotent replay).",
+        creditsCharged: Math.abs(existingEntry.amount),
         isCached: true,
-        providerSource: cached.providerSource,
-        providerRequestId: cached.providerRequestId,
-        providerCostEstimate: cached.providerCostEstimate,
-        ...cached.result,
+        ledgerEntryId: existingEntry.id,
       });
     }
 
@@ -77,8 +72,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 6. Look up quote from centralized mock store
-    const quote = getMockQuote(parsed.data.quoteId);
+    // 6. Look up quote from store
+    const quote = await store.quotes.getQuoteById(parsed.data.quoteId);
     if (!quote) {
       return apiError("QUOTE_NOT_FOUND", "Quote not found or has expired.", 404);
     }
@@ -89,11 +84,29 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Check quote expiry
-    if (new Date() > quote.expiresAt) {
+    if (store.quotes.isQuoteExpired(quote)) {
       return apiError("QUOTE_EXPIRED", "This quote has expired. Please generate a new quote.", 410);
     }
 
-    // 9. Call provider
+    // 9. Check for existing unlock for this property+product (dedup)
+    const existingUnlock = await store.unlocks.getUnlockByAccountPropertyProduct(
+      account.accountId,
+      quote.propertyHash,
+      quote.productType
+    );
+    if (existingUnlock) {
+      return apiSuccess({
+        unlockId: existingUnlock.id,
+        productType: existingUnlock.productType,
+        creditsCharged: existingUnlock.creditsCharged,
+        isCached: true,
+        providerSource: existingUnlock.providerSource,
+        propertyProfile: existingUnlock.propertyProfilePayload,
+        message: "This property was already unlocked for this product type.",
+      });
+    }
+
+    // 10. Call provider
     let provider;
     try {
       provider = getProviderForProduct(quote.productType);
@@ -107,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     const providerResponse = await provider.enrich({
       productType: quote.productType,
-      address: quote.address,
+      address: quote.addressText,
       latitude: quote.latitude,
       longitude: quote.longitude,
       propertyHash: quote.propertyHash,
@@ -115,7 +128,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!providerResponse.success || !providerResponse.data) {
-      // Do NOT charge credits if provider returns no usable data
       return apiError(
         "PROVIDER_NO_MATCH",
         providerResponse.error || "Provider returned no usable data. No credits were charged.",
@@ -123,46 +135,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 10. Apply suppression list redaction
-    // TODO: When DB is active, load suppression hashes from suppressionList table.
-    const suppressionHashes = new Set<string>(); // Empty in mock mode
+    // 11. Apply suppression list redaction
+    const allContactHashes: string[] = [];
+    if (providerResponse.data.contactData?.phones?.value) {
+      for (const phone of providerResponse.data.contactData.phones.value) {
+        allContactHashes.push(hashSuppressionValue("PHONE", phone.number));
+      }
+    }
+    if (providerResponse.data.contactData?.emails?.value) {
+      for (const email of providerResponse.data.contactData.emails.value) {
+        allContactHashes.push(hashSuppressionValue("EMAIL", email.address));
+      }
+    }
+    const suppressionHashes = await store.suppression.getSuppressedHashes(allContactHashes);
     const redactedResult = redactSuppressedContacts(providerResponse.data, suppressionHashes);
 
-    // 11. Debit credits via centralized mock ledger
-    const ledgerStore = getMockLedgerStore();
+    // 12. Debit credits via Phase 1C ledger service through bridge
     try {
-      await debitAccount(ledgerStore, {
+      await debitAccount(ledgerBridge, {
         accountId: account.accountId,
         amount: quote.creditCost,
         txType: "SPEND_CREDITS",
         idempotencyKey,
-        referenceId: quote.quoteId,
-        description: `Unlock ${quote.productType} for ${quote.address}`,
+        referenceId: quote.id,
+        description: `Unlock ${quote.productType} for ${quote.addressText}`,
       });
     } catch (ledgerErr) {
-      if (ledgerErr instanceof Error && "code" in ledgerErr) {
-        const code = (ledgerErr as Error & { code: string }).code;
-        if (code === "INSUFFICIENT_CREDITS") {
-          return apiError("INSUFFICIENT_CREDITS", "Not enough credits to complete this unlock.", 402);
-        }
+      if (ledgerErr instanceof CreditLedgerError && ledgerErr.code === "INSUFFICIENT_CREDITS") {
+        return apiError("INSUFFICIENT_CREDITS", "Not enough credits to complete this unlock.", 402);
       }
       throw ledgerErr;
     }
 
-    // 12. Encrypt sensitive contact payload for storage
-    // The encrypted version would be stored in DB; the response returns the decrypted
-    // version because it goes directly to the purchasing user from this server route.
+    // 13. Encrypt sensitive contact payload for storage
+    let encryptedContactPayloadStr: string | null = null;
     if (redactedResult.contactData) {
       try {
         const envelope = encryptContactPayload(
           redactedResult.contactData as unknown as Record<string, unknown>
         );
-        // In production, `envelope` would be stored as `encrypted_contact_payload`
-        // in the enrichment_unlocks table. For now, we just verify encryption works.
-        void envelope;
+        encryptedContactPayloadStr = JSON.stringify(envelope);
       } catch (encErr) {
         if (encErr instanceof EncryptionNotConfiguredError) {
-          // In mock mode without encryption key, log warning but continue
           console.warn(
             "[unlock] Encryption key not configured. Contact data will not be encrypted for storage. " +
             "This is acceptable in ENRICHMENT_MOCK_MODE but MUST be resolved before production."
@@ -173,38 +187,63 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 13. Build unlock result
-    const unlockId = crypto.randomUUID();
-    const resultPayload: Record<string, unknown> = {
-      propertyProfile: redactedResult.propertyProfile,
-      contactData: redactedResult.contactData, // Decrypted for immediate response to purchasing user
-      roofIntelligence: redactedResult.roofIntelligence,
-    };
+    // 14. Persist unlock record via store
+    const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
 
-    // 14. Cache for idempotent replay via centralized mock store
-    saveMockUnlock(idempotencyKey, {
-      unlockId,
+    const unlock = await store.unlocks.createUnlock({
+      accountId: account.accountId,
+      propertyHash: quote.propertyHash,
+      latitude: quote.latitude,
+      longitude: quote.longitude,
+      addressText: quote.addressText,
       productType: quote.productType,
-      creditsCharged: quote.creditCost,
       providerSource: providerResponse.providerSource,
       providerRequestId: providerResponse.providerRequestId,
       providerCostEstimate: providerResponse.providerCostEstimate,
-      result: resultPayload,
+      creditsCharged: quote.creditCost,
+      isCached: false,
+      propertyProfilePayload: redactedResult.propertyProfile
+        ? (redactedResult.propertyProfile as unknown as Record<string, unknown>)
+        : null,
+      encryptedContactPayload: encryptedContactPayloadStr,
     });
 
+    // 15. Write audit log
+    await store.audit.createAuditLog({
+      accountId: account.accountId,
+      action: "UNLOCK_LEAD",
+      ipAddress,
+      userAgent,
+      metadata: {
+        unlockId: unlock.id,
+        quoteId: quote.id,
+        productType: quote.productType,
+        creditsCharged: quote.creditCost,
+        propertyHash: quote.propertyHash,
+        providerSource: providerResponse.providerSource,
+      },
+    });
+
+    // 16. Return decrypted data immediately to the purchasing user
     return apiSuccess({
-      unlockId,
+      unlockId: unlock.id,
       productType: quote.productType,
       creditsCharged: quote.creditCost,
       isCached: false,
       providerSource: providerResponse.providerSource,
       providerRequestId: providerResponse.providerRequestId,
       providerCostEstimate: providerResponse.providerCostEstimate,
-      ...resultPayload,
+      propertyProfile: redactedResult.propertyProfile,
+      contactData: redactedResult.contactData,
+      roofIntelligence: redactedResult.roofIntelligence,
     });
   } catch (err) {
     if (err instanceof AuthNotConfiguredError) {
       return apiError("AUTH_NOT_CONFIGURED", err.message, 501);
+    }
+    if (err instanceof StoreConfigurationError) {
+      return apiError("INTERNAL_ERROR", err.message, 503);
     }
     console.error("[POST /api/enrichment/unlock] Unhandled error:", err);
     return apiError("INTERNAL_ERROR", "An internal error occurred.", 500);
