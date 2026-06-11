@@ -221,20 +221,6 @@ export function StormMap({
 
   const handleClusterClick = (clusterCenter: [number, number]) => {
     onFiltersChange({ center: clusterCenter, targetZoom: 9.5 });
-    if (mapRef.current) {
-      mapRef.current.flyTo({
-        center: [clusterCenter[1], clusterCenter[0]],
-        zoom: 9.5,
-        duration: 1000,
-      });
-    } else {
-      setViewState((prev) => ({
-        ...prev,
-        latitude: clusterCenter[0],
-        longitude: clusterCenter[1],
-        zoom: 9.5,
-      }));
-    }
   };
 
   // Canvas map click geocoding interceptor for warnings/reports clicks
@@ -248,7 +234,7 @@ export function StormMap({
       const clickedReportFeature = features.find(
         (f) => f.layer.id === "storm-reports-layer" || f.layer.id === "storm-reports-labels"
       );
-      if (clickedReportFeature && zoom >= 9) {
+      if (clickedReportFeature) {
         const reportId = clickedReportFeature.properties?.id;
         let report = reports.find((r) => String(r.id) === String(reportId));
         if (!report) {
@@ -279,11 +265,11 @@ export function StormMap({
         }
       }
 
-      // Check if a cluster was clicked (only clickable when visible at zoom < 9)
+      // Check if a cluster was clicked
       const clickedClusterFeature = features.find(
         (f) => f.layer.id === "storm-clusters-layer" || f.layer.id === "storm-clusters-count"
       );
-      if (clickedClusterFeature && zoom < 9) {
+      if (clickedClusterFeature) {
         const props = clickedClusterFeature.properties;
         if (props && props.lat !== undefined && props.lon !== undefined) {
           handleClusterClick([Number(props.lat), Number(props.lon)]);
@@ -693,9 +679,9 @@ export function StormMap({
               paint={{
                 "fill-color": [
                   "case",
-                  ["==", ["get", "type"], "tornado"], "#DC2626",
-                  ["==", ["get", "type"], "wind"], "#7C3AED",
-                  ["==", ["get", "type"], "hail"], "#2563EB",
+                  ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
+                  ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
+                  ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
                   "#64748B"
                 ],
                 "fill-opacity": 0.03,
@@ -708,9 +694,9 @@ export function StormMap({
               paint={{
                 "line-color": [
                   "case",
-                  ["==", ["get", "type"], "tornado"], "#DC2626",
-                  ["==", ["get", "type"], "wind"], "#7C3AED",
-                  ["==", ["get", "type"], "hail"], "#2563EB",
+                  ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
+                  ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
+                  ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
                   "#64748B"
                 ],
                 "line-width": 0.75,
@@ -771,16 +757,16 @@ export function StormMap({
               "circle-radius": 10,
               "circle-color": [
                 "case",
-                ["==", ["get", "type"], "hail"], "#2563EB",
-                ["==", ["get", "type"], "wind"], "#7C3AED",
-                ["==", ["get", "type"], "tornado"], "#DC2626",
+                ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
+                ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
+                ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
                 "#64748B"
               ],
               "circle-opacity": [
                 "case",
-                ["==", ["get", "type"], "hail"], 0.28,
-                ["==", ["get", "type"], "wind"], 0.28,
-                ["==", ["get", "type"], "tornado"], 0.30,
+                ["==", ["downcase", ["get", "type"]], "hail"], 0.28,
+                ["==", ["downcase", ["get", "type"]], "wind"], 0.28,
+                ["==", ["downcase", ["get", "type"]], "tornado"], 0.30,
                 0.18
               ],
               "circle-blur": 0.8,
@@ -802,9 +788,9 @@ export function StormMap({
               ],
               "circle-color": [
                 "case",
-                ["==", ["get", "type"], "hail"], "#2563EB",
-                ["==", ["get", "type"], "wind"], "#7C3AED",
-                ["==", ["get", "type"], "tornado"], "#DC2626",
+                ["==", ["downcase", ["get", "type"]], "hail"], "#2563EB",
+                ["==", ["downcase", ["get", "type"]], "wind"], "#7C3AED",
+                ["==", ["downcase", ["get", "type"]], "tornado"], "#DC2626",
                 "#64748B"
               ],
               "circle-opacity": [
@@ -817,9 +803,9 @@ export function StormMap({
               ],
               "circle-stroke-color": [
                 "case",
-                ["==", ["get", "type"], "hail"], "#DBEAFE",
-                ["==", ["get", "type"], "wind"], "#EDE9FE",
-                ["==", ["get", "type"], "tornado"], "#FEE2E2",
+                ["==", ["downcase", ["get", "type"]], "hail"], "#DBEAFE",
+                ["==", ["downcase", ["get", "type"]], "wind"], "#EDE9FE",
+                ["==", ["downcase", ["get", "type"]], "tornado"], "#FEE2E2",
                 "#E2E8F0"
               ],
               "circle-stroke-width": 1,
