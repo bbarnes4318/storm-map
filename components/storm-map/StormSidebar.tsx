@@ -61,6 +61,13 @@ export function StormSidebar({
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
 
+  // Switch to leads tab automatically when a property is selected
+  React.useEffect(() => {
+    if (selectedProperty) {
+      setActiveTab("leads");
+    }
+  }, [selectedProperty]);
+
   // Geocoding search using free Nominatim API
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,28 +282,30 @@ export function StormSidebar({
         )}
         {/* Sleek Active Target Property Indicator */}
         {selectedProperty && (
-          <div className="space-y-1.5">
-            <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px]">
-              <div className="flex items-center gap-1.5 truncate text-emerald-400">
-                <MapPin size={11} className="animate-pulse shrink-0" />
-                <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
-                  Active Target: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
-                </span>
-              </div>
+          <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px] shrink-0 select-none animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-center gap-1.5 truncate text-emerald-400">
+              <MapPin size={11} className="animate-pulse shrink-0 text-emerald-400" />
+              <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
+                Active: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {activeTab !== "leads" && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("leads")}
+                  className="text-[8px] text-emerald-400 hover:text-emerald-350 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-emerald-500/30 bg-slate-950 hover:bg-slate-900 transition-colors"
+                >
+                  View Intel
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onUnlockProperty}
-                className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
+                className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1.5 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
               >
                 Clear
               </button>
-            </div>
-            <div className="mx-2.5 p-2.5 bg-slate-900/10 border border-slate-900 rounded-md">
-              <LeadIntelligencePanel
-                selectedProperty={selectedProperty}
-                onUpdateLead={onUpdateLead}
-                onClearProperty={onUnlockProperty}
-              />
             </div>
           </div>
         )}
@@ -674,6 +683,16 @@ export function StormSidebar({
 
           {activeTab === "leads" && (
             <div className="space-y-4">
+              {selectedProperty && (
+                <div className="p-2.5 bg-slate-900/10 border border-slate-900 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                  <LeadIntelligencePanel
+                    selectedProperty={selectedProperty}
+                    onUpdateLead={onUpdateLead}
+                    onClearProperty={onUnlockProperty}
+                  />
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
                 <div className="flex items-center gap-1.5">
                   <ClipboardList size={14} className="text-emerald-500 animate-pulse" />

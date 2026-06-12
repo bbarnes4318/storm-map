@@ -74,7 +74,7 @@ export function UnlockedLeadDetails({
   ];
 
   return (
-    <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col h-[400px]">
+    <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col min-h-[350px] max-h-[500px]">
       {/* Mini tabs bar */}
       <div className="flex border-b border-slate-900 bg-slate-950 overflow-x-auto shrink-0 custom-scrollbar">
         {tabs.map((tab) => {
