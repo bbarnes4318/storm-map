@@ -12,6 +12,8 @@
 import "server-only";
 
 import type { EnrichmentStore } from "./types";
+import { MockEnrichmentStore } from "./mock-store-adapter";
+import { DrizzleEnrichmentStore } from "./drizzle-store";
 
 // Re-export all store types for convenience
 export type {
@@ -86,9 +88,6 @@ export function getEnrichmentStore(): EnrichmentStore {
   const isMockMode = process.env.ENRICHMENT_MOCK_MODE === "true";
 
   if (isMockMode) {
-    // Dynamic import to avoid loading mock code in production bundles
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { MockEnrichmentStore } = require("./mock-store-adapter") as typeof import("./mock-store-adapter");
     _storeInstance = new MockEnrichmentStore();
     console.info("[enrichment/stores] Using MockEnrichmentStore (ENRICHMENT_MOCK_MODE=true)");
     return _storeInstance;
@@ -96,9 +95,6 @@ export function getEnrichmentStore(): EnrichmentStore {
 
   // Non-mock mode: require real database
   try {
-    // Dynamic import to avoid loading Drizzle in mock-only deployments
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DrizzleEnrichmentStore } = require("./drizzle-store") as typeof import("./drizzle-store");
     _storeInstance = new DrizzleEnrichmentStore();
     console.info("[enrichment/stores] Using DrizzleEnrichmentStore (DATABASE_URL configured)");
     return _storeInstance;
@@ -121,3 +117,4 @@ export function resetStoreInstance(): void {
   _storeError = null;
   _initialized = false;
 }
+
