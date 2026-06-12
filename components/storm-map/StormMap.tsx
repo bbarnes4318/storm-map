@@ -64,6 +64,44 @@ function createGeoJsonCircle(
   };
 }
 
+function getReportRadiusMiles(type: string, magnitude?: string): number {
+  const cleanType = type.toLowerCase();
+  if (cleanType === "hail") {
+    let size = parseFloat(magnitude || "0");
+    if (size > 10) size = size / 100;
+    if (isNaN(size) || size <= 0) return 1.5;
+    if (size >= 2.0) return 2.0;
+    if (size >= 1.0) return 1.5;
+    return 1.0;
+  } else if (cleanType === "wind") {
+    const speed = parseFloat(magnitude || "0");
+    if (isNaN(speed) || speed <= 0) return 1.5;
+    if (speed >= 70) return 2.0;
+    if (speed >= 58) return 1.5;
+    return 1.0;
+  } else if (cleanType === "tornado") {
+    if (!magnitude) return 2.0;
+    const efVal = magnitude.toUpperCase();
+    if (
+      efVal.includes("EF2") ||
+      efVal.includes("EF3") ||
+      efVal.includes("EF4") ||
+      efVal.includes("EF5") ||
+      efVal.includes("F2") ||
+      efVal.includes("F3") ||
+      efVal.includes("F4") ||
+      efVal.includes("F5")
+    ) {
+      return 2.5;
+    }
+    if (efVal.includes("EF1") || efVal.includes("F1")) {
+      return 2.0;
+    }
+    return 1.5;
+  }
+  return 1.5;
+}
+
 interface StormMapProps {
   filters: StormFilterState;
   onFiltersChange: (newFilters: Partial<StormFilterState>) => void;
@@ -249,6 +287,7 @@ export function StormMap({
       "storm-reports-glow",
       "storm-reports-layer",
       "storm-reports-labels",
+      "report-circles-fill",
       "cluster-circles-layer",
       "cluster-circles-outline",
       "storm-clusters-layer",
@@ -263,8 +302,8 @@ export function StormMap({
         : map.queryRenderedFeatures(event.point, { layers: clickableLayers });
 
     if (features && features.length > 0) {
-      // A. Individual storm report click (glow, circle, or label)
-      const reportLayerIds = ["storm-reports-glow", "storm-reports-layer", "storm-reports-labels"];
+      // A. Individual storm report click (glow, circle, label, or geographic circle)
+      const reportLayerIds = ["storm-reports-glow", "storm-reports-layer", "storm-reports-labels", "report-circles-fill"];
       const clickedReportFeature = features.find(
         (f) => reportLayerIds.includes(f.layer.id)
       );
@@ -627,6 +666,32 @@ export function StormMap({
           },
         };
       }),
+    };
+  }, [filteredReports]);
+
+  // Generate GeoJSON FeatureCollection for individual storm report affected area circle polygons
+  const reportCirclesGeoJson = React.useMemo(() => {
+    const features = filteredReports.map((report) => {
+      const radius = getReportRadiusMiles(report.type, report.magnitude);
+      const circlePolygon = createGeoJsonCircle([report.lat, report.lon], radius);
+      return {
+        ...circlePolygon,
+        properties: {
+          id: report.id,
+          type: report.type,
+          lat: report.lat,
+          lon: report.lon,
+          magnitude: report.magnitude || "",
+          comments: report.comments || "",
+          location: report.location || "",
+          county: report.county || "",
+          state: report.state || "",
+        },
+      };
+    });
+    return {
+      type: "FeatureCollection" as const,
+      features,
     };
   }, [filteredReports]);
 
@@ -1114,6 +1179,7 @@ export function StormMap({
             "storm-reports-glow",
             "storm-reports-layer",
             "storm-reports-labels",
+            "report-circles-fill",
             "cluster-circles-layer",
             "cluster-circles-outline",
             "storm-clusters-layer",
@@ -1223,6 +1289,31 @@ export function StormMap({
               }}
               paint={{
                 "text-color": "#ffffff",
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Layer 0.45: Individual Storm Report Geographic Circles */}
+        {reportCirclesGeoJson && (
+          <Source id="report-circles" type="geojson" data={reportCirclesGeoJson}>
+            <Layer
+              id="report-circles-fill"
+              type="fill"
+              minzoom={9}
+              paint={{
+                "fill-color": stormFillColorExpression,
+                "fill-opacity": 0.12,
+              }}
+            />
+            <Layer
+              id="report-circles-outline"
+              type="line"
+              minzoom={9}
+              paint={{
+                "line-color": stormFillColorExpression,
+                "line-width": 1.2,
+                "line-opacity": 0.4,
               }}
             />
           </Source>

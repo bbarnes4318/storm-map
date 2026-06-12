@@ -558,7 +558,7 @@ export function StormSidebar({
                         <input
                           type="range"
                           min="0.1"
-                          max="0.9"
+                          max="1.0"
                           step="0.05"
                           value={filters.radarOpacity}
                           onChange={(e) => onFiltersChange({ radarOpacity: parseFloat(e.target.value) })}
