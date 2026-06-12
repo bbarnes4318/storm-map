@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./lib/db/schema/enrichment.ts",
-  out: "./lib/db/migrations",
+  out: "./drizzle",
   driver: "pg",
   dbCredentials: {
     connectionString: process.env.DATABASE_URL || "",

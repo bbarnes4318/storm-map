@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp, unique, decimal, text, boolean, jsonb, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, integer, timestamp, unique, decimal, text, boolean, jsonb, check, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // 1. Accounts Table (Auth-Provider Agnostic, Credit Balance Store)
@@ -25,6 +25,10 @@ export const complianceAttestations = pgTable("compliance_attestations", {
   ipAddress: varchar("ip_address", { length: 45 }).notNull(),
   userAgent: text("user_agent").notNull(),
   attestationText: text("attestation_text").notNull(),
+}, (table) => {
+  return {
+    accountIdIdx: index("attestations_account_id_idx").on(table.accountId),
+  };
 });
 
 // 3. Credit Transaction Ledger Table
@@ -37,6 +41,10 @@ export const creditLedger = pgTable("credit_ledger", {
   referenceId: varchar("reference_id", { length: 255 }), // Links to specific unlocks or purchases
   description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    accountIdIdx: index("ledger_account_id_idx").on(table.accountId),
+  };
 });
 
 // 4. Enrichment Quotes Table
@@ -51,6 +59,10 @@ export const enrichmentQuotes = pgTable("enrichment_quotes", {
   creditCost: integer("credit_cost").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    accountIdIdx: index("quotes_account_id_idx").on(table.accountId),
+  };
 });
 
 // 5. Enrichment Unlocks Table
@@ -99,4 +111,10 @@ export const auditLogs = pgTable("audit_logs", {
   userAgent: text("user_agent").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    accountIdIdx: index("audit_account_id_idx").on(table.accountId),
+    actionIdx: index("audit_action_idx").on(table.action),
+    createdAtIdx: index("audit_created_at_idx").on(table.createdAt),
+  };
 });
