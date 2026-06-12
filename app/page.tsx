@@ -2,7 +2,7 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, ActivePopupDetail } from "@/lib/weather/types";
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
 
@@ -45,6 +45,7 @@ export default function StormMapPage() {
   });
 
   const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
+  const [activeDetail, setActiveDetail] = React.useState<ActivePopupDetail | null>(null);
   const [leads, setLeads] = React.useState<SelectedPropertyTarget[]>([]);
 
   // Load from localStorage on mount
@@ -228,6 +229,8 @@ export default function StormMapPage() {
         leads={leads}
         onRemoveLead={handleRemoveLead}
         onUpdateLead={handleUpdateLead}
+        activeDetail={activeDetail}
+        setActiveDetail={setActiveDetail}
       />
 
       {/* Main Map Viewer Panel */}
@@ -295,6 +298,8 @@ export default function StormMapPage() {
             onLockProperty={handleLockProperty}
             onUnlockProperty={handleUnlockProperty}
             leads={leads}
+            activeDetail={activeDetail}
+            setActiveDetail={setActiveDetail}
           />
         )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail } from "@/lib/weather/types";
 import { clusterStormReports } from "@/lib/weather/geo";
 import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
 import { StormLegend } from "./StormLegend";
@@ -24,6 +24,8 @@ interface StormSidebarProps {
   leads: SelectedPropertyTarget[];
   onRemoveLead: (leadId: string) => void;
   onUpdateLead: (lead: SelectedPropertyTarget) => void;
+  activeDetail: ActivePopupDetail | null;
+  setActiveDetail: (detail: ActivePopupDetail | null) => void;
 }
 
 const US_STATES = [
@@ -56,6 +58,8 @@ export function StormSidebar({
   leads = [],
   onRemoveLead,
   onUpdateLead,
+  activeDetail,
+  setActiveDetail,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -610,7 +614,14 @@ export function StormSidebar({
                     {clusters.map((cluster) => (
                       <div
                         key={cluster.id}
-                        onClick={() => onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`)}
+                        onClick={() => {
+                          onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
+                          setActiveDetail({
+                            type: "cluster",
+                            coordinates: cluster.center,
+                            data: cluster,
+                          });
+                        }}
                         className="bg-slate-900/40 hover:bg-slate-900 border border-slate-900 hover:border-slate-800 rounded-lg p-3 transition-all cursor-pointer flex flex-col gap-2 relative group"
                       >
                         {/* Upper row */}
@@ -741,7 +752,14 @@ export function StormSidebar({
                     return (
                       <div
                         key={lead.id}
-                        onClick={() => onSelectCoords([lead.latitude, lead.longitude], lead.fullAddress, 16.5)}
+                        onClick={() => {
+                          onSelectCoords([lead.latitude, lead.longitude], lead.fullAddress, 16.5);
+                          setActiveDetail({
+                            type: "address",
+                            coordinates: [lead.latitude, lead.longitude],
+                            data: { ...lead, locked: true },
+                          });
+                        }}
                         className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
                           isActive
                             ? "bg-emerald-950/15 border-emerald-500/40 hover:border-emerald-500/60 shadow-md shadow-emerald-950/20"

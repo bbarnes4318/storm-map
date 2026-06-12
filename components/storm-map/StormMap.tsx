@@ -7,16 +7,10 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Import types and custom components
-import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster, ActivePopupDetail } from "@/lib/weather/types";
 import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { MapDetailOverlay } from "./MapDetailOverlay";
-
-interface ActivePopupDetail {
-  type: "storm-report" | "cluster" | "warning" | "address";
-  coordinates: [number, number]; // [lat, lon]
-  data: any;
-}
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target } from "lucide-react";
@@ -113,6 +107,8 @@ interface StormMapProps {
   onLockProperty: (property: SelectedPropertyTarget) => void;
   onUnlockProperty: () => void;
   leads: SelectedPropertyTarget[];
+  activeDetail: ActivePopupDetail | null;
+  setActiveDetail: (detail: ActivePopupDetail | null) => void;
 }
 
 export function StormMap({
@@ -126,12 +122,13 @@ export function StormMap({
   onLockProperty,
   onUnlockProperty,
   leads = [],
+  activeDetail,
+  setActiveDetail,
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
 
   const [mapZoom, setMapZoom] = React.useState(defaultZoom);
-  const [activeDetail, setActiveDetail] = React.useState<ActivePopupDetail | null>(null);
   const [cursor, setCursor] = React.useState<string>("auto");
 
   const mapRef = React.useRef<MapRef>(null);

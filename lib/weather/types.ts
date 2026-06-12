@@ -89,3 +89,9 @@ export type WeatherCacheEntry<T> = {
   data: T;
   timestamp: number;
 };
+
+export type ActivePopupDetail = {
+  type: "storm-report" | "cluster" | "warning" | "address";
+  coordinates: [number, number]; // [lat, lon]
+  data: any;
+};
