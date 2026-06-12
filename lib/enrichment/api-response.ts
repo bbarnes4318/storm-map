@@ -6,6 +6,9 @@
 import { NextResponse } from "next/server";
 
 export type EnrichmentErrorCode =
+  | "FEATURE_DISABLED"
+  | "MOCK_MODE_BLOCKED_IN_PRODUCTION"
+  | "INVALID_TEST_TOKEN"
   | "AUTH_NOT_CONFIGURED"
   | "UNAUTHORIZED"
   | "COMPLIANCE_ATTESTATION_REQUIRED"

@@ -19,11 +19,18 @@ import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
 import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
+import { getEnrichmentRouteGuardResult } from "@/lib/enrichment/route-guard";
 import { decryptContactPayload, EncryptionNotConfiguredError } from "@/lib/enrichment/crypto";
 
 export async function GET(request: NextRequest) {
   try {
-    // 0. Resolve store
+    // 0a. Production safety gate
+    const guard = getEnrichmentRouteGuardResult(request);
+    if (!guard.allowed) {
+      return apiError(guard.code, guard.message, guard.httpStatus);
+    }
+
+    // 0b. Resolve store
     const store = getEnrichmentStore();
 
     // 1. Resolve account

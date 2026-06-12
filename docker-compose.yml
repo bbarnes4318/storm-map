@@ -8,7 +8,10 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
+      - ENRICHMENT_FEATURE_ENABLED=false
       - ENRICHMENT_MOCK_MODE=true
+      - ENRICHMENT_ALLOW_MOCK_IN_PRODUCTION=false
+      - ENRICHMENT_ADMIN_TEST_TOKEN=change-me-to-a-secure-random-token
       - ENRICHMENT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     networks:
       - coolify

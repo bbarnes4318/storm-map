@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
 import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
+import { getEnrichmentRouteGuardResult } from "@/lib/enrichment/route-guard";
 import { QuoteRequestSchema, DataProductType } from "@/lib/enrichment/schemas";
 import { createPropertyHash } from "@/lib/enrichment/providers/normalizers";
 
@@ -28,7 +29,13 @@ const QUOTE_EXPIRY_MS = 15 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
-    // 0. Resolve store
+    // 0a. Production safety gate
+    const guard = getEnrichmentRouteGuardResult(request);
+    if (!guard.allowed) {
+      return apiError(guard.code, guard.message, guard.httpStatus);
+    }
+
+    // 0b. Resolve store
     const store = getEnrichmentStore();
 
     // 1. Resolve account
