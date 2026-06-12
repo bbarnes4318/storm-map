@@ -95,6 +95,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const payload = unlock.propertyProfilePayload as any;
+    const hasNested = payload && (typeof payload === "object") && ("propertyProfile" in payload || "roofIntelligence" in payload);
+    const propertyProfile = hasNested ? payload.propertyProfile : payload;
+    const roofIntelligence = hasNested ? payload.roofIntelligence : null;
+
     // 7. Return response
     return apiSuccess({
       unlockId: unlock.id,
@@ -104,7 +109,8 @@ export async function GET(request: NextRequest) {
       latitude: unlock.latitude,
       longitude: unlock.longitude,
       providerSource: unlock.providerSource,
-      propertyProfile: unlock.propertyProfilePayload,
+      propertyProfile,
+      roofIntelligence,
       contactData,
       createdAt: unlock.createdAt.toISOString(),
     });

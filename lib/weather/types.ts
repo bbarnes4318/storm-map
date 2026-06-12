@@ -45,6 +45,7 @@ export type SelectedPropertyTarget = {
   source: "mapbox-geocoding" | "map-feature" | "fallback";
   confidence: "exact" | "approximate" | "unknown";
   locked: boolean;
+  unlockId?: string;
 };
 
 export type StormFilterState = {

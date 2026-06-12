@@ -5,6 +5,7 @@ import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropert
 import { clusterStormReports } from "@/lib/weather/geo";
 import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
 import { StormLegend } from "./StormLegend";
+import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -22,6 +23,7 @@ interface StormSidebarProps {
   onUnlockProperty: () => void;
   leads: SelectedPropertyTarget[];
   onRemoveLead: (leadId: string) => void;
+  onUpdateLead: (lead: SelectedPropertyTarget) => void;
 }
 
 const US_STATES = [
@@ -53,6 +55,7 @@ export function StormSidebar({
   onUnlockProperty,
   leads = [],
   onRemoveLead,
+  onUpdateLead,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -272,20 +275,29 @@ export function StormSidebar({
         )}
         {/* Sleek Active Target Property Indicator */}
         {selectedProperty && (
-          <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px]">
-            <div className="flex items-center gap-1.5 truncate text-emerald-400">
-              <MapPin size={11} className="animate-pulse shrink-0" />
-              <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
-                Active Target: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
-              </span>
+          <div className="space-y-1.5">
+            <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px]">
+              <div className="flex items-center gap-1.5 truncate text-emerald-400">
+                <MapPin size={11} className="animate-pulse shrink-0" />
+                <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
+                  Active Target: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onUnlockProperty}
+                className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
+              >
+                Clear
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onUnlockProperty}
-              className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
-            >
-              Clear
-            </button>
+            <div className="mx-2.5 p-2.5 bg-slate-900/10 border border-slate-900 rounded-md">
+              <LeadIntelligencePanel
+                selectedProperty={selectedProperty}
+                onUpdateLead={onUpdateLead}
+                onClearProperty={onUnlockProperty}
+              />
+            </div>
           </div>
         )}
 

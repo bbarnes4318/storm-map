@@ -93,6 +93,14 @@ export default function StormMapPage() {
     }
   };
 
+  const handleUpdateLead = (updatedLead: SelectedPropertyTarget) => {
+    const updatedLeads = leads.map((l) => (l.id === updatedLead.id ? updatedLead : l));
+    saveLeads(updatedLeads);
+    if (selectedProperty && selectedProperty.id === updatedLead.id) {
+      setSelectedProperty(updatedLead);
+    }
+  };
+
   const [reports, setReports] = React.useState<StormReport[]>([]);
   const [alerts, setAlerts] = React.useState<NwsAlert[]>([]);
   
@@ -219,6 +227,7 @@ export default function StormMapPage() {
         onUnlockProperty={handleUnlockProperty}
         leads={leads}
         onRemoveLead={handleRemoveLead}
+        onUpdateLead={handleUpdateLead}
       />
 
       {/* Main Map Viewer Panel */}

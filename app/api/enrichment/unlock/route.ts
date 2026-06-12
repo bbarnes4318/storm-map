@@ -125,13 +125,19 @@ export async function POST(request: NextRequest) {
       quote.productType
     );
     if (existingUnlock) {
+      const payload = existingUnlock.propertyProfilePayload as any;
+      const hasNested = payload && (typeof payload === "object") && ("propertyProfile" in payload || "roofIntelligence" in payload);
+      const propertyProfile = hasNested ? payload.propertyProfile : payload;
+      const roofIntelligence = hasNested ? payload.roofIntelligence : undefined;
+
       return apiSuccess({
         unlockId: existingUnlock.id,
         productType: existingUnlock.productType,
         creditsCharged: existingUnlock.creditsCharged,
         isCached: true,
         providerSource: existingUnlock.providerSource,
-        propertyProfile: existingUnlock.propertyProfilePayload,
+        propertyProfile,
+        roofIntelligence,
         message: "This property was already unlocked for this product type.",
       });
     }
@@ -233,9 +239,10 @@ export async function POST(request: NextRequest) {
       providerCostEstimate: providerResponse.providerCostEstimate,
       creditsCharged: quote.creditCost,
       isCached: false,
-      propertyProfilePayload: redactedResult.propertyProfile
-        ? (redactedResult.propertyProfile as unknown as Record<string, unknown>)
-        : null,
+      propertyProfilePayload: {
+        propertyProfile: redactedResult.propertyProfile || null,
+        roofIntelligence: redactedResult.roofIntelligence || null,
+      },
       encryptedContactPayload: encryptedContactPayloadStr,
     });
 
