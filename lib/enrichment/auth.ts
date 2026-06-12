@@ -57,5 +57,12 @@ export async function getCurrentEnrichmentAccount(
     return MOCK_ACCOUNT;
   }
 
+  // DB integration test mode: allows using the mock auth identity
+  // against the real Drizzle/PostgreSQL store for controlled testing.
+  // This must NOT be enabled in user-facing production.
+  if (process.env.ENRICHMENT_DB_TEST_AUTH === "true") {
+    return MOCK_ACCOUNT;
+  }
+
   throw new AuthNotConfiguredError();
 }
