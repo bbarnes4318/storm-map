@@ -9,7 +9,7 @@
  * Works in both mock mode and with real database.
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
 import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     // 4. Store attestation via store abstraction
-    await store.compliance.createAttestation({
+    const attestation = await store.compliance.createAttestation({
       accountId: account.id,
       ipAddress,
       userAgent,
@@ -86,7 +86,15 @@ export async function POST(request: NextRequest) {
       metadata: { attestedAt: new Date().toISOString() },
     });
 
-    return apiSuccess({ attested: true });
+    return NextResponse.json({
+      success: true,
+      data: {
+        attested: true,
+        attestation: {
+          id: attestation.id,
+        },
+      },
+    });
   } catch (err) {
     if (err instanceof AuthNotConfiguredError) {
       return apiError("AUTH_NOT_CONFIGURED", err.message, 501);

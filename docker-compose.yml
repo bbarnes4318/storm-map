@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  postgres:
+  storm-postgres:
     container_name: storm-map-postgres
     image: postgres:16-alpine
     restart: always
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     depends_on:
-      postgres:
+      storm-postgres:
         condition: service_healthy
     environment:
       - ENRICHMENT_FEATURE_ENABLED=false
@@ -34,7 +34,7 @@ services:
       - ENRICHMENT_ALLOW_MOCK_IN_PRODUCTION=false
       - ENRICHMENT_ADMIN_TEST_TOKEN=mz13wGXHnqeYB4OJVRkWgya5SEZcvCUIsP9hTNAflDu2Q0bF
       - ENRICHMENT_ENCRYPTION_KEY=235335b691f7d647c33f822344e8dd08592ff19a302bbf667f290226837f42d3
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-stormmap}:${POSTGRES_PASSWORD:-uyneoCird48L5lSvpVhfFK3j17EzIQmT}@postgres:5432/${POSTGRES_DB:-storm_map}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-stormmap}:${POSTGRES_PASSWORD:-uyneoCird48L5lSvpVhfFK3j17EzIQmT}@storm-postgres:5432/${POSTGRES_DB:-storm_map}
     networks:
       - coolify
     labels:

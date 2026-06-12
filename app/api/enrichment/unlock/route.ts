@@ -67,9 +67,25 @@ export async function POST(request: NextRequest) {
     const ledgerBridge = new StoreLedgerBridge(store);
     const existingEntry = await ledgerBridge.getLedgerEntryByIdempotencyKey(idempotencyKey);
     if (existingEntry) {
-      // Idempotent replay: return cached result if we have an unlock record
-      // The unlock was already persisted with the original request
+      // Idempotent replay: return cached result if we have an unlock record.
+      // Find the unlock record associated with this transaction/quote to return the correct unlockId.
+      let unlockId: string | undefined = undefined;
+      if (existingEntry.referenceId) {
+        const quote = await store.quotes.getQuoteById(existingEntry.referenceId);
+        if (quote) {
+          const unlock = await store.unlocks.getUnlockByAccountPropertyProduct(
+            account.id,
+            quote.propertyHash,
+            quote.productType
+          );
+          if (unlock) {
+            unlockId = unlock.id;
+          }
+        }
+      }
+
       return apiSuccess({
+        unlockId,
         message: "This unlock was already processed (idempotent replay).",
         creditsCharged: Math.abs(existingEntry.amount),
         isCached: true,

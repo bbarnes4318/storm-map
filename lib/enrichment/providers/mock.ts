@@ -19,10 +19,12 @@ export class MockEnrichmentProvider implements EnrichmentProvider {
   ];
 
   isConfigured(): boolean {
-    // Enabled explicitly via mock mode env var, or as fallback in non-production environments
+    // Enabled explicitly via mock mode env var, as fallback in non-production environments,
+    // or during DB integration testing via the ENRICHMENT_DB_TEST_PROVIDERS flag.
     return (
       process.env.ENRICHMENT_MOCK_MODE === "true" ||
-      process.env.NODE_ENV !== "production"
+      process.env.NODE_ENV !== "production" ||
+      process.env.ENRICHMENT_DB_TEST_PROVIDERS === "true"
     );
   }
 

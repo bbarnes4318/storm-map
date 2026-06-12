@@ -986,7 +986,7 @@ export function StormMap({
             offset={12}
             maxWidth="310px"
           >
-            <div className="text-slate-100 flex flex-col gap-3 p-1 select-none">
+            <div className="text-slate-100 flex flex-col gap-3 p-1 select-none max-h-80 overflow-y-auto pr-1">
               {/* Header with Title and Verification Status Badge */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center gap-1.5">
@@ -1084,7 +1084,7 @@ export function StormMap({
             offset={16}
             maxWidth="320px"
           >
-            <div className="text-slate-100 flex flex-col gap-2">
+            <div className="text-slate-100 flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                 <span className="flex items-center gap-1.5">
@@ -1168,7 +1168,7 @@ export function StormMap({
             offset={16}
             maxWidth="340px"
           >
-            <div className="text-slate-100 flex flex-col gap-2">
+            <div className="text-slate-100 flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-1">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                 <span className="flex items-center gap-1.5">
