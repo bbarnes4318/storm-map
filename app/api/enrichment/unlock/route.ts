@@ -33,11 +33,18 @@ export async function POST(request: NextRequest) {
     // 0b. Resolve store
     const store = getEnrichmentStore();
 
-    // 1. Resolve account
-    const account = await getCurrentEnrichmentAccount(request);
+    // 1. Resolve account identity from auth
+    const authContext = await getCurrentEnrichmentAccount(request);
+
+    // 1b. Ensure account exists in the persistent store (upsert)
+    const account = await store.accounts.upsertAccountFromAuthIdentity({
+      authProvider: authContext.authProvider,
+      authUserId: authContext.authUserId,
+      email: authContext.email,
+    });
 
     // 2. Require compliance attestation via store
-    const hasAttestation = await store.compliance.hasRecentAttestation(account.accountId);
+    const hasAttestation = await store.compliance.hasRecentAttestation(account.id);
     if (!hasAttestation) {
       return apiError(
         "COMPLIANCE_ATTESTATION_REQUIRED",
@@ -86,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Verify quote belongs to this account
-    if (quote.accountId !== account.accountId) {
+    if (quote.accountId !== account.id) {
       return apiError("UNAUTHORIZED", "Quote does not belong to this account.", 403);
     }
 
@@ -97,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     // 9. Check for existing unlock for this property+product (dedup)
     const existingUnlock = await store.unlocks.getUnlockByAccountPropertyProduct(
-      account.accountId,
+      account.id,
       quote.propertyHash,
       quote.productType
     );
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
       latitude: quote.latitude,
       longitude: quote.longitude,
       propertyHash: quote.propertyHash,
-      accountId: account.accountId,
+      accountId: account.id,
     });
 
     if (!providerResponse.success || !providerResponse.data) {
@@ -160,7 +167,7 @@ export async function POST(request: NextRequest) {
     // 12. Debit credits via Phase 1C ledger service through bridge
     try {
       await debitAccount(ledgerBridge, {
-        accountId: account.accountId,
+        accountId: account.id,
         amount: quote.creditCost,
         txType: "SPEND_CREDITS",
         idempotencyKey,
@@ -199,7 +206,7 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     const unlock = await store.unlocks.createUnlock({
-      accountId: account.accountId,
+      accountId: account.id,
       propertyHash: quote.propertyHash,
       latitude: quote.latitude,
       longitude: quote.longitude,
@@ -218,7 +225,7 @@ export async function POST(request: NextRequest) {
 
     // 15. Write audit log
     await store.audit.createAuditLog({
-      accountId: account.accountId,
+      accountId: account.id,
       action: "UNLOCK_LEAD",
       ipAddress,
       userAgent,

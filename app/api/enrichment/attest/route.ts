@@ -38,8 +38,15 @@ export async function POST(request: NextRequest) {
     // 0b. Resolve store
     const store = getEnrichmentStore();
 
-    // 1. Resolve account
-    const account = await getCurrentEnrichmentAccount(request);
+    // 1. Resolve account identity from auth
+    const authContext = await getCurrentEnrichmentAccount(request);
+
+    // 1b. Ensure account exists in the persistent store (upsert)
+    const account = await store.accounts.upsertAccountFromAuthIdentity({
+      authProvider: authContext.authProvider,
+      authUserId: authContext.authUserId,
+      email: authContext.email,
+    });
 
     // 2. Parse and validate body
     const body = await request.json();
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Store attestation via store abstraction
     await store.compliance.createAttestation({
-      accountId: account.accountId,
+      accountId: account.id,
       ipAddress,
       userAgent,
       attestationText: ATTESTATION_TEXT,
@@ -72,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Write audit log
     await store.audit.createAuditLog({
-      accountId: account.accountId,
+      accountId: account.id,
       action: "COMPLIANCE_ATTESTATION",
       ipAddress,
       userAgent,

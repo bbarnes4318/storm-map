@@ -38,11 +38,18 @@ export async function POST(request: NextRequest) {
     // 0b. Resolve store
     const store = getEnrichmentStore();
 
-    // 1. Resolve account
-    const account = await getCurrentEnrichmentAccount(request);
+    // 1. Resolve account identity from auth
+    const authContext = await getCurrentEnrichmentAccount(request);
+
+    // 1b. Ensure account exists in the persistent store (upsert)
+    const account = await store.accounts.upsertAccountFromAuthIdentity({
+      authProvider: authContext.authProvider,
+      authUserId: authContext.authUserId,
+      email: authContext.email,
+    });
 
     // 2. Require compliance attestation via store
-    const hasAttestation = await store.compliance.hasRecentAttestation(account.accountId);
+    const hasAttestation = await store.compliance.hasRecentAttestation(account.id);
     if (!hasAttestation) {
       return apiError(
         "COMPLIANCE_ATTESTATION_REQUIRED",
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Store quote via unified store
     const storedQuote = await store.quotes.createQuote({
-      accountId: account.accountId,
+      accountId: account.id,
       propertyHash,
       latitude,
       longitude,
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
     const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
     await store.audit.createAuditLog({
-      accountId: account.accountId,
+      accountId: account.id,
       action: "GENERATE_QUOTE",
       ipAddress,
       userAgent,

@@ -33,8 +33,15 @@ export async function GET(request: NextRequest) {
     // 0b. Resolve store
     const store = getEnrichmentStore();
 
-    // 1. Resolve account
-    const account = await getCurrentEnrichmentAccount(request);
+    // 1. Resolve account identity from auth
+    const authContext = await getCurrentEnrichmentAccount(request);
+
+    // 1b. Ensure account exists in the persistent store (upsert)
+    const account = await store.accounts.upsertAccountFromAuthIdentity({
+      authProvider: authContext.authProvider,
+      authUserId: authContext.authUserId,
+      email: authContext.email,
+    });
 
     // 2. Extract unlockId from query parameters
     const { searchParams } = new URL(request.url);
@@ -50,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Verify ownership
-    if (unlock.accountId !== account.accountId) {
+    if (unlock.accountId !== account.id) {
       return apiError("UNAUTHORIZED", "This unlock does not belong to your account.", 403);
     }
 
@@ -76,7 +83,7 @@ export async function GET(request: NextRequest) {
     const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
     await store.audit.createAuditLog({
-      accountId: account.accountId,
+      accountId: account.id,
       action: "VIEW_CONTACT_DATA",
       ipAddress,
       userAgent,
