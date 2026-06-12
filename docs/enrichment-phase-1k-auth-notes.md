@@ -103,3 +103,12 @@ Before setting `ENRICHMENT_FEATURE_ENABLED=true` in production:
 
 > [!WARNING]
 > `ENRICHMENT_FEATURE_ENABLED` is explicitly configured to `false` by default to prevent any accidental exposure of billing/enrichment routes.
+
+---
+
+## Verification & Security Reconciliation (Phase 1K-D-R)
+
+- **Authenticated Account Upsert Verified:** Yes (A controlled test with a real Clerk test user context verified that a new row was successfully upserted into the persistent `accounts` table with the correct Clerk user ID, provider type, and verified primary email).
+- **Unauthenticated Account Creation Blocked:** Yes (Unauthenticated requests to the enrichment endpoints are rejected with a `401 Unauthorized` response and write no records to the database).
+- **Secret Hygiene Guidelines:** Under no circumstances should real or test credentials, secret keys, database passwords, or auth tokens be printed in reports, logs, or committed to Git.
+- **Clerk Secret Rotation Status:** Clerk secret rotation requires manual dashboard action (cannot be rotated programmatically without access to the Clerk admin dashboard). All committed test keys in code, compose configuration, and scripts have been replaced with placeholders or environment variables.
