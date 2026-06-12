@@ -116,6 +116,15 @@ class MockAccountStore implements EnrichmentAccountStore {
     acc.creditBalance = newBalance;
     acc.updatedAt = new Date();
   }
+
+  async listAccounts(emailQuery?: string): Promise<StoredAccount[]> {
+    const list = Array.from(accounts.values());
+    if (emailQuery) {
+      const q = emailQuery.toLowerCase();
+      return list.filter((a) => a.email.toLowerCase().includes(q));
+    }
+    return list;
+  }
 }
 
 // ==============================================================================
@@ -187,6 +196,20 @@ class MockCreditLedgerStore implements CreditLedgerStore {
     if (!acc) throw new Error(`Mock account ${accountId} not found`);
     acc.creditBalance = newBalance;
     acc.updatedAt = new Date();
+  }
+
+  async listLedgerEntries(options?: { accountId?: string; txType?: CreditTransactionType; limit?: number; offset?: number }): Promise<StoredLedgerEntry[]> {
+    let list = Array.from(ledgerByIdempotency.values());
+    if (options?.accountId) {
+      list = list.filter((e) => e.accountId === options.accountId);
+    }
+    if (options?.txType) {
+      list = list.filter((e) => e.txType === options.txType);
+    }
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? 50;
+    return list.slice(offset, offset + limit);
   }
 }
 
@@ -262,6 +285,17 @@ class MockUnlockStore implements UnlockStore {
     unlocksByComposite.set(compositeKey, unlock);
     return unlock;
   }
+
+  async listUnlocks(options?: { accountId?: string; limit?: number; offset?: number }): Promise<StoredUnlock[]> {
+    let list = Array.from(unlocks.values());
+    if (options?.accountId) {
+      list = list.filter((u) => u.accountId === options.accountId);
+    }
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? 50;
+    return list.slice(offset, offset + limit);
+  }
 }
 
 // ==============================================================================
@@ -299,6 +333,20 @@ class MockAuditLogStore implements AuditLogStore {
     };
     auditLogs.push(log);
     return log;
+  }
+
+  async listAuditLogs(options?: { accountId?: string; action?: string; limit?: number; offset?: number }): Promise<StoredAuditLog[]> {
+    let list = [...auditLogs];
+    if (options?.accountId) {
+      list = list.filter((l) => l.accountId === options.accountId);
+    }
+    if (options?.action) {
+      list = list.filter((l) => l.action === options.action);
+    }
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? 50;
+    return list.slice(offset, offset + limit);
   }
 }
 

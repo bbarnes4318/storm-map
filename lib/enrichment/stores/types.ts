@@ -167,6 +167,7 @@ export interface EnrichmentAccountStore {
   upsertAccountFromAuthIdentity(input: CreateAccountInput): Promise<StoredAccount>;
   getCreditBalance(accountId: string): Promise<number | null>;
   updateCreditBalance(accountId: string, newBalance: number): Promise<void>;
+  listAccounts(emailQuery?: string): Promise<StoredAccount[]>;
 }
 
 export interface ComplianceStore {
@@ -180,6 +181,7 @@ export interface CreditLedgerStore {
   insertLedgerEntry(input: CreateLedgerEntryInput): Promise<StoredLedgerEntry>;
   updateAccountCreditBalance(accountId: string, newBalance: number): Promise<void>;
   getAccountById(accountId: string): Promise<StoredAccount | null>;
+  listLedgerEntries(options?: { accountId?: string; txType?: CreditTransactionType; limit?: number; offset?: number }): Promise<StoredLedgerEntry[]>;
 }
 
 export interface QuoteStore {
@@ -196,6 +198,7 @@ export interface UnlockStore {
     productType: DataProductType
   ): Promise<StoredUnlock | null>;
   createUnlock(input: CreateUnlockInput): Promise<StoredUnlock>;
+  listUnlocks(options?: { accountId?: string; limit?: number; offset?: number }): Promise<StoredUnlock[]>;
 }
 
 export interface SuppressionStore {
@@ -205,6 +208,7 @@ export interface SuppressionStore {
 
 export interface AuditLogStore {
   createAuditLog(input: CreateAuditLogInput): Promise<StoredAuditLog>;
+  listAuditLogs(options?: { accountId?: string; action?: string; limit?: number; offset?: number }): Promise<StoredAuditLog[]>;
 }
 
 // ==============================================================================

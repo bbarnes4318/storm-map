@@ -23,7 +23,7 @@
 
 import "server-only";
 
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, ilike } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { getDbClient } from "../../db/client";
 import {
@@ -247,6 +247,18 @@ class DrizzleAccountStore implements EnrichmentAccountStore {
       .set({ creditBalance: newBalance, updatedAt: new Date() })
       .where(eq(accountsTable.id, accountId));
   }
+
+  async listAccounts(emailQuery?: string): Promise<StoredAccount[]> {
+    if (emailQuery) {
+      const rows = await this.db
+        .select()
+        .from(accountsTable)
+        .where(ilike(accountsTable.email, `%${emailQuery}%`));
+      return rows.map(mapAccount);
+    }
+    const rows = await this.db.select().from(accountsTable);
+    return rows.map(mapAccount);
+  }
 }
 
 // ==============================================================================
@@ -344,6 +356,36 @@ class DrizzleCreditLedgerStore implements CreditLedgerStore {
       .set({ creditBalance: newBalance, updatedAt: new Date() })
       .where(eq(accountsTable.id, accountId));
   }
+
+  async listLedgerEntries(options?: { accountId?: string; txType?: CreditTransactionType; limit?: number; offset?: number }): Promise<StoredLedgerEntry[]> {
+    const limit = Math.min(options?.limit ?? 50, 100);
+    const offset = options?.offset ?? 0;
+    
+    let query = this.db.select().from(creditLedger);
+    const conditions = [];
+    
+    if (options?.accountId) {
+      conditions.push(eq(creditLedger.accountId, options.accountId));
+    }
+    if (options?.txType) {
+      conditions.push(eq(creditLedger.txType, options.txType));
+    }
+    
+    let rows;
+    if (conditions.length > 0) {
+      rows = await query
+        .where(and(...conditions))
+        .orderBy(desc(creditLedger.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      rows = await query
+        .orderBy(desc(creditLedger.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return rows.map(mapLedgerEntry);
+  }
 }
 
 // ==============================================================================
@@ -440,6 +482,28 @@ class DrizzleUnlockStore implements UnlockStore {
       .returning();
     return mapUnlock(rows[0]);
   }
+
+  async listUnlocks(options?: { accountId?: string; limit?: number; offset?: number }): Promise<StoredUnlock[]> {
+    const limit = Math.min(options?.limit ?? 50, 100);
+    const offset = options?.offset ?? 0;
+
+    let query = this.db.select().from(enrichmentUnlocks);
+
+    let rows;
+    if (options?.accountId) {
+      rows = await query
+        .where(eq(enrichmentUnlocks.accountId, options.accountId))
+        .orderBy(desc(enrichmentUnlocks.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      rows = await query
+        .orderBy(desc(enrichmentUnlocks.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return rows.map(mapUnlock);
+  }
 }
 
 // ==============================================================================
@@ -487,6 +551,36 @@ class DrizzleAuditLogStore implements AuditLogStore {
       })
       .returning();
     return mapAuditLog(rows[0]);
+  }
+
+  async listAuditLogs(options?: { accountId?: string; action?: string; limit?: number; offset?: number }): Promise<StoredAuditLog[]> {
+    const limit = Math.min(options?.limit ?? 50, 100);
+    const offset = options?.offset ?? 0;
+
+    let query = this.db.select().from(auditLogsTable);
+    const conditions = [];
+
+    if (options?.accountId) {
+      conditions.push(eq(auditLogsTable.accountId, options.accountId));
+    }
+    if (options?.action) {
+      conditions.push(eq(auditLogsTable.action, options.action));
+    }
+
+    let rows;
+    if (conditions.length > 0) {
+      rows = await query
+        .where(and(...conditions))
+        .orderBy(desc(auditLogsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      rows = await query
+        .orderBy(desc(auditLogsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return rows.map(mapAuditLog);
   }
 }
 
