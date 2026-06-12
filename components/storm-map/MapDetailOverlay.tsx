@@ -1,0 +1,153 @@
+"use client";
+
+import React from "react";
+import { X } from "lucide-react";
+
+interface MapDetailOverlayProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  header: React.ReactNode;
+  children: React.ReactNode; // Represents body content
+  footer?: React.ReactNode;
+}
+
+export function MapDetailOverlay({
+  x,
+  y,
+  onClose,
+  header,
+  children,
+  footer,
+}: MapDetailOverlayProps) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [cardSize, setCardSize] = React.useState({ width: 360, height: 350 });
+  const [position, setPosition] = React.useState({ left: 0, top: 0 });
+
+  // Detect mobile viewports
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Keyboard Escape handler
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  // Monitor size of the card dynamically
+  React.useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Fallbacks to handle browser variations
+        const width = entry.borderBoxSize?.[0]?.inlineSize || entry.contentRect.width || 360;
+        const height = entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height || 350;
+        setCardSize({ width, height });
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Compute collision-aware position on desktop
+  React.useEffect(() => {
+    if (isMobile) return;
+    const parent = cardRef.current?.parentElement;
+    const containerWidth = parent?.clientWidth || window.innerWidth;
+    const containerHeight = parent?.clientHeight || window.innerHeight;
+
+    const margin = 16;
+
+    // Horizontal centering
+    let left = x - cardSize.width / 2;
+    if (left < margin) {
+      left = margin;
+    } else if (left + cardSize.width > containerWidth - margin) {
+      left = containerWidth - cardSize.width - margin;
+    }
+
+    // Vertical alignment (prefer placing above the click point)
+    let top = y - cardSize.height - 12;
+    if (top < margin) {
+      // If it overflows the top edge, flip to below the click point
+      top = y + 12;
+    }
+
+    // If it still overflows the bottom, clamp to bottom margin
+    if (top + cardSize.height > containerHeight - margin) {
+      top = containerHeight - cardSize.height - margin;
+    }
+
+    // Ultimate fallback clamp to top margin
+    if (top < margin) {
+      top = margin;
+    }
+
+    setPosition({ left, top });
+  }, [x, y, cardSize, isMobile]);
+
+  // Stop clicks from bubbling up and closing the overlay on map clicking
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const desktopStyle: React.CSSProperties = {
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onClick={handleContainerClick}
+      style={isMobile ? {} : desktopStyle}
+      className={`z-[1001] bg-slate-950/95 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
+        isMobile
+          ? "fixed bottom-3 left-3 right-3 w-[calc(100%-24px)] max-h-[75vh]"
+          : "absolute w-[360px] max-h-[calc(100vh-80px)] pointer-events-auto"
+      }`}
+    >
+      {/* Sticky Header */}
+      <div className="flex-shrink-0 flex items-center justify-between border-b border-slate-800 p-4 pb-3">
+        <div className="flex-1 min-w-0 pr-2">
+          {header}
+        </div>
+        <button
+          onClick={onClose}
+          type="button"
+          className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-colors"
+          title="Close details"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Scrollable Body */}
+      <div className="flex-1 overflow-y-auto p-4 pr-3.5 space-y-4 min-h-0 text-slate-300 custom-scrollbar">
+        {children}
+      </div>
+
+      {/* Sticky Footer */}
+      {footer && (
+        <div className="flex-shrink-0 border-t border-slate-800 p-4 pt-3.5 bg-slate-950/40 rounded-b-xl">
+          {footer}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import React from "react";
 // Import Mapbox GL JS and React Map GL wrapper
-import Map, { Source, Layer, Marker, Popup, MapRef, ViewStateChangeEvent, MapLayerMouseEvent } from "react-map-gl";
+import Map, { Source, Layer, Marker, MapRef, ViewStateChangeEvent, MapLayerMouseEvent } from "react-map-gl";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -10,6 +10,13 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster } from "@/lib/weather/types";
 import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
+import { MapDetailOverlay } from "./MapDetailOverlay";
+
+interface ActivePopupDetail {
+  type: "storm-report" | "cluster" | "warning" | "address";
+  coordinates: [number, number]; // [lat, lon]
+  data: any;
+}
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target } from "lucide-react";
@@ -86,10 +93,7 @@ export function StormMap({
   const defaultZoom = 3.8;
 
   const [mapZoom, setMapZoom] = React.useState(defaultZoom);
-  const [selectedReport, setSelectedReport] = React.useState<StormReport | null>(null);
-  const [selectedAlert, setSelectedAlert] = React.useState<NwsAlert | null>(null);
-  const [clickedTarget, setClickedTarget] = React.useState<SelectedPropertyTarget | null>(null);
-  const [selectedCluster, setSelectedCluster] = React.useState<TargetCluster | null>(null);
+  const [activeDetail, setActiveDetail] = React.useState<ActivePopupDetail | null>(null);
   const [cursor, setCursor] = React.useState<string>("auto");
 
   const mapRef = React.useRef<MapRef>(null);
@@ -291,10 +295,11 @@ export function StormMap({
           }
         }
         if (report) {
-          setSelectedReport(report);
-          setSelectedAlert(null);
-          setClickedTarget(null);
-          setSelectedCluster(null);
+          setActiveDetail({
+            type: "storm-report",
+            coordinates: [report.lat, report.lon],
+            data: report,
+          });
           return;
         }
       }
@@ -315,10 +320,11 @@ export function StormMap({
           // Look up the full cluster from mapClusters to get the reports array
           const cluster = mapClusters.find((c) => c.id === props.id);
           if (cluster) {
-            setSelectedCluster(cluster);
-            setSelectedReport(null);
-            setSelectedAlert(null);
-            setClickedTarget(null);
+            setActiveDetail({
+              type: "cluster",
+              coordinates: [cluster.center[0], cluster.center[1]],
+              data: cluster,
+            });
             return;
           }
         }
@@ -329,24 +335,23 @@ export function StormMap({
       if (clickedWarning) {
         const props = clickedWarning.properties;
         if (props) {
-          setSelectedAlert({
-            id: props.id,
-            event: props.event,
-            headline: props.headline,
-            severity: props.severity,
-            certainty: props.certainty,
-            urgency: props.urgency || "Unknown",
-            effective: props.effective,
-            expires: props.expires,
-            areaDesc: props.areaDesc,
-            instruction: props.instruction || "",
-            source: props.source,
-            // Store click location to position popup
-            polygon: [[event.lngLat.lat, event.lngLat.lng]],
+          setActiveDetail({
+            type: "warning",
+            coordinates: [event.lngLat.lat, event.lngLat.lng],
+            data: {
+              id: props.id,
+              event: props.event,
+              headline: props.headline,
+              severity: props.severity,
+              certainty: props.certainty,
+              urgency: props.urgency || "Unknown",
+              effective: props.effective,
+              expires: props.expires,
+              areaDesc: props.areaDesc,
+              instruction: props.instruction || "",
+              source: props.source,
+            },
           });
-          setSelectedReport(null);
-          setClickedTarget(null);
-          setSelectedCluster(null);
           return;
         }
       }
@@ -354,10 +359,8 @@ export function StormMap({
 
     // D. Street-level geocode click (zoom >= 15, no storm layer hit)
     if (zoom >= 15) {
-      // Clear all popup selections
-      setSelectedAlert(null);
-      setSelectedReport(null);
-      setSelectedCluster(null);
+      // Clear active detail
+      setActiveDetail(null);
 
       // Abort previous geocoding request if active
       if (geocodeAbortControllerRef.current) {
@@ -396,42 +399,50 @@ export function StormMap({
         .then((target) => {
           if (signal.aborted) return;
           if (target) {
-            // Merge neighborhood or details if we queried them from features
-            setClickedTarget(target);
+            setActiveDetail({
+              type: "address",
+              coordinates: [clickLat, clickLon],
+              data: target,
+            });
           } else {
-            setClickedTarget({
-              id: `fallback-${Date.now()}`,
-              latitude: clickLat,
-              longitude: clickLon,
-              fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
-              source: "fallback",
-              confidence: "unknown",
-              locked: false,
+            setActiveDetail({
+              type: "address",
+              coordinates: [clickLat, clickLon],
+              data: {
+                id: `fallback-${Date.now()}`,
+                latitude: clickLat,
+                longitude: clickLon,
+                fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
+                source: "fallback",
+                confidence: "unknown",
+                locked: false,
+              },
             });
           }
         })
         .catch((err) => {
           if (signal.aborted) return;
           console.error("Geocoding lookup error:", err);
-          setClickedTarget({
-            id: `fallback-err-${Date.now()}`,
-            latitude: clickLat,
-            longitude: clickLon,
-            fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
-            source: "fallback",
-            confidence: "unknown",
-            locked: false,
+          setActiveDetail({
+            type: "address",
+            coordinates: [clickLat, clickLon],
+            data: {
+              id: `fallback-err-${Date.now()}`,
+              latitude: clickLat,
+              longitude: clickLon,
+              fullAddress: `Coordinates: ${clickLat.toFixed(5)}, ${clickLon.toFixed(5)}`,
+              source: "fallback",
+              confidence: "unknown",
+              locked: false,
+            },
           });
         });
 
       return;
     }
 
-    // E. Clicking elsewhere closes all popups
-    setSelectedAlert(null);
-    setSelectedReport(null);
-    setClickedTarget(null);
-    setSelectedCluster(null);
+    // E. Clicking elsewhere closes active detail
+    setActiveDetail(null);
   };
 
   // Viewport camera tracking state
@@ -632,11 +643,13 @@ export function StormMap({
     }
   };
 
+  const activeReport = activeDetail?.type === "storm-report" ? activeDetail.data : null;
+
   // Calculations for report popup details
   const reportOpportunityScore = React.useMemo(() => {
-    if (!selectedReport) return 0;
-    return calculateReportScore(selectedReport, alerts, reports);
-  }, [selectedReport, alerts, reports]);
+    if (!activeReport) return 0;
+    return calculateReportScore(activeReport, alerts, reports);
+  }, [activeReport, alerts, reports]);
 
   const scoreBadgeColor = () => {
     if (reportOpportunityScore >= 100) return "bg-red-500/20 text-red-300 border-red-500/40";
@@ -651,8 +664,8 @@ export function StormMap({
   };
 
   const formattedReportTime = React.useMemo(() => {
-    if (!selectedReport) return "";
-    const report = selectedReport;
+    if (!activeReport) return "";
+    const report = activeReport;
     if (report.timeRaw && report.timeRaw.length === 4) {
       const hh = report.timeRaw.slice(0, 2);
       const mm = report.timeRaw.slice(2, 4);
@@ -662,7 +675,7 @@ export function StormMap({
       return `${hourInt}:${mm} ${ampm} UTC`;
     }
     return report.timeRaw;
-  }, [selectedReport]);
+  }, [activeReport]);
 
   const formatAlertTime = (isoString?: string) => {
     if (!isoString) return "N/A";
@@ -686,6 +699,397 @@ export function StormMap({
       </div>
     );
   }
+
+  // Calculate active detail pixel coordinates on every render if activeDetail is set
+  const pixelPos = React.useMemo(() => {
+    if (!activeDetail || !mapRef.current) return null;
+    const map = mapRef.current.getMap();
+    if (!map) return null;
+    try {
+      const [lat, lon] = activeDetail.coordinates;
+      return map.project([lon, lat]);
+    } catch (e) {
+      return null;
+    }
+  }, [activeDetail, viewState]);
+
+  const renderOverlayHeader = () => {
+    if (!activeDetail) return null;
+
+    switch (activeDetail.type) {
+      case "storm-report": {
+        const report = activeDetail.data;
+        return (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B" }}
+            ></span>
+            <span className="font-extrabold uppercase tracking-wider text-xs text-slate-100">
+              {report.type} REPORT
+            </span>
+          </span>
+        );
+      }
+      case "cluster": {
+        const cluster = activeDetail.data;
+        return (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: STORM_TYPE_COLORS[cluster.mainStormType]?.fill ?? "#64748B" }}
+            ></span>
+            <span className="font-extrabold uppercase tracking-wider text-xs text-slate-100">
+              {cluster.mainStormType} AREA
+            </span>
+          </span>
+        );
+      }
+      case "warning": {
+        const alert = activeDetail.data;
+        return (
+          <div className="flex items-center gap-1.5">
+            <AlertCircle
+              size={16}
+              className={
+                alert.event.includes("Tornado")
+                  ? "text-red-500"
+                  : alert.event.includes("Severe")
+                  ? "text-orange-500"
+                  : "text-blue-500"
+              }
+            />
+            <span className="font-extrabold uppercase text-xs tracking-wider text-slate-100 truncate block">
+              {alert.event}
+            </span>
+          </div>
+        );
+      }
+      case "address": {
+        const target = activeDetail.data;
+        return (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded bg-slate-900 border border-slate-800">
+                <MapPin size={12} className="text-red-500" />
+              </div>
+              <span className="font-extrabold uppercase text-[10px] tracking-wider text-slate-300">
+                Lead Target Info
+              </span>
+            </div>
+            {target.confidence === "exact" ? (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-extrabold uppercase tracking-wider ml-2">
+                Verified
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8px] font-extrabold uppercase tracking-wider ml-2">
+                Approximate
+              </span>
+            )}
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const renderOverlayBody = () => {
+    if (!activeDetail) return null;
+
+    switch (activeDetail.type) {
+      case "storm-report": {
+        const report = activeDetail.data;
+        return (
+          <div className="space-y-3.5 select-none">
+            {/* Target Priority Score Badge */}
+            <div className={`flex items-center justify-between px-2 py-1 rounded border text-[10px] ${scoreBadgeColor()}`}>
+              <span className="font-semibold">TARGET VALUE: {reportOpportunityScore} pts</span>
+              <span className="font-extrabold text-[9px] tracking-wide uppercase">{scoreText()}</span>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-2.5 text-xs text-slate-300">
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Magnitude</span>
+                <p className="font-semibold text-slate-200">
+                  {report.type === "hail" && report.magnitude
+                    ? `${(parseFloat(report.magnitude) > 10 ? parseFloat(report.magnitude) / 100 : parseFloat(report.magnitude)).toFixed(2)} in Hail`
+                    : report.type === "wind" && report.magnitude
+                    ? `${report.magnitude} mph Wind`
+                    : report.type === "tornado"
+                    ? `${report.magnitude || "Reported"} Tornado`
+                    : "N/A"}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Time (UTC)</span>
+                  <p className="font-medium text-slate-200">{formattedReportTime}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">State / County</span>
+                  <p className="font-medium text-slate-200">{report.county}, {report.state}</p>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Location Details</span>
+                <p className="font-medium text-slate-200 leading-normal">{report.location}</p>
+              </div>
+
+              {report.comments && (
+                <div>
+                  <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-0.5">SPC Comments</span>
+                  <p className="font-light italic text-slate-300 text-[11px] bg-slate-900/40 p-2.5 rounded border border-slate-800/40 leading-relaxed">
+                    "{report.comments}"
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer source info */}
+            <div className="pt-2 border-t border-slate-900 text-[8.5px] text-slate-550 flex flex-col gap-0.5 leading-normal">
+              <div>Source: NOAA SPC preliminary storm report</div>
+              <div className="italic text-slate-500/80">
+                * Storm reports are preliminary and may be updated by NOAA/SPC.
+              </div>
+            </div>
+          </div>
+        );
+      }
+      case "cluster": {
+        const cluster = activeDetail.data;
+        return (
+          <div className="space-y-3.5 select-none">
+            {/* Area Name */}
+            <div>
+              <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Area / Location</span>
+              <p className="font-bold text-slate-200 text-sm">{cluster.name || "Unknown Area"}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {cluster.county ? `${cluster.county} County, ` : ""}{cluster.state}
+              </p>
+            </div>
+
+            {/* Report Counts */}
+            <div className="grid grid-cols-4 gap-1 bg-slate-900/30 border border-slate-800/40 p-2 rounded text-[10px] text-center">
+              <div>
+                <span className="text-slate-600 block text-[8px] font-medium uppercase">Total</span>
+                <span className="font-bold text-slate-250">{cluster.reportsCount}</span>
+              </div>
+              <div>
+                <span className="text-slate-600 block text-[8px] font-medium uppercase">Hail</span>
+                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.hail.fill }}>{cluster.hailCount}</span>
+              </div>
+              <div>
+                <span className="text-slate-600 block text-[8px] font-medium uppercase">Wind</span>
+                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.wind.fill }}>{cluster.windCount}</span>
+              </div>
+              <div>
+                <span className="text-slate-600 block text-[8px] font-medium uppercase">Tornado</span>
+                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>{cluster.tornadoCount}</span>
+              </div>
+            </div>
+
+            {/* Magnitude & Radius */}
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Highest Magnitude</span>
+                <p className="font-semibold text-slate-200">{cluster.highestMagnitude}</p>
+              </div>
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Radius</span>
+                <p className="font-semibold text-slate-200">{cluster.suggestedRadius} mi</p>
+              </div>
+            </div>
+
+            {/* Top 3 Report Summaries */}
+            {cluster.reports.length > 0 && (
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Top Reports</span>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                  {cluster.reports.slice(0, 3).map((r: any, i: number) => (
+                    <div key={r.id || i} className="bg-slate-900/40 p-2 rounded border border-slate-800/40 text-[10px] flex items-start gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
+                        style={{ backgroundColor: STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B" }}
+                      ></span>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-slate-200 uppercase">{r.type}</span>
+                        {r.magnitude && <span className="text-slate-400"> — {r.magnitude}</span>}
+                        {r.location && <span className="text-slate-500 block truncate">{r.location}, {r.county} {r.state}</span>}
+                        {r.comments && <span className="text-slate-550 italic block truncate">"{r.comments}"</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+      case "warning": {
+        const alert = activeDetail.data;
+        return (
+          <div className="space-y-3.5 select-none">
+            <p className="text-xs font-semibold text-slate-250 leading-relaxed">
+              {alert.headline}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 bg-slate-900/30 p-2 rounded border border-slate-800/40 text-[10px]">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider">Effective</span>
+                <span className="text-slate-300 font-semibold">{formatAlertTime(alert.effective)}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider">Expires</span>
+                <span className="text-red-400 font-semibold">{formatAlertTime(alert.expires)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-300">
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Severity & Certainty</span>
+                <div className="flex gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-medium">
+                    {alert.severity} Severity
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-medium">
+                    {alert.certainty} Certainty
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Counties</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed max-h-20 overflow-y-auto pr-1 custom-scrollbar">
+                  {alert.areaDesc}
+                </p>
+              </div>
+
+              {alert.instruction && (
+                <div className="border-t border-slate-900/80 pt-2.5">
+                  <span className="text-red-400/90 font-bold block text-[8px] uppercase tracking-wider mb-1">NWS Instructions</span>
+                  <p className="text-slate-300 font-light text-[11px] leading-relaxed bg-red-950/10 border border-red-500/10 p-2.5 rounded italic">
+                    {alert.instruction}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+      case "address": {
+        const target = activeDetail.data;
+        return (
+          <div className="space-y-3 text-xs select-none">
+            <div className="bg-slate-900/30 p-2.5 rounded border border-slate-800/40">
+              <span className="text-slate-450 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Street Address</span>
+              <p className="font-black text-slate-100 text-sm leading-snug">
+                {target.fullAddress}
+              </p>
+            </div>
+
+            {/* Subdetails Grid */}
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              {target.neighborhood && (
+                <div className="col-span-2 bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
+                  <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
+                  <p className="font-semibold text-slate-200 mt-0.5">
+                    {target.neighborhood}
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
+                <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
+                <p className="font-semibold text-slate-200 mt-0.5">
+                  {[target.city, target.state].filter(Boolean).join(", ") || "N/A"}
+                </p>
+              </div>
+              <div className="bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
+                <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
+                <p className="font-semibold text-slate-200 mt-0.5">
+                  {target.postcode || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Metadata */}
+            <div className="text-[8.5px] text-slate-500 font-mono flex items-center justify-between pt-2 border-t border-slate-900">
+              <span>GPS Coordinates</span>
+              <span>{target.latitude.toFixed(5)}, {target.longitude.toFixed(5)}</span>
+            </div>
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const renderOverlayFooter = () => {
+    if (!activeDetail) return undefined;
+
+    switch (activeDetail.type) {
+      case "cluster": {
+        const cluster = activeDetail.data;
+        return (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                handleClusterClick(cluster.center);
+                setActiveDetail(null);
+              }}
+              className="w-full text-center py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-extrabold uppercase tracking-widest border border-slate-700 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              Zoom to Area
+            </button>
+            <div className="text-[8px] text-slate-500 italic text-center">
+              Click individual storm circles for detailed reports.
+            </div>
+          </div>
+        );
+      }
+      case "warning": {
+        const alert = activeDetail.data;
+        return (
+          <div className="text-[8.5px] text-slate-500 flex justify-between">
+            <span>Source: {alert.source}</span>
+            <span className="text-slate-550/80">Active Alert Area</span>
+          </div>
+        );
+      }
+      case "address": {
+        const target = activeDetail.data;
+        const isLocked = selectedProperty?.latitude === target.latitude && 
+                         selectedProperty?.longitude === target.longitude;
+        return (
+          <div className="flex flex-col gap-1.5">
+            {isLocked ? (
+              <div className="w-full text-center py-2.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Locked for Lead Route
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  onLockProperty(target);
+                  setActiveDetail(null);
+                }}
+                className="w-full text-center py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-lg hover:shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                Lock Address for Lead Route
+              </button>
+            )}
+          </div>
+        );
+      }
+      default:
+        return undefined;
+    }
+  };
 
   // ArcGIS / NOAA REST export tile URL
   const radarTileUrl =
@@ -959,7 +1363,11 @@ export function StormMap({
                 className="relative flex items-center justify-center cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setClickedTarget({ ...lead, locked: true });
+                  setActiveDetail({
+                    type: "address",
+                    coordinates: [lead.latitude, lead.longitude],
+                    data: { ...lead, locked: true },
+                  });
                 }}
               >
                 <div className={`rounded-full bg-emerald-500/25 border-2 border-emerald-500/50 absolute transition-all ${
@@ -975,381 +1383,20 @@ export function StormMap({
           );
         })}
 
-        {/* Layer 7.5: Clicked Property Target Popup */}
-        {clickedTarget && (
-          <Popup
-            latitude={clickedTarget.latitude}
-            longitude={clickedTarget.longitude}
-            onClose={() => setClickedTarget(null)}
-            closeButton={true}
-            closeOnClick={false}
-            offset={12}
-            maxWidth="310px"
-          >
-            <div className="text-slate-100 flex flex-col gap-3 p-1 select-none max-h-80 overflow-y-auto pr-1">
-              {/* Header with Title and Verification Status Badge */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                    <MapPin size={12} className="text-red-500" />
-                  </div>
-                  <span className="font-extrabold uppercase text-[10px] tracking-wider text-slate-300">
-                    Lead Target Info
-                  </span>
-                </div>
-                {clickedTarget.confidence === "exact" ? (
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-extrabold uppercase tracking-wider">
-                    Verified
-                  </span>
-                ) : (
-                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8px] font-extrabold uppercase tracking-wider">
-                    Approximate
-                  </span>
-                )}
-              </div>
-
-              {/* Main Address Display */}
-              <div className="space-y-2.5 text-xs">
-                <div className="bg-slate-900/30 p-2 rounded border border-slate-800/40">
-                  <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Street Address</span>
-                  <p className="font-black text-slate-100 text-sm leading-snug">
-                    {clickedTarget.fullAddress}
-                  </p>
-                </div>
-
-                {/* Subdetails Grid */}
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  {clickedTarget.neighborhood && (
-                    <div className="col-span-2 bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
-                      <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
-                      <p className="font-semibold text-slate-200">
-                        {clickedTarget.neighborhood}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
-                    <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
-                    <p className="font-semibold text-slate-200">
-                      {[clickedTarget.city, clickedTarget.state].filter(Boolean).join(", ") || "N/A"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-900/20 px-2 py-1 rounded border border-slate-800/40">
-                    <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
-                    <p className="font-semibold text-slate-200">
-                      {clickedTarget.postcode || "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Footer Metadata */}
-                <div className="text-[8px] text-slate-500 font-mono flex items-center justify-between pt-1.5 border-t border-slate-900">
-                  <span>GPS Coordinates</span>
-                  <span>{clickedTarget.latitude.toFixed(5)}, {clickedTarget.longitude.toFixed(5)}</span>
-                </div>
-              </div>
-
-              {/* Actions Section */}
-              <div className="mt-1 flex flex-col gap-1.5">
-                {selectedProperty?.latitude === clickedTarget.latitude && 
-                 selectedProperty?.longitude === clickedTarget.longitude ? (
-                  <div className="w-full text-center py-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Locked for Lead Route
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      onLockProperty(clickedTarget);
-                      setClickedTarget(null);
-                    }}
-                    className="w-full text-center py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-lg hover:shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer"
-                  >
-                    Lock Address for Lead Route
-                  </button>
-                )}
-              </div>
-            </div>
-          </Popup>
-        )}
-
-        {/* Layer 7: Individual Storm Report Popup Details */}
-        {selectedReport && (
-          <Popup
-            latitude={selectedReport.lat}
-            longitude={selectedReport.lon}
-            onClose={() => setSelectedReport(null)}
-            closeButton={true}
-            closeOnClick={false}
-            offset={16}
-            maxWidth="320px"
-          >
-            <div className="text-slate-100 flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: STORM_TYPE_COLORS[selectedReport.type]?.fill ?? "#64748B" }}
-                  ></span>
-                  <span className="font-extrabold uppercase tracking-wider text-xs">
-                    {selectedReport.type} REPORT
-                  </span>
-                </span>
-                <span className="text-[10px] text-slate-400 capitalize">{selectedReport.eventDate}</span>
-              </div>
-
-              {/* Target Priority Score Badge */}
-              <div className={`flex items-center justify-between px-2 py-1 rounded border text-[10px] ${scoreBadgeColor()}`}>
-                <span className="font-semibold">TARGET VALUE: {reportOpportunityScore} pts</span>
-                <span className="font-extrabold text-[9px] tracking-wide uppercase">{scoreText()}</span>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-1.5 text-xs text-slate-300">
-                <div>
-                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Magnitude</span>
-                  <p className="font-semibold text-slate-200">
-                    {selectedReport.type === "hail" && selectedReport.magnitude
-                      ? `${(parseFloat(selectedReport.magnitude) > 10 ? parseFloat(selectedReport.magnitude) / 100 : parseFloat(selectedReport.magnitude)).toFixed(2)} in Hail`
-                      : selectedReport.type === "wind" && selectedReport.magnitude
-                      ? `${selectedReport.magnitude} mph Wind`
-                      : selectedReport.type === "tornado"
-                      ? `${selectedReport.magnitude || "Reported"} Tornado`
-                      : "N/A"}
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-500 font-medium block text-[10px] uppercase">Time (UTC)</span>
-                    <p className="font-medium text-slate-200">{formattedReportTime}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 font-medium block text-[10px] uppercase">State / County</span>
-                    <p className="font-medium text-slate-200">{selectedReport.county}, {selectedReport.state}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Location Details</span>
-                  <p className="font-medium text-slate-200">{selectedReport.location}</p>
-                </div>
-
-                {selectedReport.comments && (
-                  <div>
-                    <span className="text-slate-500 font-medium block text-[10px] uppercase">SPC Comments</span>
-                    <p className="font-light italic text-slate-300 text-[11px] bg-slate-950/40 p-1.5 rounded border border-slate-900/60 leading-relaxed">
-                      "{selectedReport.comments}"
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer source info */}
-              <div className="mt-1 pt-1.5 border-t border-slate-800 text-[9px] text-slate-500 flex flex-col gap-0.5">
-                <div>Source: NOAA SPC preliminary storm report</div>
-                <div className="italic text-slate-500/80 leading-normal">
-                  * Storm reports are preliminary and may be updated by NOAA/SPC.
-                </div>
-              </div>
-            </div>
-          </Popup>
-        )}
-
-        {/* Layer 7.5: Storm Cluster/Area Profile Popup */}
-        {selectedCluster && (
-          <Popup
-            latitude={selectedCluster.center[0]}
-            longitude={selectedCluster.center[1]}
-            onClose={() => setSelectedCluster(null)}
-            closeButton={true}
-            closeOnClick={false}
-            offset={16}
-            maxWidth="340px"
-          >
-            <div className="text-slate-100 flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-1">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: STORM_TYPE_COLORS[selectedCluster.mainStormType]?.fill ?? "#64748B" }}
-                  ></span>
-                  <span className="font-extrabold uppercase tracking-wider text-xs">
-                    {selectedCluster.mainStormType} AREA
-                  </span>
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] font-bold text-slate-300">
-                  Score: {selectedCluster.totalScore}
-                </span>
-              </div>
-
-              {/* Area Name */}
-              <div>
-                <span className="text-slate-500 font-medium block text-[10px] uppercase">Area / Location</span>
-                <p className="font-bold text-slate-200 text-sm">{selectedCluster.name || "Unknown Area"}</p>
-                <p className="text-[10px] text-slate-400">
-                  {selectedCluster.county ? `${selectedCluster.county} County, ` : ""}{selectedCluster.state}
-                </p>
-              </div>
-
-              {/* Report Counts */}
-              <div className="grid grid-cols-4 gap-1 bg-slate-950/40 border border-slate-900/60 p-1.5 rounded text-[10px] text-center">
-                <div>
-                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Total</span>
-                  <span className="font-bold text-slate-200">{selectedCluster.reportsCount}</span>
-                </div>
-                <div>
-                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Hail</span>
-                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.hail.fill }}>{selectedCluster.hailCount}</span>
-                </div>
-                <div>
-                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Wind</span>
-                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.wind.fill }}>{selectedCluster.windCount}</span>
-                </div>
-                <div>
-                  <span className="text-slate-600 block text-[8px] font-medium uppercase">Tornado</span>
-                  <span className="font-bold" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>{selectedCluster.tornadoCount}</span>
-                </div>
-              </div>
-
-              {/* Magnitude & Radius */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Highest Magnitude</span>
-                  <p className="font-semibold text-slate-200">{selectedCluster.highestMagnitude}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 font-medium block text-[10px] uppercase">Target Radius</span>
-                  <p className="font-semibold text-slate-200">{selectedCluster.suggestedRadius} mi</p>
-                </div>
-              </div>
-
-              {/* Top 3 Report Summaries */}
-              {selectedCluster.reports.length > 0 && (
-                <div>
-                  <span className="text-slate-500 font-medium block text-[10px] uppercase mb-1">Top Reports</span>
-                  <div className="space-y-1">
-                    {selectedCluster.reports.slice(0, 3).map((r, i) => (
-                      <div key={r.id || i} className="bg-slate-950/40 p-1.5 rounded border border-slate-900/60 text-[10px] flex items-start gap-1.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-                          style={{ backgroundColor: STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B" }}
-                        ></span>
-                        <div className="truncate">
-                          <span className="font-semibold text-slate-200 uppercase">{r.type}</span>
-                          {r.magnitude && <span className="text-slate-400"> — {r.magnitude}</span>}
-                          {r.location && <span className="text-slate-500 block truncate">{r.location}, {r.county} {r.state}</span>}
-                          {r.comments && <span className="text-slate-500 italic block truncate">"{r.comments}"</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Zoom to Area Button */}
-              <button
-                onClick={() => {
-                  handleClusterClick(selectedCluster.center);
-                  setSelectedCluster(null);
-                }}
-                className="w-full text-center py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-extrabold uppercase tracking-widest border border-slate-700 transition-all active:scale-[0.98] cursor-pointer"
-              >
-                Zoom to Area
-              </button>
-
-              {/* Footer */}
-              <div className="text-[8px] text-slate-500 italic">
-                Click individual storm circles for detailed reports.
-              </div>
-            </div>
-          </Popup>
-        )}
-
-        {/* Layer 8: NWS Warning Polygons Details Popup */}
-        {selectedAlert && (
-          <Popup
-            latitude={selectedAlert.polygon![0][0]}
-            longitude={selectedAlert.polygon![0][1]}
-            onClose={() => setSelectedAlert(null)}
-            closeButton={true}
-            closeOnClick={false}
-            anchor="top"
-            offset={4}
-            maxWidth="360px"
-          >
-            <div className="text-slate-100 flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
-              <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
-                <AlertCircle
-                  size={16}
-                  className={
-                    selectedAlert.event.includes("Tornado")
-                      ? "text-red-500"
-                      : selectedAlert.event.includes("Severe")
-                      ? "text-orange-500"
-                      : "text-blue-500"
-                  }
-                />
-                <span className="font-extrabold uppercase text-xs tracking-wider">
-                  {selectedAlert.event}
-                </span>
-              </div>
-
-              <p className="text-xs font-semibold text-slate-200 leading-normal">
-                {selectedAlert.headline}
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 bg-slate-950/50 p-2 rounded border border-slate-900 text-[10px]">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-500 font-medium uppercase">Effective</span>
-                  <span className="text-slate-300 font-semibold">{formatAlertTime(selectedAlert.effective)}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-500 font-medium uppercase">Expires</span>
-                  <span className="text-red-400 font-semibold">{formatAlertTime(selectedAlert.expires)}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500 font-medium block text-[9px] uppercase tracking-wider">Severity & Certainty</span>
-                  <div className="flex gap-1.5 mt-0.5">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">
-                      {selectedAlert.severity} Severity
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">
-                      {selectedAlert.certainty} Certainty
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 font-medium block text-[9px] uppercase tracking-wider">Target Counties</span>
-                  <p className="text-slate-300 text-[11px] leading-relaxed">
-                    {selectedAlert.areaDesc}
-                  </p>
-                </div>
-
-                {selectedAlert.instruction && (
-                  <div className="border-t border-slate-900/80 pt-2">
-                    <span className="text-red-400/90 font-bold block text-[9px] uppercase tracking-wider">NWS Instructions</span>
-                    <p className="text-slate-300 font-light text-[11px] leading-relaxed mt-0.5 bg-red-950/10 border border-red-500/10 p-2 rounded italic">
-                      {selectedAlert.instruction}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-1 pt-1.5 border-t border-slate-800 text-[9px] text-slate-500 flex justify-between">
-                <span>Source: {selectedAlert.source}</span>
-                <span className="text-slate-500/80">Active Alert Area</span>
-              </div>
-            </div>
-          </Popup>
-        )}
       </Map>
+
+      {/* Viewport-Safe Map Detail Overlay */}
+      {activeDetail && pixelPos && (
+        <MapDetailOverlay
+          x={pixelPos.x}
+          y={pixelPos.y}
+          onClose={() => setActiveDetail(null)}
+          header={renderOverlayHeader()}
+          footer={renderOverlayFooter()}
+        >
+          {renderOverlayBody()}
+        </MapDetailOverlay>
+      )}
 
       {/* Floating Control Toolbar */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">

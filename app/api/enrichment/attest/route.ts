@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentEnrichmentAccount, AuthNotConfiguredError } from "@/lib/enrichment/auth";
+import { getCurrentEnrichmentAccount, handleAuthError } from "@/lib/enrichment/auth";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
 import { getEnrichmentStore, StoreConfigurationError } from "@/lib/enrichment/stores";
 import { getEnrichmentRouteGuardResult } from "@/lib/enrichment/route-guard";
@@ -96,9 +96,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    if (err instanceof AuthNotConfiguredError) {
-      return apiError("AUTH_NOT_CONFIGURED", err.message, 501);
-    }
+    const authErrorResponse = handleAuthError(err);
+    if (authErrorResponse) return authErrorResponse;
+
     if (err instanceof StoreConfigurationError) {
       return apiError("INTERNAL_ERROR", err.message, 503);
     }

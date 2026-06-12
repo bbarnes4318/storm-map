@@ -35,6 +35,12 @@ services:
       - ENRICHMENT_ADMIN_TEST_TOKEN=mz13wGXHnqeYB4OJVRkWgya5SEZcvCUIsP9hTNAflDu2Q0bF
       - ENRICHMENT_ENCRYPTION_KEY=235335b691f7d647c33f822344e8dd08592ff19a302bbf667f290226837f42d3
       - DATABASE_URL=postgresql://${POSTGRES_USER:-stormmap}:${POSTGRES_PASSWORD:-uyneoCird48L5lSvpVhfFK3j17EzIQmT}@storm-postgres:5432/${POSTGRES_DB:-storm_map}
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_dHVtYmxlLXdlYXNlbC0yOC5jbGVyay5hY2NvdW50cy5kZXYk}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-sk_test_uyneoCird48L5lSvpVhfFK3j17EzIQmT}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/storm-map/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/storm-map/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/storm-map
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/storm-map
     networks:
       - coolify
     labels:

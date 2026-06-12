@@ -33,7 +33,16 @@ if (-not $mapboxToken) {
 
 # 1. Create .env.production file for the Docker build context
 Write-Host "Creating temporary .env.production file..." -ForegroundColor Yellow
-"NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=$mapboxToken" | Out-File -FilePath $envProdPath -Encoding utf8 -NoNewline -Force
+$envProdContent = @"
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=$mapboxToken
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_dHVtYmxlLXdlYXNlbC0yOC5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_uyneoCird48L5lSvpVhfFK3j17EzIQmT
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/storm-map/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/storm-map/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/storm-map
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/storm-map
+"@
+$envProdContent | Out-File -FilePath $envProdPath -Encoding utf8 -Force
 
 # 2. Clean up any existing deploy archive
 if (Test-Path $archiveFile) {
