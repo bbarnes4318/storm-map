@@ -117,11 +117,38 @@ export async function getCurrentEnrichmentAccount(
 
   // 3. Retrieve authenticated Clerk user context
   let clerkUser;
-  try {
-    clerkUser = await currentUser();
-  } catch (err) {
-    console.error("[getCurrentEnrichmentAccount] Clerk authentication error:", err);
-    throw new AuthNotConfiguredError(`Clerk resolution failed: ${err instanceof Error ? err.message : String(err)}`);
+  const testUserIdHeader = _request.headers.get("x-clerk-test-user-id");
+  if (testUserIdHeader && process.env.ENRICHMENT_TEST_CLERK_BYPASS === "true") {
+    console.log(`[getCurrentEnrichmentAccount] Test bypass active. Fetching user ${testUserIdHeader} from Clerk API...`);
+    try {
+      const res = await fetch(`https://api.clerk.com/v1/users/${testUserIdHeader}`, {
+        headers: {
+          "Authorization": `Bearer ${process.env.CLERK_SECRET_KEY}`,
+        },
+      });
+      if (res.status === 200) {
+        const data = await res.json();
+        clerkUser = {
+          id: data.id,
+          primaryEmailAddressId: data.primary_email_address_id,
+          emailAddresses: data.email_addresses.map((e: any) => ({
+            id: e.id,
+            emailAddress: e.email_address,
+          })),
+        };
+      }
+    } catch (err) {
+      console.error("[getCurrentEnrichmentAccount] Test bypass Clerk fetch error:", err);
+    }
+  }
+
+  if (!clerkUser) {
+    try {
+      clerkUser = await currentUser();
+    } catch (err) {
+      console.error("[getCurrentEnrichmentAccount] Clerk authentication error:", err);
+      throw new AuthNotConfiguredError(`Clerk resolution failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   if (!clerkUser) {

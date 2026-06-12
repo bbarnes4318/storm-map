@@ -14,35 +14,71 @@ $archiveFile = Join-Path $repoRoot "storm-map-deploy.tar"
 $deployScript = Join-Path $repoRoot "scripts/remote-deploy-storm-map.sh"
 $envProdPath = Join-Path $repoRoot ".env.production"
 
-# Mapbox Access Token (Read from env or local config)
+# Mapbox and Clerk environment variables configuration (Read from env or local config)
 $mapboxToken = $env:NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+$clerkPub = $env:NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+$clerkSec = $env:CLERK_SECRET_KEY
+$clerkSignIn = $env:NEXT_PUBLIC_CLERK_SIGN_IN_URL
+$clerkSignUp = $env:NEXT_PUBLIC_CLERK_SIGN_UP_URL
+$clerkSignInFallback = $env:NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL
+$clerkSignUpFallback = $env:NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL
+$clerkAfterSignIn = $env:NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL
+$clerkAfterSignUp = $env:NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
+
 $envLocalPath = Join-Path $repoRoot ".env.local"
-if (-not $mapboxToken -and (Test-Path $envLocalPath)) {
+if (Test-Path $envLocalPath) {
     $envContent = Get-Content $envLocalPath
     foreach ($line in $envContent) {
-        if ($line -match "^NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=(.*)$") {
-            $mapboxToken = $Matches[1].Trim().Trim('"').Trim("'")
-            break
-        }
+        if ($line -match "^NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=(.*)$") { $mapboxToken = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=(.*)$") { $clerkPub = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^CLERK_SECRET_KEY=(.*)$") { $clerkSec = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_SIGN_IN_URL=(.*)$") { $clerkSignIn = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_SIGN_UP_URL=(.*)$") { $clerkSignUp = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=(.*)$") { $clerkSignInFallback = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=(.*)$") { $clerkSignUpFallback = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=(.*)$") { $clerkAfterSignIn = $Matches[1].Trim().Trim('"').Trim("'") }
+        if ($line -match "^NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=(.*)$") { $clerkAfterSignUp = $Matches[1].Trim().Trim('"').Trim("'") }
     }
 }
+
 if (-not $mapboxToken) {
     Write-Error "Mapbox Access Token not found. Please set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN in env or .env.local"
     exit 1
 }
 
-# 1. Create .env.production file for the Docker build context
+if (-not $clerkPub -or -not $clerkSec) {
+    Write-Error "Clerk credentials not found. Please set Clerk variables in env or .env.local"
+    exit 1
+}
+
+# 1a. Create .env.production file for the Docker build context (build-time variables)
 Write-Host "Creating temporary .env.production file..." -ForegroundColor Yellow
 $envProdContent = @"
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=$mapboxToken
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_dHVtYmxlLXdlYXNlbC0yOC5jbGVyay5hY2NvdW50cy5kZXYk
-CLERK_SECRET_KEY=sk_test_uyneoCird48L5lSvpVhfFK3j17EzIQmT
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/storm-map/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/storm-map/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/storm-map
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/storm-map
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$clerkPub
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=$clerkSignIn
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=$clerkSignUp
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=$clerkSignInFallback
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=$clerkSignUpFallback
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=$clerkAfterSignIn
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$clerkAfterSignUp
 "@
 $envProdContent | Out-File -FilePath $envProdPath -Encoding utf8 -Force
+
+# 1b. Create temporary .env file for the Docker runtime context (runtime variables)
+$envPath = Join-Path $repoRoot ".env"
+Write-Host "Creating temporary .env file..." -ForegroundColor Yellow
+$envContentString = @"
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$clerkPub
+CLERK_SECRET_KEY=$clerkSec
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=$clerkSignIn
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=$clerkSignUp
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=$clerkSignInFallback
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=$clerkSignUpFallback
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=$clerkAfterSignIn
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$clerkAfterSignUp
+"@
+$envContentString | Out-File -FilePath $envPath -Encoding utf8 -Force
 
 # 2. Clean up any existing deploy archive
 if (Test-Path $archiveFile) {
@@ -81,9 +117,10 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Clean up local temporary environment file
-Write-Host "Cleaning up local temporary .env.production..." -ForegroundColor Yellow
-Remove-Item $envProdPath -Force
+# Clean up local temporary environment files
+Write-Host "Cleaning up local temporary .env.production and .env..." -ForegroundColor Yellow
+if (Test-Path $envProdPath) { Remove-Item $envProdPath -Force }
+if (Test-Path $envPath) { Remove-Item $envPath -Force }
 
 # 5. Execute remote deployment script
 Write-Host "Running remote deployment script on Hetzner server..." -ForegroundColor Green
