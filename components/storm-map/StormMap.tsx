@@ -1480,38 +1480,7 @@ export function StormMap({
 
     switch (activeDetail.type) {
       case "cluster": {
-        const cluster = activeDetail.data;
-        return (
-          <StormProductActionPanel
-            contextType="storm-area"
-            contextData={{
-              label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
-              county: cluster.county,
-              state: cluster.state,
-              center: cluster.center,
-              radius: cluster.suggestedRadius,
-              reportsCount: cluster.reportsCount,
-              primaryThreat: cluster.mainStormType,
-              score: cluster.totalScore,
-            }}
-            compact={true}
-            onSelectProduct={(prod) => {
-              setMapModalProduct(prod);
-              setMapModalContextType("storm-area");
-              setMapModalContextData({
-                label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
-                county: cluster.county,
-                state: cluster.state,
-                center: cluster.center,
-                radius: cluster.suggestedRadius,
-                reportsCount: cluster.reportsCount,
-                primaryThreat: cluster.mainStormType,
-                score: cluster.totalScore,
-              });
-              setMapModalOpen(true);
-            }}
-          />
-        );
+        return undefined;
       }
       case "warning": {
         const alert = activeDetail.data;

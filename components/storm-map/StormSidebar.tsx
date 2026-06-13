@@ -386,7 +386,7 @@ export function StormSidebar({
         )}
         {/* Unified Active Target Selection Panel (Property or Storm Area Context) */}
         {selectedProperty ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-slate-900/40 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[calc(100vh-180px)] md:max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
             {/* Selected Property Summary */}
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-1.5 min-w-0">
@@ -454,7 +454,7 @@ export function StormSidebar({
             </div>
           </div>
         ) : activeDetail && activeDetail.type === "cluster" ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-slate-900/40 border border-red-500/20 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-[#145CFF]/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[calc(100vh-180px)] md:max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
             {/* Selected Storm Area Summary */}
             {(() => {
               const cluster = activeDetail.data as TargetCluster;
