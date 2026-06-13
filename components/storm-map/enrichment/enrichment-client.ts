@@ -30,16 +30,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
   const data = isJson ? await response.json() : null;
 
   if (!response.ok) {
-    const code = data?.error?.code || "HTTP_ERROR";
-    const message = data?.error?.message || response.statusText || "An unexpected error occurred.";
-    const details = data?.error?.details || undefined;
+    // Server format: { ok: false, error: "CODE_STRING", message: "...", details?: {} }
+    const code = (typeof data?.error === "string" ? data.error : data?.error?.code) || "HTTP_ERROR";
+    const message = data?.message || (typeof data?.error === "object" ? data?.error?.message : null) || response.statusText || "An unexpected error occurred.";
+    const details = data?.details || (typeof data?.error === "object" ? data?.error?.details : undefined);
     throw new EnrichmentApiError(code, message, response.status, details);
   }
 
-  if (data && data.success === false) {
-    const code = data.error?.code || "API_ERROR";
-    const message = data.error?.message || "API request failed.";
-    const details = data.error?.details || undefined;
+  if (data && data.ok === false) {
+    const code = (typeof data.error === "string" ? data.error : data.error?.code) || "API_ERROR";
+    const message = data.message || (typeof data.error === "object" ? data.error?.message : null) || "API request failed.";
+    const details = data.details || (typeof data.error === "object" ? data.error?.details : undefined);
     throw new EnrichmentApiError(code, message, response.status, details);
   }
 

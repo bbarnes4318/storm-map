@@ -29,6 +29,14 @@ export function ProductRequestModal({
   const [isLoading, setIsLoading] = React.useState(false);
   const [statusMsg, setStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
+  // Clear stale errors when modal opens or product changes
+  React.useEffect(() => {
+    if (isOpen) {
+      setStatusMsg(null);
+      setIsLoading(false);
+    }
+  }, [isOpen, productType]);
+
   if (!isOpen) return null;
 
   const getProductTitle = () => {
@@ -53,8 +61,7 @@ export function ProductRequestModal({
     }
   };
 
-  // Check backend provider status/enabled
-  const isMockMode = process.env.NEXT_PUBLIC_ENRICHMENT_MOCK_MODE === "true" || true; // standard mock mode fallback
+
 
   const handleAction = async () => {
     setStatusMsg(null);
@@ -111,24 +118,50 @@ export function ProductRequestModal({
     } catch (err: any) {
       console.error(err);
       const errCode = err.code || "";
-      const errMsg = err.message || "";
       const errStatus = err.status || 0;
 
-      if (errCode === "FEATURE_DISABLED" || errStatus === 503 || errMsg.includes("feature is not enabled") || errMsg.includes("disabled")) {
+      // Feature-level disabled
+      if (errCode === "FEATURE_DISABLED" || errStatus === 503) {
         setStatusMsg({
           type: "error",
           text: "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
         });
-      } else if (errCode === "PROVIDER_NOT_CONFIGURED" || errMsg.includes("provider")) {
+      // Product-specific PROVIDER_NOT_CONFIGURED
+      } else if (errCode === "PROVIDER_NOT_CONFIGURED") {
+        if (productType === "STORM_REPORT_ADDRESSES") {
+          setStatusMsg({
+            type: "error",
+            text: "Bulk property lead collection is not enabled yet. Connect a property/address provider to gather homeowners in this radius."
+          });
+        } else if (productType === "STORM_REPORT_CONTACT") {
+          setStatusMsg({
+            type: "error",
+            text: "Homeowner contact provider is not configured yet. Add MELISSA_LICENSE_KEY to the server environment to enable contact data access."
+          });
+        } else if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
+          setStatusMsg({
+            type: "error",
+            text: "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person roof inspection appointments for the selected storm area."
+          });
+        } else {
+          setStatusMsg({
+            type: "error",
+            text: "The required service provider is not configured yet."
+          });
+        }
+      // Provider returned no data match
+      } else if (errCode === "PROVIDER_NO_MATCH") {
         setStatusMsg({
-          type: "error",
-          text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
+          type: "info",
+          text: "No homeowner contact match was found for this property."
         });
+      // Authentication required
       } else if (errCode === "UNAUTHORIZED" || errStatus === 401) {
         setStatusMsg({
           type: "error",
           text: "Sign in to access this product."
         });
+      // Generic fallback — only when no known error code matched
       } else {
         setStatusMsg({
           type: "error",
@@ -143,20 +176,32 @@ export function ProductRequestModal({
   const isActionDisabled = () => {
     if (productType === "ROOF_INSPECTION_APPOINTMENTS") return true;
     if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") return true;
-    // For contact information on property, check if enrichment is active
     if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) return true;
     return false;
   };
 
-  const getDisabledExplanation = () => {
+  const getDisabledTitle = () => {
     if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
-      return "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person inspection appointments for the selected storm area.";
+      return "Appointment Requests Not Active Yet";
     }
     if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") {
-      return "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius.";
+      return "Homeowner Contact Provider Not Connected";
     }
     if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) {
-      return "Homeowner contact access is currently disabled on this server. The interface is ready, but access is not active yet.";
+      return "Lead Intelligence Disabled";
+    }
+    return "Service Not Available";
+  };
+
+  const getDisabledExplanation = () => {
+    if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
+      return "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person roof inspection appointments for the selected storm area.";
+    }
+    if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") {
+      return "Homeowner contact provider is not configured yet. Add MELISSA_LICENSE_KEY to the server environment to enable contact data access.";
+    }
+    if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) {
+      return "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet.";
     }
     return null;
   };
@@ -268,21 +313,24 @@ export function ProductRequestModal({
             <div className="p-3 bg-red-950/15 border border-red-500/20 rounded-lg text-red-400 flex items-start gap-2 leading-relaxed">
               <AlertTriangle size={14} className="shrink-0 mt-0.5 text-red-500" />
               <div>
-                <strong className="block font-bold">Service Not Configured</strong>
+                <strong className="block font-bold">{getDisabledTitle()}</strong>
                 {getDisabledExplanation()}
               </div>
             </div>
           )}
 
           {/* Toast / Status Message */}
-          {statusMsg && (
+          {/* Show statusMsg ONLY when the disabled banner is NOT already showing — prevents duplicate stacking */}
+          {!isActionDisabled() && statusMsg && (
             <div className={`p-3 rounded-lg border flex items-start gap-2 leading-relaxed ${
               statusMsg.type === "success" ? "bg-emerald-950/15 border-emerald-500/20 text-emerald-400" :
               statusMsg.type === "error" ? "bg-red-950/15 border-red-500/20 text-red-400" :
-              "bg-blue-950/15 border-blue-500/20 text-blue-450"
+              "bg-blue-950/15 border-blue-500/20 text-blue-400"
             }`}>
               {statusMsg.type === "error" ? (
                 <AlertTriangle size={14} className="shrink-0 mt-0.5 text-red-500" />
+              ) : statusMsg.type === "info" ? (
+                <AlertTriangle size={14} className="shrink-0 mt-0.5 text-blue-400" />
               ) : (
                 <Check size={14} className="shrink-0 mt-0.5 text-emerald-450" />
               )}
