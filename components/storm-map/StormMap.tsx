@@ -163,6 +163,31 @@ export function StormMap({
           duration: 1200,
         });
       }
+    } else {
+      // Revert map to default center and zoom when filters center is cleared
+      const isAlreadyAtDefault =
+        Math.abs(viewState.latitude - defaultCenter.latitude) < 0.001 &&
+        Math.abs(viewState.longitude - defaultCenter.longitude) < 0.001 &&
+        Math.abs(viewState.zoom - defaultZoom) < 0.1;
+
+      if (isAlreadyAtDefault) {
+        return;
+      }
+
+      setViewState((prev) => ({
+        ...prev,
+        latitude: defaultCenter.latitude,
+        longitude: defaultCenter.longitude,
+        zoom: defaultZoom,
+      }));
+
+      if (mapRef.current) {
+        mapRef.current.flyTo({
+          center: [defaultCenter.longitude, defaultCenter.latitude],
+          zoom: defaultZoom,
+          duration: 1200,
+        });
+      }
     }
   }, [filters.center, filters.targetZoom]);
 
@@ -1188,7 +1213,11 @@ export function StormMap({
     <div className="relative w-full h-full bg-[#030712] overflow-hidden">
       {/* Mapbox GL Map Canvas */}
       <Map
-        {...viewState}
+        initialViewState={{
+          latitude: filters.center ? filters.center[0] : defaultCenter.latitude,
+          longitude: filters.center ? filters.center[1] : defaultCenter.longitude,
+          zoom: filters.center ? 8.5 : defaultZoom,
+        }}
         ref={mapRef}
         onMove={handleMove}
         onClick={handleMapClick}
