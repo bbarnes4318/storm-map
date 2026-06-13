@@ -1309,11 +1309,11 @@ export function StormMap({
               <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] text-slate-400">
                 <div>
                   <span className="text-slate-500 block text-[7.5px] uppercase">Year Built</span>
-                  <span className="font-bold text-slate-200">1998</span>
+                  <span className="font-bold text-slate-200">19**</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[7.5px] uppercase">Square Feet</span>
-                  <span className="font-bold text-slate-200">2,140 sq ft</span>
+                  <span className="font-bold text-slate-200">2,1** sq ft</span>
                 </div>
                 <div>
                   <span className="text-slate-505 block text-[7.5px] uppercase">Home Value</span>
