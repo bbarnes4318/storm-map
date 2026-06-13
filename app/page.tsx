@@ -231,6 +231,7 @@ export default function StormMapPage() {
         onUpdateLead={handleUpdateLead}
         activeDetail={activeDetail}
         setActiveDetail={setActiveDetail}
+        onSelectProperty={handleLockProperty}
       />
 
       {/* Main Map Viewer Panel */}

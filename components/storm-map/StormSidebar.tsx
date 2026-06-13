@@ -26,6 +26,7 @@ interface StormSidebarProps {
   onUpdateLead: (lead: SelectedPropertyTarget) => void;
   activeDetail: ActivePopupDetail | null;
   setActiveDetail: (detail: ActivePopupDetail | null) => void;
+  onSelectProperty?: (property: SelectedPropertyTarget | null) => void;
 }
 
 const US_STATES = [
@@ -60,6 +61,7 @@ export function StormSidebar({
   onUpdateLead,
   activeDetail,
   setActiveDetail,
+  onSelectProperty,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -779,6 +781,9 @@ export function StormSidebar({
                             coordinates: [lead.latitude, lead.longitude],
                             data: { ...lead, locked: true },
                           });
+                          if (onSelectProperty) {
+                            onSelectProperty(lead);
+                          }
                         }}
                         className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
                           isActive

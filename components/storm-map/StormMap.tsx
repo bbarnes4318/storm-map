@@ -384,6 +384,70 @@ export function StormMap({
             coordinates: [report.lat, report.lon],
             data: report,
           });
+
+          // Geocode in background to fetch neighborhood details
+          reverseGeocodeAddress(report.lat, report.lon)
+            .then((target) => {
+              if (target) {
+                const neighborhoodText = target.neighborhood || target.city || target.county || "";
+                setActiveDetail((prev) => {
+                  if (
+                    prev &&
+                    prev.type === "storm-report" &&
+                    prev.coordinates[0] === report.lat &&
+                    prev.coordinates[1] === report.lon
+                  ) {
+                    return {
+                      ...prev,
+                      data: {
+                        ...prev.data,
+                        geocodedNeighborhood: neighborhoodText,
+                      },
+                    };
+                  }
+                  return prev;
+                });
+              } else {
+                setActiveDetail((prev) => {
+                  if (
+                    prev &&
+                    prev.type === "storm-report" &&
+                    prev.coordinates[0] === report.lat &&
+                    prev.coordinates[1] === report.lon
+                  ) {
+                    return {
+                      ...prev,
+                      data: {
+                        ...prev.data,
+                        geocodedNeighborhood: "",
+                      },
+                    };
+                  }
+                  return prev;
+                });
+              }
+            })
+            .catch((err) => {
+              console.error("Failed to reverse geocode storm report neighborhood:", err);
+              setActiveDetail((prev) => {
+                if (
+                  prev &&
+                  prev.type === "storm-report" &&
+                  prev.coordinates[0] === report.lat &&
+                  prev.coordinates[1] === report.lon
+                ) {
+                  return {
+                    ...prev,
+                    data: {
+                      ...prev.data,
+                      geocodedNeighborhood: "",
+                    },
+                  };
+                }
+                return prev;
+              });
+            });
+
           return;
         }
       }
@@ -970,7 +1034,20 @@ export function StormMap({
               </div>
 
               <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60 text-[10px]">
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Location Details</span>
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Estimated Neighborhood</span>
+                <p className="font-bold text-slate-100 leading-normal">
+                  {report.geocodedNeighborhood === undefined ? (
+                    <span className="text-slate-500 font-medium italic animate-pulse">Resolving neighborhood...</span>
+                  ) : report.geocodedNeighborhood ? (
+                    report.geocodedNeighborhood
+                  ) : (
+                    "Unknown Neighborhood"
+                  )}
+                </p>
+              </div>
+
+              <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60 text-[10px]">
+                <span className="text-slate-505 font-bold block text-[8px] uppercase tracking-wider mb-1">Location Details</span>
                 <p className="font-medium text-slate-250 leading-normal">{report.location || "N/A"}</p>
               </div>
 
@@ -1557,6 +1634,7 @@ export function StormMap({
                     coordinates: [lead.latitude, lead.longitude],
                     data: { ...lead, locked: true },
                   });
+                  onLockProperty(lead);
                 }}
               >
                 <div className={`rounded-full bg-emerald-500/25 border-2 border-emerald-500/50 absolute transition-all ${

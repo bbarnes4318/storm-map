@@ -114,7 +114,7 @@ export function LeadIntelligencePanel({
             <Lock size={11} className="text-red-500 shrink-0" />
             Lead Intelligence
           </h3>
-          <p className="text-[9px] text-slate-500 font-medium">
+          <p className="text-[9px] text-slate-550 font-medium">
             Unlock homeowner contact, property, and roof metrics.
           </p>
         </div>
@@ -127,6 +127,17 @@ export function LeadIntelligencePanel({
           </div>
           <span className="text-[7.5px] text-slate-650 font-bold block mt-0.5 uppercase tracking-tight">
             Purchase coming soon
+          </span>
+        </div>
+      </div>
+
+      {/* Target Address Card (Always Visible) */}
+      <div className="p-2.5 bg-slate-900/40 border border-slate-850/80 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+        <MapPin size={12} className="text-emerald-500 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Target Address</span>
+          <span className="text-slate-200 font-bold text-[10.5px] leading-tight block break-words">
+            {selectedProperty.fullAddress}
           </span>
         </div>
       </div>

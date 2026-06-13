@@ -1,6 +1,6 @@
 import React from "react";
 import { UnlockedDataDetailResponse } from "./enrichment-client";
-import { User, Home, Shield, Zap, Info, Clock, AlertTriangle } from "lucide-react";
+import { User, Home, Shield, Zap, Info, Clock, AlertTriangle, MapPin } from "lucide-react";
 import { PhoneEntry, EmailEntry, Permit } from "@/lib/enrichment/schemas";
 
 interface UnlockedLeadDetailsProps {
@@ -74,7 +74,18 @@ export function UnlockedLeadDetails({
   ];
 
   return (
-    <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col min-h-[350px] max-h-[500px]">
+    <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col min-h-[350px] max-h-[550px]">
+      {/* Unlocked Address Header (Always Visible) */}
+      <div className="p-3 bg-slate-900/30 border-b border-slate-900 flex items-start gap-2 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
+        <MapPin size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Unlocked Target Address</span>
+          <span className="text-slate-200 font-black text-[11px] leading-tight block break-words">
+            {unlockedData.addressText}
+          </span>
+        </div>
+      </div>
+
       {/* Mini tabs bar */}
       <div className="flex border-b border-slate-900 bg-slate-950 overflow-x-auto shrink-0 custom-scrollbar">
         {tabs.map((tab) => {
@@ -123,10 +134,6 @@ export function UnlockedLeadDetails({
               </div>
             </div>
 
-            <div className="bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg flex flex-col gap-1.5">
-              <span className="text-slate-500 font-bold uppercase text-[7.5px]">Unlocked Address</span>
-              <span className="text-slate-200 font-bold leading-normal">{unlockedData.addressText}</span>
-            </div>
           </div>
         )}
 
