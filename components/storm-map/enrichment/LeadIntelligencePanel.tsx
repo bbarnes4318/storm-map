@@ -222,7 +222,7 @@ export function LeadIntelligencePanel({
               </div>
               <div>
                 <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Mailing Address</span>
-                <span className="font-bold text-slate-200">Available with contact information</span>
+                <span className="font-bold text-slate-200">Available with Homeowner Contact Information</span>
               </div>
               <div>
                 <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Property Details</span>

@@ -100,3 +100,25 @@ export async function getUnlockedLeadData(unlockId: string): Promise<UnlockedDat
   });
   return handleResponse<UnlockedDataDetailResponse>(response);
 }
+
+export interface CollectRadiusLeadsResponse {
+  addedCount: number;
+  leads: any[];
+  providerStatus: string;
+}
+
+export async function collectRadiusLeads(
+  centerLat: number,
+  centerLon: number,
+  radiusMiles: number,
+  opportunityId: string
+): Promise<CollectRadiusLeadsResponse> {
+  const response = await fetch("/storm-map/api/enrichment/radius-leads", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ centerLat, centerLon, radiusMiles, opportunityId }),
+  });
+  return handleResponse<CollectRadiusLeadsResponse>(response);
+}

@@ -38,7 +38,7 @@ export default function StormMapPage() {
     showRadar: true,
     radarOpacity: 1.0,
     timeWindow: "24h",
-    mapStyle: "streets",
+    mapStyle: "dark",
     showNeighborhoodLabels: true,
     showHouseNumbers: true,
     showBuildings: true,
@@ -95,10 +95,19 @@ export default function StormMapPage() {
   };
 
   const handleUpdateLead = (updatedLead: SelectedPropertyTarget) => {
-    const updatedLeads = leads.map((l) => (l.id === updatedLead.id ? updatedLead : l));
-    saveLeads(updatedLeads);
+    const updated = leads.map((l) => (l.id === updatedLead.id ? updatedLead : l));
+    saveLeads(updated);
     if (selectedProperty && selectedProperty.id === updatedLead.id) {
       setSelectedProperty(updatedLead);
+    }
+  };
+
+  const handleAddLeads = (newLeads: SelectedPropertyTarget[]) => {
+    const filteredNewLeads = newLeads.filter(
+      (newLead) => !leads.some((lead) => lead.fullAddress === newLead.fullAddress)
+    );
+    if (filteredNewLeads.length > 0) {
+      saveLeads([...leads, ...filteredNewLeads]);
     }
   };
 
@@ -201,7 +210,7 @@ export default function StormMapPage() {
       showRadar: true,
       radarOpacity: 1.0,
       timeWindow: "24h",
-      mapStyle: "streets",
+      mapStyle: "dark",
       showNeighborhoodLabels: true,
       showHouseNumbers: true,
       showBuildings: true,
@@ -232,6 +241,7 @@ export default function StormMapPage() {
         activeDetail={activeDetail}
         setActiveDetail={setActiveDetail}
         onSelectProperty={handleLockProperty}
+        onAddLeads={handleAddLeads}
       />
 
       {/* Main Map Viewer Panel */}
@@ -301,6 +311,7 @@ export default function StormMapPage() {
             leads={leads}
             activeDetail={activeDetail}
             setActiveDetail={setActiveDetail}
+            onAddLeads={handleAddLeads}
           />
         )}
 

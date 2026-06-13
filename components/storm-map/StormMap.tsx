@@ -11,9 +11,10 @@ import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, Target
 import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { MapDetailOverlay } from "./MapDetailOverlay";
-import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
+import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCDescriptor } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
+import { collectRadiusLeads } from "./enrichment/enrichment-client";
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -96,6 +97,19 @@ function getReportRadiusMiles(type: string, magnitude?: string): number {
   return 1.5;
 }
 
+function maskStreetAddress(address: string): string {
+  if (!address) return "";
+  if (address.startsWith("Coordinates:")) return address;
+  
+  const parts = address.split(" ");
+  const streetNumber = parts[0];
+  if (/^\d+/.test(streetNumber)) {
+    const maskedNum = streetNumber[0] + "*".repeat(streetNumber.length - 1);
+    parts[0] = maskedNum;
+  }
+  return parts.join(" ");
+}
+
 interface StormMapProps {
   filters: StormFilterState;
   onFiltersChange: (newFilters: Partial<StormFilterState>) => void;
@@ -108,7 +122,8 @@ interface StormMapProps {
   onUnlockProperty: () => void;
   leads: SelectedPropertyTarget[];
   activeDetail: ActivePopupDetail | null;
-  setActiveDetail: (detail: ActivePopupDetail | null) => void;
+  setActiveDetail: (detail: ActivePopupDetail | null | ((prev: ActivePopupDetail | null) => ActivePopupDetail | null)) => void;
+  onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
 }
 
 export function StormMap({
@@ -124,12 +139,15 @@ export function StormMap({
   leads = [],
   activeDetail,
   setActiveDetail,
+  onAddLeads,
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
 
   const [mapZoom, setMapZoom] = React.useState(defaultZoom);
   const [cursor, setCursor] = React.useState<string>("auto");
+  const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
+  const [radiusStatusMsg, setRadiusStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
   const mapRef = React.useRef<MapRef>(null);
   const geocodeAbortControllerRef = React.useRef<AbortController | null>(null);
@@ -190,6 +208,10 @@ export function StormMap({
       }
     }
   }, [filters.center, filters.targetZoom]);
+
+  React.useEffect(() => {
+    setRadiusStatusMsg(null);
+  }, [activeDetail]);
 
   const handleMove = (evt: ViewStateChangeEvent) => {
     setViewState(evt.viewState);
@@ -350,7 +372,7 @@ export function StormMap({
       // A. Individual storm report click (glow, circle, label, or geographic circle)
       const reportLayerIds = ["storm-reports-glow", "storm-reports-layer", "storm-reports-labels", "report-circles-fill"];
       const clickedReportFeature = features.find(
-        (f) => reportLayerIds.includes(f.layer.id)
+        (f) => f.layer?.id && reportLayerIds.includes(f.layer.id)
       );
       if (clickedReportFeature) {
         const reportId = clickedReportFeature.properties?.id;
@@ -460,7 +482,7 @@ export function StormMap({
         "storm-clusters-count",
       ];
       const clickedClusterFeature = features.find(
-        (f) => clusterLayerIds.includes(f.layer.id)
+        (f) => f.layer?.id && clusterLayerIds.includes(f.layer.id)
       );
       if (clickedClusterFeature) {
         const props = clickedClusterFeature.properties;
@@ -479,7 +501,7 @@ export function StormMap({
       }
 
       // C. Warning polygon click
-      const clickedWarning = features.find((f) => f.layer.id === "warnings-fill");
+      const clickedWarning = features.find((f) => f.layer?.id === "warnings-fill");
       if (clickedWarning) {
         const props = clickedWarning.properties;
         if (props) {
@@ -534,7 +556,7 @@ export function StormMap({
         const featuresAtPoint = map.queryRenderedFeatures(event.point, { layers: layersToQuery });
         if (featuresAtPoint && featuresAtPoint.length > 0) {
           const houseNumFeature = featuresAtPoint.find((f) => f.properties?.house_num || f.properties?.address_number);
-          const buildingFeature = featuresAtPoint.find((f) => f.layer.id === "building" || f.layer.id === "building-footprints");
+          const buildingFeature = featuresAtPoint.find((f) => f.layer?.id === "building" || f.layer?.id === "building-footprints");
           if (houseNumFeature) {
             addressFeatureInfo = houseNumFeature.properties;
           } else if (buildingFeature) {
@@ -894,7 +916,7 @@ export function StormMap({
     switch (activeDetail.type) {
       case "storm-report": {
         const report = activeDetail.data;
-        const color = STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B";
+        const color = STORM_TYPE_COLORS[report.type as "hail" | "wind" | "tornado"]?.fill ?? "#64748B";
         const Icon = report.type === "tornado" ? Tornado : report.type === "wind" ? Wind : Zap;
         return (
           <div className="flex items-center gap-2">
@@ -912,7 +934,7 @@ export function StormMap({
       }
       case "cluster": {
         const cluster = activeDetail.data;
-        const color = STORM_TYPE_COLORS[cluster.mainStormType]?.fill ?? "#64748B";
+        const color = STORM_TYPE_COLORS[cluster.mainStormType as "hail" | "wind" | "tornado"]?.fill ?? "#64748B";
         const Icon = cluster.mainStormType === "tornado" ? Tornado : cluster.mainStormType === "wind" ? Wind : Zap;
         return (
           <div className="flex items-center gap-2">
@@ -985,7 +1007,7 @@ export function StormMap({
     switch (activeDetail.type) {
       case "storm-report": {
         const report = activeDetail.data;
-        const color = STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B";
+        const color = STORM_TYPE_COLORS[report.type as "hail" | "wind" | "tornado"]?.fill ?? "#64748B";
         return (
           <div className="space-y-3.5 select-none">
             {/* Target Priority Score Badge */}
@@ -1047,7 +1069,14 @@ export function StormMap({
               </div>
 
               <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60 text-[10px]">
-                <span className="text-slate-505 font-bold block text-[8px] uppercase tracking-wider mb-1">Location Details</span>
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Approximate Storm Report Area</span>
+                <p className="font-bold text-slate-100 leading-normal">
+                  {formatSPCDescriptor(report.location)}
+                </p>
+              </div>
+
+              <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60 text-[10px]">
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">SPC Location Descriptor</span>
                 <p className="font-medium text-slate-250 leading-normal">{report.location || "N/A"}</p>
               </div>
 
@@ -1126,7 +1155,7 @@ export function StormMap({
                 <span className="text-slate-555 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Top Cluster Reports</span>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
                   {cluster.reports.slice(0, 3).map((r: any, i: number) => {
-                    const rColor = STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B";
+                    const rColor = STORM_TYPE_COLORS[r.type as "hail" | "wind" | "tornado"]?.fill ?? "#64748B";
                     return (
                       <div key={r.id || i} className="bg-slate-950/60 p-2 rounded border border-slate-900/80 text-[10px] flex items-start gap-2">
                         <span
@@ -1213,44 +1242,88 @@ export function StormMap({
       }
       case "address": {
         const target = activeDetail.data;
+        const isUnlocked = !!target.unlockId;
+        const displayAddress = isUnlocked ? target.fullAddress : maskStreetAddress(target.fullAddress);
         return (
           <div className="space-y-3 text-xs select-none">
-            <div className="bg-slate-900/30 p-3 rounded-lg border border-slate-850/80">
-              <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Street Address</span>
-              <p className="font-black text-slate-100 text-sm leading-snug">
-                {target.fullAddress}
-              </p>
-            </div>
-
-            {/* Subdetails Grid */}
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              {target.neighborhood && (
-                <div className="col-span-2 bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
-                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
-                  <p className="font-semibold text-slate-200 mt-0.5">
-                    {target.neighborhood}
-                  </p>
+            {/* Selected Property section */}
+            <div className="bg-slate-900/30 p-2.5 rounded-lg border border-slate-850/80 space-y-1.5">
+              <span className="text-slate-500 font-extrabold block text-[7.5px] uppercase tracking-wider">Selected Property</span>
+              <div>
+                <p className="font-black text-slate-100 text-sm leading-snug">
+                  {displayAddress}
+                </p>
+                <p className="text-[9.5px] text-slate-400 mt-0.5">
+                  {[target.city, target.state, target.postcode].filter(Boolean).join(", ") || "N/A"}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-[9px] pt-1.5 border-t border-slate-900/60 text-slate-400">
+                <div>
+                  <span className="text-slate-505 font-bold block text-[7.5px] uppercase">Coordinates</span>
+                  <span className="font-mono">{target.latitude.toFixed(5)}, {target.longitude.toFixed(5)}</span>
                 </div>
-              )}
-
-              <div className="bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
-                <p className="font-semibold text-slate-200 mt-0.5">
-                  {[target.city, target.state].filter(Boolean).join(", ") || "N/A"}
-                </p>
-              </div>
-              <div className="bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
-                <p className="font-semibold text-slate-200 mt-0.5">
-                  {target.postcode || "N/A"}
-                </p>
+                <div>
+                  <span className="text-slate-505 font-bold block text-[7.5px] uppercase">Confidence</span>
+                  <span className="capitalize">{target.confidence || "Unknown"}</span>
+                </div>
               </div>
             </div>
 
-            {/* Footer Metadata */}
-            <div className="text-[8.5px] text-slate-550 font-mono flex items-center justify-between pt-2 border-t border-slate-900/80">
-              <span className="flex items-center gap-1"><Compass size={10} /> GPS Coordinates</span>
-              <span>{target.latitude.toFixed(5)}, {target.longitude.toFixed(5)}</span>
+            {/* Homeowner Contact Preview section */}
+            <div className="bg-slate-900/20 p-2.5 rounded-lg border border-slate-850/80 space-y-2">
+              <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
+                <span className="text-slate-300 font-extrabold text-[9px] uppercase tracking-wider">Homeowner Contact Preview</span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] font-extrabold uppercase">
+                  Illustrative Preview
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] text-slate-400">
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Full Name</span>
+                  <span className="font-bold text-slate-200">J*** D****</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Mobile</span>
+                  <span className="font-bold text-slate-200">(***) ***-4821</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Email</span>
+                  <span className="font-bold text-slate-200">j***@g****.com</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Mailing Address</span>
+                  <span className="font-bold text-slate-250">Available with Homeowner Contact Information</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Home/Property Preview section */}
+            <div className="bg-slate-900/20 p-2.5 rounded-lg border border-slate-850/80 space-y-2">
+              <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
+                <span className="text-slate-300 font-extrabold text-[9px] uppercase tracking-wider">Property & Roof Preview</span>
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] font-extrabold uppercase">
+                  Illustrative Preview
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] text-slate-400">
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Year Built</span>
+                  <span className="font-bold text-slate-200">1998</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[7.5px] uppercase">Square Feet</span>
+                  <span className="font-bold text-slate-200">2,140 sq ft</span>
+                </div>
+                <div>
+                  <span className="text-slate-505 block text-[7.5px] uppercase">Home Value</span>
+                  <span className="font-bold text-slate-250">Available with Property Profile</span>
+                </div>
+                <div>
+                  <span className="text-slate-505 block text-[7.5px] uppercase">Roof</span>
+                  <span className="font-bold text-slate-200">Asphalt shingle · Est. 14–18 yrs</span>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -1266,21 +1339,75 @@ export function StormMap({
     switch (activeDetail.type) {
       case "cluster": {
         const cluster = activeDetail.data;
+        const isLoading = loadingClusterId === cluster.id;
         return (
           <div className="flex flex-col gap-2">
+            {radiusStatusMsg && (
+              <div className={`p-2 rounded text-[9.5px] border ${
+                radiusStatusMsg.type === "success" ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400" :
+                radiusStatusMsg.type === "error" ? "bg-red-950/20 border-red-500/30 text-red-400" :
+                "bg-blue-950/20 border-blue-500/30 text-blue-400"
+              }`}>
+                {radiusStatusMsg.text}
+              </div>
+            )}
+            <button
+              disabled={isLoading}
+              onClick={async () => {
+                setLoadingClusterId(cluster.id);
+                setRadiusStatusMsg(null);
+                try {
+                  const res = await collectRadiusLeads(cluster.center[0], cluster.center[1], cluster.suggestedRadius, cluster.id);
+                  if (res.leads && res.leads.length > 0) {
+                    if (onAddLeads) {
+                      onAddLeads(res.leads);
+                    }
+                    setRadiusStatusMsg({
+                      type: "success",
+                      text: `Added ${res.leads.length} properties from ${cluster.suggestedRadius} mi storm opportunity area.`
+                    });
+                  } else {
+                    setRadiusStatusMsg({
+                      type: "info",
+                      text: "No available properties found for this radius."
+                    });
+                  }
+                } catch (err: any) {
+                  console.error(err);
+                  if (err.code === "PROVIDER_NOT_CONFIGURED" || err.message?.includes("provider")) {
+                    setRadiusStatusMsg({
+                      type: "error",
+                      text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
+                    });
+                  } else if (err.code === "FEATURE_DISABLED") {
+                    setRadiusStatusMsg({
+                      type: "error",
+                      text: "Lead Intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
+                    });
+                  } else {
+                    setRadiusStatusMsg({
+                      type: "error",
+                      text: err.message || "Failed to collect radius properties."
+                    });
+                  }
+                } finally {
+                  setLoadingClusterId(null);
+                }
+              }}
+              className="w-full text-center py-2 px-3 rounded bg-red-650 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1"
+            >
+              {isLoading ? "Adding..." : "Add Properties in Radius"}
+            </button>
             <button
               onClick={() => {
                 handleClusterClick(cluster.center);
                 setActiveDetail(null);
               }}
-              className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/80 hover:from-slate-800 hover:to-slate-700 text-slate-200 text-[10px] font-black uppercase tracking-widest transition-all hover:border-slate-650 active:scale-[0.98] cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+              className="w-full text-center py-2 px-3 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 text-[9.5px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Target size={12} className="text-slate-400" />
+              <Target size={11} className="text-slate-400" />
               Zoom to Area
             </button>
-            <div className="text-[8px] text-slate-500 italic text-center leading-normal">
-              Click individual storm circles for detailed reports.
-            </div>
           </div>
         );
       }
@@ -1298,26 +1425,57 @@ export function StormMap({
       }
       case "address": {
         const target = activeDetail.data;
-        const isLocked = selectedProperty?.latitude === target.latitude && 
-                         selectedProperty?.longitude === target.longitude;
+        const isLocked = leads.some(l => l.latitude === target.latitude && l.longitude === target.longitude);
         return (
           <div className="flex flex-col gap-1.5">
             {isLocked ? (
-              <div className="w-full text-center py-2.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Selected for Lead Route
+              <div className="flex flex-col gap-1">
+                <div className="w-full text-center py-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9.5px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Selected for Property Leads
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveDetail(null);
+                  }}
+                  className="w-full text-center py-2 px-3 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  View Property Details
+                </button>
               </div>
             ) : (
-              <button
-                onClick={() => {
-                  onLockProperty(target);
-                  setActiveDetail(null);
-                }}
-                className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:shadow-red-900/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <MapPin size={11} />
-                Access Homeowner Data
-              </button>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => {
+                    onLockProperty(target);
+                    setActiveDetail(null);
+                  }}
+                  className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-650 to-red-750 hover:from-red-600 hover:to-red-700 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:shadow-red-900/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <MapPin size={11} />
+                  Add to Property Leads
+                </button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => {
+                      onLockProperty(target);
+                      setActiveDetail(null);
+                    }}
+                    className="py-1.5 px-2 rounded bg-slate-905 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
+                  >
+                    Access Homeowner Contact Information
+                  </button>
+                  <button
+                    onClick={() => {
+                      onLockProperty(target);
+                      setActiveDetail(null);
+                    }}
+                    className="py-1.5 px-2 rounded bg-slate-905 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
+                  >
+                    View Property Details
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         );
@@ -1374,7 +1532,7 @@ export function StormMap({
             source="composite"
             source-layer="building"
             type="fill"
-            minZoom={13}
+            minzoom={13}
             paint={{
               "fill-color": "#374151",
               "fill-opacity": 0.25,
@@ -1595,7 +1753,7 @@ export function StormMap({
             source="composite"
             source-layer="housenum_label"
             type="symbol"
-            minZoom={16}
+            minzoom={16}
             layout={{
               "text-field": ["get", "house_num"],
               "text-size": [

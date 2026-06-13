@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail } from "@/lib/weather/types";
-import { clusterStormReports } from "@/lib/weather/geo";
+import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
+import { clusterStormReports, formatSPCDescriptor } from "@/lib/weather/geo";
 import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
+import { collectRadiusLeads } from "./enrichment/enrichment-client";
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -25,8 +26,9 @@ interface StormSidebarProps {
   onRemoveLead: (leadId: string) => void;
   onUpdateLead: (lead: SelectedPropertyTarget) => void;
   activeDetail: ActivePopupDetail | null;
-  setActiveDetail: (detail: ActivePopupDetail | null) => void;
+  setActiveDetail: (detail: ActivePopupDetail | null | ((prev: ActivePopupDetail | null) => ActivePopupDetail | null)) => void;
   onSelectProperty?: (property: SelectedPropertyTarget | null) => void;
+  onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
 }
 
 const US_STATES = [
@@ -62,10 +64,55 @@ export function StormSidebar({
   activeDetail,
   setActiveDetail,
   onSelectProperty,
+  onAddLeads,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
+  const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
+  const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+
+  const handleCollectRadiusLeads = async (cluster: TargetCluster) => {
+    setLoadingClusterId(cluster.id);
+    setStatusBanner(null);
+    try {
+      const res = await collectRadiusLeads(cluster.center[0], cluster.center[1], cluster.suggestedRadius, cluster.id);
+      if (res.leads && res.leads.length > 0) {
+        if (onAddLeads) {
+          onAddLeads(res.leads);
+        }
+        setStatusBanner({
+          type: "success",
+          text: `Added ${res.leads.length} properties from ${cluster.suggestedRadius} mi storm opportunity area.`
+        });
+      } else {
+        setStatusBanner({
+          type: "info",
+          text: "No available properties found for this radius."
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === "PROVIDER_NOT_CONFIGURED" || err.message?.includes("provider")) {
+        setStatusBanner({
+          type: "error",
+          text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
+        });
+      } else if (err.code === "FEATURE_DISABLED") {
+        setStatusBanner({
+          type: "error",
+          text: "Lead Intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
+        });
+      } else {
+        setStatusBanner({
+          type: "error",
+          text: err.message || "Failed to collect radius properties."
+        });
+      }
+    } finally {
+      setLoadingClusterId(null);
+    }
+  };
 
   // Switch to leads tab automatically when a property is selected
   React.useEffect(() => {
@@ -127,20 +174,20 @@ export function StormSidebar({
 
   const handleExportCSV = () => {
     if (leads.length === 0) return;
-    const headers = ["ID", "Full Address", "Street Number", "Street Name", "Neighborhood", "City", "County", "State", "Postal Code", "Latitude", "Longitude", "Confidence"];
+    const headers = ["Address", "City", "State", "ZIP", "County", "Latitude", "Longitude", "Neighborhood", "Source", "Confidence", "Contact Available", "Property Details Available"];
     const rows = leads.map((lead) => [
-      lead.id,
       `"${lead.fullAddress.replace(/"/g, '""')}"`,
-      lead.streetNumber || "",
-      `"${(lead.streetName || "").replace(/"/g, '""')}"`,
-      `"${(lead.neighborhood || "").replace(/"/g, '""')}"`,
       `"${(lead.city || "").replace(/"/g, '""')}"`,
+      `"${(lead.state || "").replace(/"/g, '""')}"`,
+      `"${(lead.postcode || "").replace(/"/g, '""')}"`,
       `"${(lead.county || "").replace(/"/g, '""')}"`,
-      lead.state || "",
-      lead.postcode || "",
       lead.latitude,
       lead.longitude,
-      lead.confidence
+      `"${(lead.neighborhood || "").replace(/"/g, '""')}"`,
+      `"${lead.source}"`,
+      `"${lead.confidence}"`,
+      lead.unlockId ? "Yes" : "Preview Available",
+      lead.unlockId ? "Yes" : "Preview Available"
     ]);
     const csvContent = [
       headers.join(","),
@@ -312,7 +359,7 @@ export function StormSidebar({
                 onClick={() => setActiveTab("leads")}
                 className="flex-1 text-center py-1 px-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-350 text-[8.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
               >
-                View Lead Intelligence
+                View Property Details
               </button>
               <button
                 type="button"
@@ -360,7 +407,7 @@ export function StormSidebar({
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            LEAD INTEL
+            Property Leads
             {leads.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold animate-pulse">
                 {leads.length}
@@ -627,10 +674,24 @@ export function StormSidebar({
 
           {activeTab === "targets" && (
             <div className="space-y-4">
-              <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-3 text-[11px] text-slate-400 flex items-start gap-2">
-                <Info size={14} className="text-red-500 shrink-0 mt-0.5" />
-                <p className="leading-normal">
-                  StormTarget algorithm aggregates reports within 15 miles and computes roofing lead opportunity priorities based on storm type, severity, density, and warnings.
+              {statusBanner && (
+                <div className={`p-3 rounded-lg border text-[10.5px] flex justify-between items-start ${
+                  statusBanner.type === "success" ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400" :
+                  statusBanner.type === "error" ? "bg-red-950/20 border-red-500/30 text-red-400" :
+                  "bg-blue-950/20 border-blue-500/30 text-blue-400"
+                }`}>
+                  <span className="leading-normal flex-1">{statusBanner.text}</span>
+                  <button onClick={() => setStatusBanner(null)} className="text-[10px] font-bold text-slate-500 hover:text-slate-350 ml-2 shrink-0">X</button>
+                </div>
+              )}
+
+              <div className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 text-[10.5px] text-slate-350 flex flex-col gap-1.5 shadow-sm">
+                <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                  <Info size={13} className="text-red-500 shrink-0" />
+                  <span>What Top Opportunities Shows</span>
+                </div>
+                <p className="leading-normal text-slate-400">
+                  Top Opportunities groups nearby storm reports into high-priority roofing target areas. These are not individual home addresses. The location is an approximate storm report area from NOAA/SPC data. Click an opportunity to zoom into the storm-hit area, then click individual houses to view property and homeowner information.
                 </p>
               </div>
 
@@ -642,81 +703,129 @@ export function StormSidebar({
                 <div className="space-y-2.5">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Top opportunity areas</span>
                   <div className="space-y-2.5">
-                    {clusters.map((cluster) => (
-                      <div
-                        key={cluster.id}
-                        onClick={() => {
-                          onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
-                          setActiveDetail({
-                            type: "cluster",
-                            coordinates: cluster.center,
-                            data: cluster,
-                          });
-                        }}
-                        className="bg-slate-900/40 hover:bg-slate-900 border border-slate-900 hover:border-slate-800 rounded-lg p-3 transition-all cursor-pointer flex flex-col gap-2 relative group"
-                      >
-                        {/* Upper row */}
-                        <div className="flex justify-between items-start gap-1.5">
-                          <div className="truncate">
-                            <h4 className="font-extrabold text-xs text-slate-200 uppercase truncate">
-                              {cluster.name || "Unknown Area"}
-                            </h4>
-                            <span className="text-[10px] text-slate-500">
-                              {cluster.county ? `${cluster.county} County, ` : ""}{cluster.state}
-                            </span>
-                          </div>
-                          
-                          {/* Score Badge */}
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-extrabold shrink-0 border ${
-                              cluster.totalScore >= 120
-                                ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-glow-tornado"
-                                : cluster.totalScore >= 70
-                                ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                                : "bg-slate-800 border-slate-700 text-slate-300"
-                            }`}
+                    {clusters.map((cluster) => {
+                      const hasHighestImpact = cluster.highestMagnitude && 
+                                                cluster.highestMagnitude !== "N/A" && 
+                                                !cluster.highestMagnitude.includes("NaN") && 
+                                                !cluster.highestMagnitude.includes("undefined") && 
+                                                !cluster.highestMagnitude.includes("null");
+                      return (
+                        <div
+                          key={cluster.id}
+                          className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 flex flex-col gap-2 relative group"
+                        >
+                          {/* Upper row */}
+                          <div 
+                            onClick={() => {
+                              onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
+                              setActiveDetail({
+                                type: "cluster",
+                                coordinates: cluster.center,
+                                data: cluster,
+                              });
+                            }}
+                            className="flex justify-between items-start gap-1.5 cursor-pointer"
                           >
-                            Score: {cluster.totalScore}
-                          </span>
-                        </div>
-
-                        {/* Middle Stats */}
-                        <div className="grid grid-cols-3 gap-1 bg-slate-950/40 border border-slate-900/60 p-1.5 rounded text-[10px]">
-                          <div>
-                            <span className="text-slate-600 block text-[9px] font-medium uppercase">Storms</span>
-                            <span className="font-bold text-slate-300">{cluster.reportsCount} Reports</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-600 block text-[9px] font-medium uppercase">Highest Impact</span>
-                            <span className={`font-bold uppercase ${
-                              cluster.mainStormType === "hail"
-                                ? "text-blue-400"
-                                : cluster.mainStormType === "wind"
-                                ? "text-violet-400"
-                                : "text-red-400 animate-pulse"
-                            }`}>
-                              {cluster.highestMagnitude !== "N/A" ? cluster.highestMagnitude : cluster.mainStormType}
+                            <div className="truncate">
+                              <h4 className="font-extrabold text-xs text-slate-200 uppercase truncate">
+                                {cluster.county ? `${cluster.county} County` : "Unknown County"}, {cluster.state || "ST"} Storm Opportunity
+                              </h4>
+                              <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                Approx. storm report area: {formatSPCDescriptor(cluster.name)}
+                              </span>
+                              <span className="text-[9px] text-slate-500 block leading-tight mt-1 max-w-[240px]">
+                                This is a storm report area, not a property address. Click a house on the map to view property and homeowner information.
+                              </span>
+                            </div>
+                            
+                            {/* Score Badge */}
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-extrabold shrink-0 border ${
+                                cluster.totalScore >= 120
+                                  ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-glow-tornado"
+                                  : cluster.totalScore >= 70
+                                  ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                                  : "bg-slate-800 border-slate-700 text-slate-300"
+                              }`}
+                            >
+                              Score: {cluster.totalScore}
                             </span>
                           </div>
-                          <div>
-                            <span className="text-slate-600 block text-[9px] font-medium uppercase">Target Radius</span>
-                            <span className="font-bold text-slate-300">{cluster.suggestedRadius} mi</span>
+
+                          {/* New Metrics Layout */}
+                          <div className="space-y-1.5 bg-slate-950/40 border border-slate-900/60 p-2 rounded text-[10px] text-slate-400">
+                            <div className="flex justify-between items-center">
+                              <span>Reports:</span>
+                              <span className="font-bold text-slate-200">{cluster.reportsCount} storm reports</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Target Area:</span>
+                              <span className="font-bold text-slate-200">{cluster.suggestedRadius} mi radius</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Primary Threat:</span>
+                              <span className="font-bold text-slate-200 capitalize">
+                                {cluster.mainStormType} · {
+                                  cluster.mainStormType === "hail" ? cluster.hailCount :
+                                  cluster.mainStormType === "wind" ? cluster.windCount :
+                                  cluster.tornadoCount
+                                } reports
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Opportunity Score:</span>
+                              <span className="font-bold text-slate-200">{cluster.totalScore}</span>
+                            </div>
+                            {hasHighestImpact && (
+                              <div className="flex justify-between items-center border-t border-slate-900/30 pt-1 mt-1">
+                                <span>Highest Measured Impact:</span>
+                                <span className="font-bold text-red-400">{cluster.highestMagnitude}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <p className="text-[8px] text-slate-550 leading-normal italic">
+                            Opportunity Score combines storm type, report density, magnitude, recency, and active warning context. Higher scores indicate stronger roofing outreach potential.
+                          </p>
+
+                          {/* Tiny breakdown */}
+                          <div className="flex gap-2 text-[9px] text-slate-500 font-semibold uppercase">
+                            {cluster.hailCount > 0 && <span>Hail: {cluster.hailCount}</span>}
+                            {cluster.windCount > 0 && <span>Wind: {cluster.windCount}</span>}
+                            {cluster.tornadoCount > 0 && <span className="text-red-400">Torn: {cluster.tornadoCount}</span>}
+                          </div>
+
+                          {/* Add Properties in Radius Button */}
+                          <div className="pt-1.5 border-t border-slate-900/30 flex gap-1.5 items-center justify-between">
+                            <button
+                              disabled={loadingClusterId === cluster.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCollectRadiusLeads(cluster);
+                              }}
+                              className="flex-1 py-1.5 px-3 rounded bg-red-650 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              {loadingClusterId === cluster.id ? "Adding..." : "Add Properties in Radius"}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
+                                setActiveDetail({
+                                  type: "cluster",
+                                  coordinates: cluster.center,
+                                  data: cluster,
+                                });
+                              }}
+                              className="py-1.5 px-2.5 rounded border border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200 text-[9.5px] font-black uppercase transition-all cursor-pointer flex items-center justify-center"
+                              title="View on Map"
+                            >
+                              <Eye size={10} />
+                            </button>
                           </div>
                         </div>
-
-                        {/* Tiny breakdown */}
-                        <div className="flex gap-2 text-[9px] text-slate-500 font-semibold uppercase">
-                          {cluster.hailCount > 0 && <span>Hail: {cluster.hailCount}</span>}
-                          {cluster.windCount > 0 && <span>Wind: {cluster.windCount}</span>}
-                          {cluster.tornadoCount > 0 && <span className="text-red-400">Torn: {cluster.tornadoCount}</span>}
-                        </div>
-                        
-                        {/* Hover Overlay Help */}
-                        <span className="absolute bottom-2 right-2 text-[9px] font-bold text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                          <Eye size={10} /> View Map
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -738,7 +847,7 @@ export function StormSidebar({
               <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
                 <div className="flex items-center gap-1.5">
                   <ClipboardList size={14} className="text-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Targets</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Properties</span>
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold">
                     {leads.length}
                   </span>
@@ -771,7 +880,7 @@ export function StormSidebar({
               {leads.length === 0 ? (
                 <div className="py-10 text-center border border-dashed border-slate-805 rounded-lg text-slate-500 flex flex-col items-center justify-center gap-2">
                   <MapPin size={20} className="text-slate-700 animate-pulse" />
-                  <p className="text-[11px] font-bold text-slate-350">No saved targets yet</p>
+                  <p className="text-[11px] font-bold text-slate-350">No saved properties yet</p>
                   <p className="text-[9.5px] text-slate-600 max-w-[220px] leading-normal">
                     Click on any location or address on the map, then click <strong className="text-slate-400">"Access Homeowner Data"</strong> to add it here.
                   </p>

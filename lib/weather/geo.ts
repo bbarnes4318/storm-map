@@ -240,3 +240,32 @@ export function clusterStormReports(
   // Sort clusters by total opportunity score descending
   return clusters.sort((a, b) => b.totalScore - a.totalScore);
 }
+
+/**
+ * Formats SPC location descriptors (e.g., "2 E White Plains" -> "2 mi east of White Plains")
+ */
+export function formatSPCDescriptor(location: string): string {
+  if (!location) return "";
+  const match = location.trim().match(/^(\d+)\s+([A-Za-z]+)\s+(.+)$/);
+  if (match) {
+    const num = match[1];
+    const dirRaw = match[2].toUpperCase();
+    const place = match[3];
+
+    const dirs: Record<string, string> = {
+      N: "north",
+      S: "south",
+      E: "east",
+      W: "west",
+      NE: "northeast",
+      NW: "northwest",
+      SE: "southeast",
+      SW: "southwest"
+    };
+
+    if (dirs[dirRaw]) {
+      return `${num} mi ${dirs[dirRaw]} of ${place}`;
+    }
+  }
+  return `Approx. storm report area: ${location}`;
+}
