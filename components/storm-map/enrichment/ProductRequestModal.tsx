@@ -411,6 +411,23 @@ export function ProductRequestModal({
         );
       }
 
+      // Blocked: running standalone (requires a storm opportunity area selected)
+      if (contextType === "standalone" || !contextData) {
+        return (
+          <div className="space-y-4">
+            <div className="p-4 bg-[#0B1220]/60 border border-amber-500/20 rounded-lg space-y-3 shadow-md">
+              <div className="flex items-center gap-2 text-[#F8FAFC]">
+                <FileText size={18} className="text-amber-500" />
+                <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">Select a Storm Opportunity First</h4>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Choose a storm opportunity from the map or Opportunities tab before generating an address list.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       // Actionable: storm-area selected
       return (
         <div className="space-y-4 animate-in fade-in duration-200">
@@ -464,7 +481,7 @@ export function ProductRequestModal({
     if (productType === "ROOF_INSPECTION_APPOINTMENTS") return true;
     if (productType === "ZIP_REPORT") return true;
     if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") return true;
-    if (productType === "STORM_REPORT_ADDRESSES" && contextType === "property") return true;
+    if (productType === "STORM_REPORT_ADDRESSES" && (contextType === "property" || contextType === "standalone" || !contextData)) return true;
     return false;
   };
 

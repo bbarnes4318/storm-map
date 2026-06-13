@@ -621,17 +621,17 @@ export function StormSidebar({
                     <ArrowRight size={12} className="text-slate-600 group-hover:text-slate-350 transition-colors" />
                   </button>
 
-                  {/* Action 2: Use Live Map */}
+                  {/* Action 2: Generate Address List */}
                   <button
-                    onClick={() => onTabChange("targets")}
+                    onClick={() => onOpenRequestModal("standalone", null, "STORM_REPORT_ADDRESSES")}
                     className="w-full text-left p-2.5 rounded-lg border bg-[#0B1220]/65 border-[#145CFF]/15 hover:border-[#145CFF]/40 hover:bg-[#145CFF]/5 transition-all flex items-center justify-between group cursor-pointer"
                   >
                     <div className="space-y-0.5">
                       <div className="font-extrabold text-[10.5px] text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5">
-                        <Map size={11} className="text-[#145CFF]" />
-                        Use Live Map
+                        <FileText size={11} className="text-[#145CFF]" />
+                        Generate Address List
                       </div>
-                      <p className="text-[8.5px] text-slate-500">Explore and pan around the live storm intelligence map canvas.</p>
+                      <p className="text-[8.5px] text-slate-500">Collect property addresses inside a selected storm radius.</p>
                     </div>
                     <ArrowRight size={12} className="text-slate-600 group-hover:text-slate-350 transition-colors" />
                   </button>

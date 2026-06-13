@@ -72,7 +72,7 @@ export function StormTargetWelcomePanel({
               StormTarget Live helps roofing contractors identify storm-hit areas, generate property lead lists, access homeowner contact data, and request booked roof inspection appointments from one live storm intelligence platform.
             </p>
             <p className="text-[10.5px] text-[#64748B] italic leading-normal">
-              Use the live map yourself, request a targeted hail-strike lead report, or have us set appointments for you.
+              Use the live map yourself, order a targeted hail-strike lead report, or have us set appointments for you.
             </p>
             
             {/* Quick CTAs */}
