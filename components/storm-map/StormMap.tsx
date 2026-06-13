@@ -13,7 +13,7 @@ import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { MapDetailOverlay } from "./MapDetailOverlay";
 import { getDistanceMiles, clusterStormReports, calculateReportScore } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
-import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target } from "lucide-react";
+import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -833,49 +833,56 @@ export function StormMap({
     switch (activeDetail.type) {
       case "storm-report": {
         const report = activeDetail.data;
+        const color = STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B";
+        const Icon = report.type === "tornado" ? Tornado : report.type === "wind" ? Wind : Zap;
         return (
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B" }}
-            ></span>
-            <span className="font-extrabold uppercase tracking-wider text-xs text-slate-100">
-              {report.type} REPORT
-            </span>
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="p-1 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center" style={{ color }}>
+              <Icon size={13} className="animate-pulse" />
+            </div>
+            <div>
+              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block leading-none">NOAA Report</span>
+              <span className="font-black uppercase tracking-wider text-[11px] text-slate-100 block mt-0.5">
+                {report.type} DETAILS
+              </span>
+            </div>
+          </div>
         );
       }
       case "cluster": {
         const cluster = activeDetail.data;
+        const color = STORM_TYPE_COLORS[cluster.mainStormType]?.fill ?? "#64748B";
+        const Icon = cluster.mainStormType === "tornado" ? Tornado : cluster.mainStormType === "wind" ? Wind : Zap;
         return (
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: STORM_TYPE_COLORS[cluster.mainStormType]?.fill ?? "#64748B" }}
-            ></span>
-            <span className="font-extrabold uppercase tracking-wider text-xs text-slate-100">
-              {cluster.mainStormType} AREA
-            </span>
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="p-1 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center" style={{ color }}>
+              <Icon size={13} className="animate-pulse" />
+            </div>
+            <div>
+              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block leading-none">Opportunity Area</span>
+              <span className="font-black uppercase tracking-wider text-[11px] text-slate-100 block mt-0.5">
+                {cluster.mainStormType} CLUSTER
+              </span>
+            </div>
+          </div>
         );
       }
       case "warning": {
         const alert = activeDetail.data;
+        const isTornado = alert.event.includes("Tornado");
+        const isSevere = alert.event.includes("Severe");
+        const color = isTornado ? "#DC2626" : isSevere ? "#F59E0B" : "#3B82F6";
         return (
-          <div className="flex items-center gap-1.5">
-            <AlertCircle
-              size={16}
-              className={
-                alert.event.includes("Tornado")
-                  ? "text-red-500"
-                  : alert.event.includes("Severe")
-                  ? "text-orange-500"
-                  : "text-blue-500"
-              }
-            />
-            <span className="font-extrabold uppercase text-xs tracking-wider text-slate-100 truncate block">
-              {alert.event}
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="p-1 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center" style={{ color }}>
+              <ShieldAlert size={13} className="animate-bounce" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest block leading-none animate-pulse">Active NWS Warning</span>
+              <span className="font-black uppercase tracking-wider text-[11px] text-slate-100 block mt-0.5 truncate">
+                {alert.event}
+              </span>
+            </div>
           </div>
         );
       }
@@ -883,21 +890,24 @@ export function StormMap({
         const target = activeDetail.data;
         return (
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                <MapPin size={12} className="text-red-500" />
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-500">
+                <MapPin size={13} />
               </div>
-              <span className="font-extrabold uppercase text-[10px] tracking-wider text-slate-300">
-                Lead Target Info
-              </span>
+              <div>
+                <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest block leading-none">GIS Location</span>
+                <span className="font-black uppercase tracking-wider text-[11px] text-slate-100 block mt-0.5">
+                  LEAD TARGET INFO
+                </span>
+              </div>
             </div>
             {target.confidence === "exact" ? (
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-extrabold uppercase tracking-wider ml-2">
-                Verified
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-black uppercase tracking-widest leading-none">
+                VERIFIED
               </span>
             ) : (
-              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8px] font-extrabold uppercase tracking-wider ml-2">
-                Approximate
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8px] font-black uppercase tracking-widest leading-none">
+                APPROXIMATE
               </span>
             )}
           </div>
@@ -914,49 +924,63 @@ export function StormMap({
     switch (activeDetail.type) {
       case "storm-report": {
         const report = activeDetail.data;
+        const color = STORM_TYPE_COLORS[report.type]?.fill ?? "#64748B";
         return (
           <div className="space-y-3.5 select-none">
             {/* Target Priority Score Badge */}
-            <div className={`flex items-center justify-between px-2 py-1 rounded border text-[10px] ${scoreBadgeColor()}`}>
-              <span className="font-semibold">TARGET VALUE: {reportOpportunityScore} pts</span>
-              <span className="font-extrabold text-[9px] tracking-wide uppercase">{scoreText()}</span>
+            <div className={`flex items-center justify-between p-2 rounded-lg border bg-slate-900/40 border-slate-850/80 text-[10px] ${scoreBadgeColor()}`}>
+              <div className="flex items-center gap-1.5 font-bold tracking-wide">
+                <TrendingUp size={11} className="animate-pulse" />
+                <span>Opportunity Score:</span>
+                <span className="font-extrabold text-[11px] px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800/40">{reportOpportunityScore} pts</span>
+              </div>
+              <span className="font-black text-[8px] tracking-widest uppercase px-1.5 py-0.5 rounded bg-slate-950/40 border border-slate-850">{scoreText()}</span>
             </div>
 
             {/* Details */}
-            <div className="space-y-2.5 text-xs text-slate-300">
-              <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Magnitude</span>
-                <p className="font-semibold text-slate-200">
-                  {report.type === "hail" && report.magnitude
-                    ? `${(parseFloat(report.magnitude) > 10 ? parseFloat(report.magnitude) / 100 : parseFloat(report.magnitude)).toFixed(2)} in Hail`
-                    : report.type === "wind" && report.magnitude
-                    ? `${report.magnitude} mph Wind`
-                    : report.type === "tornado"
-                    ? `${report.magnitude || "Reported"} Tornado`
-                    : "N/A"}
-                </p>
+            <div className="space-y-2.5 text-xs text-slate-350">
+              <div className="bg-slate-900/20 border border-slate-850 p-3 rounded-lg flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider block">Recorded Magnitude</span>
+                  <p className="font-black text-slate-100 text-lg leading-tight mt-0.5">
+                    {report.type === "hail" && report.magnitude
+                      ? `${(parseFloat(report.magnitude) > 10 ? parseFloat(report.magnitude) / 100 : parseFloat(report.magnitude)).toFixed(2)} in Hail`
+                      : report.type === "wind" && report.magnitude
+                      ? `${report.magnitude} mph Wind`
+                      : report.type === "tornado"
+                      ? `${report.magnitude || "Reported"} Tornado`
+                      : "N/A"}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 p-1.5 rounded-full bg-slate-950 border border-slate-800">
+                  <Sparkles size={16} className="text-slate-400" />
+                </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Time (UTC)</span>
-                  <p className="font-medium text-slate-200">{formattedReportTime}</p>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60">
+                  <span className="text-slate-500 font-bold flex items-center gap-1 text-[8px] uppercase tracking-wider mb-1">
+                    <Clock size={10} /> Time (UTC)
+                  </span>
+                  <p className="font-semibold text-slate-200">{formattedReportTime || "N/A"}</p>
                 </div>
-                <div>
-                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">State / County</span>
-                  <p className="font-medium text-slate-200">{report.county}, {report.state}</p>
+                <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60">
+                  <span className="text-slate-500 font-bold flex items-center gap-1 text-[8px] uppercase tracking-wider mb-1">
+                    <MapPin size={10} /> State / County
+                  </span>
+                  <p className="font-semibold text-slate-250 truncate">{report.county}, {report.state}</p>
                 </div>
               </div>
 
-              <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Location Details</span>
-                <p className="font-medium text-slate-200 leading-normal">{report.location}</p>
+              <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60 text-[10px]">
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Location Details</span>
+                <p className="font-medium text-slate-250 leading-normal">{report.location || "N/A"}</p>
               </div>
 
               {report.comments && (
-                <div>
-                  <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-0.5">SPC Comments</span>
-                  <p className="font-light italic text-slate-300 text-[11px] bg-slate-900/40 p-2.5 rounded border border-slate-800/40 leading-relaxed">
+                <div className="relative border-l-2 pl-3 py-1.5 bg-slate-950/40 rounded-r border-slate-900 text-[10px]" style={{ borderLeftColor: color }}>
+                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">SPC Meteorologist Comments</span>
+                  <p className="font-light italic text-slate-300 leading-relaxed">
                     "{report.comments}"
                   </p>
                 </div>
@@ -964,7 +988,7 @@ export function StormMap({
             </div>
 
             {/* Footer source info */}
-            <div className="pt-2 border-t border-slate-900 text-[8.5px] text-slate-550 flex flex-col gap-0.5 leading-normal">
+            <div className="pt-2 border-t border-slate-900/80 text-[8.5px] text-slate-550 flex flex-col gap-0.5 leading-normal">
               <div>Source: NOAA SPC preliminary storm report</div>
               <div className="italic text-slate-500/80">
                 * Storm reports are preliminary and may be updated by NOAA/SPC.
@@ -978,42 +1002,46 @@ export function StormMap({
         return (
           <div className="space-y-3.5 select-none">
             {/* Area Name */}
-            <div>
-              <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Area / Location</span>
-              <p className="font-bold text-slate-200 text-sm">{cluster.name || "Unknown Area"}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+            <div className="bg-slate-900/20 border border-slate-850/80 p-3 rounded-lg">
+              <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Target Cluster Zone</span>
+              <p className="font-black text-slate-100 text-sm">{cluster.name || "Unknown Area"}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                <MapPin size={10} className="text-slate-500" />
                 {cluster.county ? `${cluster.county} County, ` : ""}{cluster.state}
               </p>
             </div>
 
             {/* Report Counts */}
-            <div className="grid grid-cols-4 gap-1 bg-slate-900/30 border border-slate-800/40 p-2 rounded text-[10px] text-center">
-              <div>
-                <span className="text-slate-600 block text-[8px] font-medium uppercase">Total</span>
-                <span className="font-bold text-slate-250">{cluster.reportsCount}</span>
-              </div>
-              <div>
-                <span className="text-slate-600 block text-[8px] font-medium uppercase">Hail</span>
-                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.hail.fill }}>{cluster.hailCount}</span>
-              </div>
-              <div>
-                <span className="text-slate-600 block text-[8px] font-medium uppercase">Wind</span>
-                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.wind.fill }}>{cluster.windCount}</span>
-              </div>
-              <div>
-                <span className="text-slate-600 block text-[8px] font-medium uppercase">Tornado</span>
-                <span className="font-bold" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>{cluster.tornadoCount}</span>
+            <div>
+              <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Aggregate Storm Activity</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                <div className="bg-slate-900/40 border border-slate-850 p-2 rounded text-center">
+                  <span className="text-slate-500 block text-[8px] font-bold uppercase">Total</span>
+                  <span className="font-black text-slate-200 text-xs mt-1 block">{cluster.reportsCount}</span>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-850 p-2 rounded text-center">
+                  <span className="text-slate-500 block text-[8px] font-bold uppercase" style={{ color: STORM_TYPE_COLORS.hail.fill }}>Hail</span>
+                  <span className="font-black text-xs mt-1 block" style={{ color: STORM_TYPE_COLORS.hail.fill }}>{cluster.hailCount}</span>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-850 p-2 rounded text-center">
+                  <span className="text-slate-500 block text-[8px] font-bold uppercase" style={{ color: STORM_TYPE_COLORS.wind.fill }}>Wind</span>
+                  <span className="font-black text-xs mt-1 block" style={{ color: STORM_TYPE_COLORS.wind.fill }}>{cluster.windCount}</span>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-850 p-2 rounded text-center">
+                  <span className="text-slate-500 block text-[8px] font-bold uppercase" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>Torn</span>
+                  <span className="font-black text-xs mt-1 block" style={{ color: STORM_TYPE_COLORS.tornado.fill }}>{cluster.tornadoCount}</span>
+                </div>
               </div>
             </div>
 
             {/* Magnitude & Radius */}
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Highest Magnitude</span>
-                <p className="font-semibold text-slate-200">{cluster.highestMagnitude}</p>
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-slate-900/20 p-2.5 rounded border border-slate-850">
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Highest Magnitude</span>
+                <p className="font-semibold text-slate-200">{cluster.highestMagnitude || "N/A"}</p>
               </div>
-              <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Radius</span>
+              <div className="bg-slate-900/20 p-2.5 rounded border border-slate-850">
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Target Radius</span>
                 <p className="font-semibold text-slate-200">{cluster.suggestedRadius} mi</p>
               </div>
             </div>
@@ -1021,22 +1049,27 @@ export function StormMap({
             {/* Top 3 Report Summaries */}
             {cluster.reports.length > 0 && (
               <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Top Reports</span>
+                <span className="text-slate-555 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Top Cluster Reports</span>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
-                  {cluster.reports.slice(0, 3).map((r: any, i: number) => (
-                    <div key={r.id || i} className="bg-slate-900/40 p-2 rounded border border-slate-800/40 text-[10px] flex items-start gap-2">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-                        style={{ backgroundColor: STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B" }}
-                      ></span>
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-slate-200 uppercase">{r.type}</span>
-                        {r.magnitude && <span className="text-slate-400"> — {r.magnitude}</span>}
-                        {r.location && <span className="text-slate-500 block truncate">{r.location}, {r.county} {r.state}</span>}
-                        {r.comments && <span className="text-slate-550 italic block truncate">"{r.comments}"</span>}
+                  {cluster.reports.slice(0, 3).map((r: any, i: number) => {
+                    const rColor = STORM_TYPE_COLORS[r.type]?.fill ?? "#64748B";
+                    return (
+                      <div key={r.id || i} className="bg-slate-950/60 p-2 rounded border border-slate-900/80 text-[10px] flex items-start gap-2">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full mt-1 shrink-0 animate-pulse"
+                          style={{ backgroundColor: rColor }}
+                        ></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-slate-300 uppercase text-[9px] tracking-wide" style={{ color: rColor }}>{r.type}</span>
+                            {r.magnitude && <span className="text-slate-400 font-semibold">{r.magnitude}</span>}
+                          </div>
+                          {r.location && <span className="text-slate-500 block truncate mt-0.5">{r.location}, {r.county}</span>}
+                          {r.comments && <span className="text-slate-550 italic block truncate mt-0.5">"{r.comments}"</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1047,47 +1080,57 @@ export function StormMap({
         const alert = activeDetail.data;
         return (
           <div className="space-y-3.5 select-none">
-            <p className="text-xs font-semibold text-slate-250 leading-relaxed">
-              {alert.headline}
-            </p>
+            <div className="bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+              <p className="text-[11px] font-semibold text-slate-200 leading-relaxed">
+                {alert.headline}
+              </p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2 bg-slate-900/30 p-2 rounded border border-slate-800/40 text-[10px]">
+            <div className="grid grid-cols-2 gap-2 bg-slate-900/30 p-2.5 rounded border border-slate-850 text-[10px]">
               <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider">Effective</span>
+                <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={9} /> Effective
+                </span>
                 <span className="text-slate-300 font-semibold">{formatAlertTime(alert.effective)}</span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider">Expires</span>
+                <span className="text-red-400/80 font-bold text-[8px] uppercase tracking-wider flex items-center gap-1">
+                  <Clock size={9} /> Expires
+                </span>
                 <span className="text-red-400 font-semibold">{formatAlertTime(alert.expires)}</span>
               </div>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-300">
+            <div className="space-y-2.5 text-xs text-slate-350">
               <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Severity & Certainty</span>
-                <div className="flex gap-1.5">
-                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-medium">
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Severity & Certainty</span>
+                <div className="flex gap-1.5 text-[10px]">
+                  <span className="px-2 py-1 rounded bg-slate-900/40 border border-slate-850 text-slate-300 font-bold flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
                     {alert.severity} Severity
                   </span>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-medium">
+                  <span className="px-2 py-1 rounded bg-slate-900/40 border border-slate-850 text-slate-300 font-bold flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     {alert.certainty} Certainty
                   </span>
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Counties</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed max-h-20 overflow-y-auto pr-1 custom-scrollbar">
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Counties</span>
+                <p className="text-slate-350 text-[11px] leading-relaxed max-h-20 overflow-y-auto pr-1 custom-scrollbar">
                   {alert.areaDesc}
                 </p>
               </div>
 
               {alert.instruction && (
                 <div className="border-t border-slate-900/80 pt-2.5">
-                  <span className="text-red-400/90 font-bold block text-[8px] uppercase tracking-wider mb-1">NWS Instructions</span>
-                  <p className="text-slate-300 font-light text-[11px] leading-relaxed bg-red-950/10 border border-red-500/10 p-2.5 rounded italic">
-                    {alert.instruction}
-                  </p>
+                  <div className="border-l-2 pl-3 py-1 bg-red-950/10 border-red-500/40 rounded-r text-[10px]">
+                    <span className="text-red-400 font-bold block text-[8px] uppercase tracking-wider mb-1">NWS Safety Instructions</span>
+                    <p className="text-slate-300 font-light leading-relaxed italic">
+                      {alert.instruction}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1098,8 +1141,8 @@ export function StormMap({
         const target = activeDetail.data;
         return (
           <div className="space-y-3 text-xs select-none">
-            <div className="bg-slate-900/30 p-2.5 rounded border border-slate-800/40">
-              <span className="text-slate-450 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Street Address</span>
+            <div className="bg-slate-900/30 p-3 rounded-lg border border-slate-850/80">
+              <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Street Address</span>
               <p className="font-black text-slate-100 text-sm leading-snug">
                 {target.fullAddress}
               </p>
@@ -1108,22 +1151,22 @@ export function StormMap({
             {/* Subdetails Grid */}
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               {target.neighborhood && (
-                <div className="col-span-2 bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
-                  <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
+                <div className="col-span-2 bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
+                  <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">Neighborhood</span>
                   <p className="font-semibold text-slate-200 mt-0.5">
                     {target.neighborhood}
                   </p>
                 </div>
               )}
 
-              <div className="bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
-                <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
+              <div className="bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">City / State</span>
                 <p className="font-semibold text-slate-200 mt-0.5">
                   {[target.city, target.state].filter(Boolean).join(", ") || "N/A"}
                 </p>
               </div>
-              <div className="bg-slate-900/20 px-2 py-1.5 rounded border border-slate-800/40">
-                <span className="text-slate-400 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
+              <div className="bg-slate-900/20 px-2.5 py-1.5 rounded border border-slate-850">
+                <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider">Postal Code</span>
                 <p className="font-semibold text-slate-200 mt-0.5">
                   {target.postcode || "N/A"}
                 </p>
@@ -1131,8 +1174,8 @@ export function StormMap({
             </div>
 
             {/* Footer Metadata */}
-            <div className="text-[8.5px] text-slate-500 font-mono flex items-center justify-between pt-2 border-t border-slate-900">
-              <span>GPS Coordinates</span>
+            <div className="text-[8.5px] text-slate-550 font-mono flex items-center justify-between pt-2 border-t border-slate-900/80">
+              <span className="flex items-center gap-1"><Compass size={10} /> GPS Coordinates</span>
               <span>{target.latitude.toFixed(5)}, {target.longitude.toFixed(5)}</span>
             </div>
           </div>
@@ -1156,11 +1199,12 @@ export function StormMap({
                 handleClusterClick(cluster.center);
                 setActiveDetail(null);
               }}
-              className="w-full text-center py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-extrabold uppercase tracking-widest border border-slate-700 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/80 hover:from-slate-800 hover:to-slate-700 text-slate-200 text-[10px] font-black uppercase tracking-widest transition-all hover:border-slate-650 active:scale-[0.98] cursor-pointer shadow-md flex items-center justify-center gap-1.5"
             >
+              <Target size={12} className="text-slate-400" />
               Zoom to Area
             </button>
-            <div className="text-[8px] text-slate-500 italic text-center">
+            <div className="text-[8px] text-slate-500 italic text-center leading-normal">
               Click individual storm circles for detailed reports.
             </div>
           </div>
@@ -1169,9 +1213,12 @@ export function StormMap({
       case "warning": {
         const alert = activeDetail.data;
         return (
-          <div className="text-[8.5px] text-slate-500 flex justify-between">
-            <span>Source: {alert.source}</span>
-            <span className="text-slate-550/80">Active Alert Area</span>
+          <div className="text-[8.5px] text-slate-550 flex justify-between items-center bg-slate-950/40 p-2 rounded border border-slate-900/60">
+            <span className="font-medium">Source: {alert.source || "NWS"}</span>
+            <span className="text-red-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              <div className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+              Active Alert Area
+            </span>
           </div>
         );
       }
@@ -1182,7 +1229,7 @@ export function StormMap({
         return (
           <div className="flex flex-col gap-1.5">
             {isLocked ? (
-              <div className="w-full text-center py-2.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+              <div className="w-full text-center py-2.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Locked for Lead Route
               </div>
@@ -1192,8 +1239,9 @@ export function StormMap({
                   onLockProperty(target);
                   setActiveDetail(null);
                 }}
-                className="w-full text-center py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-lg hover:shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer"
+                className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:shadow-red-900/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
               >
+                <Lock size={11} />
                 Lock Address for Lead Route
               </button>
             )}
@@ -1537,6 +1585,8 @@ export function StormMap({
           onClose={() => setActiveDetail(null)}
           header={renderOverlayHeader()}
           footer={renderOverlayFooter()}
+          type={activeDetail.type}
+          detailData={activeDetail.data}
         >
           {renderOverlayBody()}
         </MapDetailOverlay>

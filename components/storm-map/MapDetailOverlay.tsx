@@ -10,6 +10,8 @@ interface MapDetailOverlayProps {
   header: React.ReactNode;
   children: React.ReactNode; // Represents body content
   footer?: React.ReactNode;
+  type?: string;
+  detailData?: any;
 }
 
 export function MapDetailOverlay({
@@ -19,11 +21,32 @@ export function MapDetailOverlay({
   header,
   children,
   footer,
+  type,
+  detailData,
 }: MapDetailOverlayProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = React.useState(false);
   const [cardSize, setCardSize] = React.useState({ width: 360, height: 350 });
   const [position, setPosition] = React.useState({ left: 0, top: 0 });
+
+  // Get accent color based on detail type/data
+  const accentColor = React.useMemo(() => {
+    if (!type) return "#475569"; // default slate-600
+    if (type === "storm-report" || type === "cluster") {
+      const stormType = detailData?.type || detailData?.mainStormType || "";
+      if (stormType === "hail") return "#2563EB"; // Hail blue
+      if (stormType === "wind") return "#7C3AED"; // Wind purple
+      if (stormType === "tornado") return "#DC2626"; // Tornado red
+    } else if (type === "warning") {
+      const event = detailData?.event || "";
+      if (event.includes("Tornado")) return "#DC2626";
+      if (event.includes("Severe")) return "#F59E0B"; // Amber/Orange
+      return "#3B82F6"; // Blue
+    } else if (type === "address") {
+      return "#10B981"; // Emerald
+    }
+    return "#475569";
+  }, [type, detailData]);
 
   // Detect mobile viewports
   React.useEffect(() => {
@@ -106,17 +129,27 @@ export function MapDetailOverlay({
     e.stopPropagation();
   };
 
+  const borderStyle: React.CSSProperties = {
+    borderTop: `3px solid ${accentColor}`,
+    boxShadow: `0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 0 20px -3px ${accentColor}1c, inset 0 1px 0 0 rgba(255, 255, 255, 0.05)`,
+  };
+
   const desktopStyle: React.CSSProperties = {
     left: `${position.left}px`,
     top: `${position.top}px`,
+    ...borderStyle,
+  };
+
+  const mobileStyle: React.CSSProperties = {
+    ...borderStyle,
   };
 
   return (
     <div
       ref={cardRef}
       onClick={handleContainerClick}
-      style={isMobile ? {} : desktopStyle}
-      className={`z-[1001] bg-slate-950/95 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
+      style={isMobile ? mobileStyle : desktopStyle}
+      className={`z-[1001] bg-[#090d16]/95 border border-slate-900/60 rounded-xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
         isMobile
           ? "fixed bottom-3 left-3 right-3 w-[calc(100%-24px)] max-h-[75vh]"
           : "absolute w-[360px] max-h-[calc(100vh-80px)] pointer-events-auto"
