@@ -817,12 +817,9 @@ export function StormMap({
     if (!map) return null;
     try {
       const [lat, lon] = activeDetail.coordinates;
-      const bounds = map.getBounds();
-      if (bounds && !bounds.contains([lon, lat])) {
-        return null;
-      }
       return map.project([lon, lat]);
     } catch (e) {
+      console.error("Error projecting pixel position:", e);
       return null;
     }
   }, [activeDetail, viewState]);
