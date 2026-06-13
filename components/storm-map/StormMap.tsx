@@ -217,17 +217,16 @@ export function StormMap({
 
   const handleResetMap = () => {
     onFiltersChange({ center: null, searchQuery: "", radius: 0, state: "", targetZoom: undefined });
+    setViewState({
+      latitude: defaultCenter.latitude,
+      longitude: defaultCenter.longitude,
+      zoom: defaultZoom,
+    });
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [defaultCenter.longitude, defaultCenter.latitude],
         zoom: defaultZoom,
         duration: 1000,
-      });
-    } else {
-      setViewState({
-        latitude: defaultCenter.latitude,
-        longitude: defaultCenter.longitude,
-        zoom: defaultZoom,
       });
     }
   };
@@ -254,6 +253,13 @@ export function StormMap({
         }
       }
 
+      setViewState((prev) => ({
+        ...prev,
+        latitude: targetLat,
+        longitude: targetLon,
+        zoom: 16.5,
+      }));
+
       map.flyTo({
         center: [targetLon, targetLat],
         zoom: 16.5,
@@ -263,8 +269,14 @@ export function StormMap({
   };
 
   const handleClusterClick = (clusterCenter: [number, number]) => {
-    const targetZoom = 9.5;
+    const targetZoom = 14.0;
     onFiltersChange({ center: clusterCenter, targetZoom });
+    setViewState((prev) => ({
+      ...prev,
+      latitude: clusterCenter[0],
+      longitude: clusterCenter[1],
+      zoom: targetZoom,
+    }));
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [clusterCenter[1], clusterCenter[0]], // [lon, lat]
