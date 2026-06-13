@@ -37,6 +37,39 @@ const config: Config = {
           severe: "#ea580c", // Severe thunderstorm orange
           flood: "#2563eb", // Flash flood blue
           watch: "#d97706", // Watch yellow/amber
+        },
+        st: {
+          bg: {
+            deep: "var(--st-bg-deep)",
+            navy: "var(--st-bg-navy)",
+            panel: "var(--st-bg-panel)",
+            "panel-soft": "var(--st-bg-panel-soft)",
+            card: "var(--st-bg-card)",
+          },
+          border: {
+            soft: "var(--st-border-soft)",
+            strong: "var(--st-border-strong)",
+          },
+          blue: {
+            DEFAULT: "var(--st-blue)",
+            hover: "var(--st-blue-hover)",
+            soft: "var(--st-blue-soft)",
+            glow: "var(--st-blue-glow)",
+          },
+          green: {
+            DEFAULT: "var(--st-green)",
+            bright: "var(--st-green-bright)",
+            soft: "var(--st-green-soft)",
+          },
+          text: {
+            main: "var(--st-text-main)",
+            muted: "var(--st-text-muted)",
+            soft: "var(--st-text-soft)",
+          },
+          hail: "var(--st-hail)",
+          wind: "var(--st-wind)",
+          tornado: "var(--st-tornado)",
+          warning: "var(--st-warning)",
         }
       },
       borderRadius: {

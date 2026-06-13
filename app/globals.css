@@ -33,6 +33,34 @@
     --ring: 263.4 70% 50.4%;
 
     --radius: 0.5rem;
+
+    /* STORMTARGET Custom Visual System Tokens */
+    --st-bg-deep: #050B16;
+    --st-bg-navy: #061A2F;
+    --st-bg-panel: #071426;
+    --st-bg-panel-soft: #0B1930;
+    --st-bg-card: #0B1220;
+    --st-border-soft: rgba(20, 92, 255, 0.18);
+    --st-border-strong: rgba(20, 92, 255, 0.34);
+
+    --st-blue: #145CFF;
+    --st-blue-hover: #2570FF;
+    --st-blue-soft: rgba(20, 92, 255, 0.14);
+    --st-blue-glow: rgba(20, 92, 255, 0.24);
+
+    --st-green: #0E8F6E;
+    --st-green-bright: #00A86B;
+    --st-green-soft: rgba(14, 143, 110, 0.16);
+
+    --st-text-main: #F8FAFC;
+    --st-text-muted: #94A3B8;
+    --st-text-soft: #64748B;
+
+    /* Weather utility colors */
+    --st-hail: #2F7DFF;
+    --st-wind: #8B5CF6;
+    --st-tornado: #F43F5E;
+    --st-warning: #F59E0B;
   }
 }
 

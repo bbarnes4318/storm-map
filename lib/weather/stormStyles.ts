@@ -9,18 +9,18 @@ import type { ExpressionSpecification } from "mapbox-gl";
 
 export const STORM_TYPE_COLORS = {
   hail: {
-    fill: "#2563EB",
-    stroke: "#DBEAFE",
+    fill: "#2F7DFF",
+    stroke: "rgba(248, 250, 252, 0.78)",
     label: "Hail Reports",
   },
   wind: {
-    fill: "#7C3AED",
-    stroke: "#EDE9FE",
+    fill: "#8B5CF6",
+    stroke: "rgba(248, 250, 252, 0.72)",
     label: "Damaging Wind",
   },
   tornado: {
-    fill: "#DC2626",
-    stroke: "#FEE2E2",
+    fill: "#F43F5E",
+    stroke: "rgba(248, 250, 252, 0.82)",
     label: "Tornado Reports",
   },
 } as const;

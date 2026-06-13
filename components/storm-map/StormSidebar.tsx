@@ -299,12 +299,16 @@ export function StormSidebar({
     <>
       {/* Sidebar container */}
       <div
-        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 bg-slate-950 border-r border-[#145CFF]/15 flex flex-col overflow-hidden transition-all duration-300 ${
+        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 flex flex-col overflow-hidden transition-all duration-300 ${
           sidebarOpen ? "w-[360px]" : "w-0 md:w-0 border-r-0"
         }`}
+        style={{
+          background: "linear-gradient(180deg, #071426 0%, #050B16 100%)",
+          borderRight: sidebarOpen ? "1px solid rgba(20, 92, 255, 0.20)" : "none"
+        }}
       >
         {/* Brand Header & Search Inline */}
-        <div className="py-2.5 px-3 border-b border-[#145CFF]/15 flex items-center gap-2 bg-slate-950">
+        <div className="py-2.5 px-3 border-b border-[#145CFF]/15 flex items-center gap-2 bg-transparent">
 
           {/* Search Box Inline */}
           <form onSubmit={handleSearchSubmit} className="flex-1 relative">
@@ -313,13 +317,13 @@ export function StormSidebar({
               placeholder="Search City or ZIP..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/80 border border-slate-800 rounded px-2 py-1 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-red-500/50 transition-colors"
+              className="w-full bg-[#0B1930]/60 border border-[#145CFF]/20 rounded px-2 py-1.5 text-[10px] text-[#F8FAFC] placeholder:text-slate-550 focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all"
             />
             {filters.center && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-1.5 top-1.5 text-[9px] text-red-500 hover:text-red-400 font-extrabold"
+                className="absolute right-1.5 top-1.5 text-[9px] text-[#145CFF] hover:text-[#2570FF] font-extrabold"
               >
                 ×
               </button>
@@ -332,15 +336,15 @@ export function StormSidebar({
               href="https://sms.leadzer.io"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
+              className="p-1.5 rounded border border-[#145CFF]/15 text-slate-450 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
               title="Open SMS App"
             >
-              <MessageSquare size={10} className="text-red-500 shrink-0" />
+              <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
               <span>SMS</span>
             </a>
             <button
               onClick={onResetView}
-              className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors"
+              className="p-1.5 rounded border border-[#145CFF]/15 text-slate-450 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
               title="Reset Map Bounds"
               type="button"
             >
@@ -349,7 +353,7 @@ export function StormSidebar({
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors"
+              className="p-1.5 rounded border border-[#145CFF]/15 text-slate-450 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
               title="Refresh Weather Data"
               type="button"
             >
@@ -357,7 +361,7 @@ export function StormSidebar({
             </button>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-1 rounded border border-slate-900 text-slate-400 hover:text-slate-200 bg-slate-900/40 hover:bg-slate-900 transition-colors md:hidden"
+              className="p-1.5 rounded border border-[#145CFF]/15 text-slate-450 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all md:hidden"
               title="Close Sidebar"
               type="button"
             >
@@ -368,9 +372,9 @@ export function StormSidebar({
 
         {/* Target location display (Only when active) */}
         {filters.center && (
-          <div className="px-2.5 py-1 border-b border-slate-900 bg-slate-900/10 text-[9px] text-slate-400 flex items-center justify-between gap-1 shrink-0">
+          <div className="px-2.5 py-1.5 border-b border-[#145CFF]/15 bg-[#0B1930]/20 text-[9px] text-slate-400 flex items-center justify-between gap-1 shrink-0">
             <div className="flex items-center gap-1 truncate">
-              <MapPin size={9} className="text-red-500 shrink-0" />
+              <MapPin size={9} className="text-[#145CFF] shrink-0" />
               <span className="truncate font-semibold" title={filters.searchQuery || "Selected Center"}>
                 Target: {filters.searchQuery || "Geocoded Point"}
               </span>
@@ -378,7 +382,7 @@ export function StormSidebar({
             <button
               type="button"
               onClick={handleClearSearch}
-              className="text-[8px] font-bold text-red-500 hover:text-red-400 uppercase shrink-0"
+              className="text-[8px] font-extrabold text-[#145CFF] hover:text-[#2570FF] uppercase shrink-0"
             >
               Clear
             </button>
@@ -386,16 +390,16 @@ export function StormSidebar({
         )}
         {/* Unified Active Target Selection Panel (Property or Storm Area Context) */}
         {selectedProperty ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#0B1930]/60 border border-[#145CFF]/20 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4 shadow-lg shadow-black/10">
             {/* Selected Property Summary */}
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-1.5 min-w-0">
-                <MapPin size={13} className="text-emerald-500 mt-0.5 shrink-0" />
+                <MapPin size={13} className="text-[#0E8F6E] mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
                     Selected Property
                   </span>
-                  <h4 className="font-extrabold text-slate-100 text-[11px] leading-tight truncate" title={selectedProperty.fullAddress}>
+                  <h4 className="font-extrabold text-[#F8FAFC] text-[11px] leading-tight truncate" title={selectedProperty.fullAddress}>
                     {selectedProperty.fullAddress}
                   </h4>
                   {(selectedProperty.city || selectedProperty.state || selectedProperty.postcode) && (
@@ -411,7 +415,7 @@ export function StormSidebar({
               <button
                 type="button"
                 onClick={onUnlockProperty}
-                className="text-[8.5px] font-black text-slate-505 hover:text-red-400 uppercase tracking-wider bg-slate-950 border border-slate-900 hover:border-red-950/30 px-1.5 py-0.5 rounded cursor-pointer shrink-0 transition-colors ml-2"
+                className="text-[8.5px] font-bold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] px-2 py-0.5 rounded transition-all cursor-pointer shrink-0 ml-2"
               >
                 Clear
               </button>
@@ -454,23 +458,24 @@ export function StormSidebar({
             </div>
           </div>
         ) : activeDetail && activeDetail.type === "cluster" ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-[#145CFF]/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.20)] rounded-xl flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4 shadow-lg shadow-black/30 backdrop-blur-md">
             {/* Selected Storm Area Summary */}
             {(() => {
               const cluster = activeDetail.data as TargetCluster;
+              const stormColor = cluster.mainStormType === "tornado" ? "text-[#F43F5E]" : cluster.mainStormType === "wind" ? "text-[#8B5CF6]" : "text-[#2F7DFF]";
               return (
                 <>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-1.5 min-w-0">
-                      <Zap size={13} className="text-red-500 mt-0.5 shrink-0" />
+                      <Zap size={13} className={`${stormColor} mt-0.5 shrink-0 animate-pulse`} />
                       <div className="min-w-0">
-                        <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
+                        <span className="text-[#64748B] font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
                           Selected Storm Area
                         </span>
-                        <h4 className="font-extrabold text-slate-100 text-[11px] leading-tight truncate uppercase">
+                        <h4 className="font-extrabold text-[#F8FAFC] text-[11px] leading-tight truncate uppercase">
                           {cluster.county ? `${cluster.county} County` : "Storm Target"}, {cluster.state || "ST"}
                         </h4>
-                        <span className="text-slate-400 text-[9px] block mt-0.5 truncate">
+                        <span className="text-[#94A3B8] text-[9px] block mt-0.5 truncate">
                           Approx. Area: {formatSPCDescriptor(cluster.name)}
                         </span>
                       </div>
@@ -478,29 +483,29 @@ export function StormSidebar({
                     <button
                       type="button"
                       onClick={() => setActiveDetail(null)}
-                      className="text-[8.5px] font-black text-slate-505 hover:text-red-400 uppercase tracking-wider bg-slate-950 border border-slate-900 hover:border-red-950/30 px-1.5 py-0.5 rounded cursor-pointer shrink-0 transition-colors ml-2"
+                      className="text-[8.5px] font-bold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] px-2 py-0.5 rounded transition-all cursor-pointer shrink-0 ml-2"
                     >
                       Clear
                     </button>
                   </div>
 
                   {/* Metrics Row */}
-                  <div className="grid grid-cols-4 gap-1 text-center bg-slate-950/50 p-1.5 border border-slate-900 rounded-md text-[9px]">
+                  <div className="grid grid-cols-4 gap-1 text-center bg-[#050B16]/70 p-1.5 border border-[rgba(20,92,255,0.14)] rounded-lg text-[9px] shadow-inner">
                     <div>
-                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Threat</span>
-                      <span className="font-extrabold text-slate-205 capitalize truncate block">{cluster.mainStormType}</span>
+                      <span className="text-[#64748B] block text-[6.5px] uppercase font-bold">Threat</span>
+                      <span className="font-extrabold text-[#F8FAFC] capitalize truncate block">{cluster.mainStormType}</span>
                     </div>
                     <div>
-                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Score</span>
-                      <span className="font-extrabold text-red-400">{cluster.totalScore}</span>
+                      <span className="text-[#64748B] block text-[6.5px] uppercase font-bold">Score</span>
+                      <span className="font-extrabold text-[#F8FAFC]">{cluster.totalScore}</span>
                     </div>
                     <div>
-                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Radius</span>
-                      <span className="font-extrabold text-slate-205">{cluster.suggestedRadius} mi</span>
+                      <span className="text-[#64748B] block text-[6.5px] uppercase font-bold">Radius</span>
+                      <span className="font-extrabold text-[#F8FAFC]">{cluster.suggestedRadius} mi</span>
                     </div>
                     <div>
-                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Reports</span>
-                      <span className="font-extrabold text-slate-205">{cluster.reportsCount}</span>
+                      <span className="text-[#64748B] block text-[6.5px] uppercase font-bold">Reports</span>
+                      <span className="font-extrabold text-[#F8FAFC]">{cluster.reportsCount}</span>
                     </div>
                   </div>
 
@@ -528,13 +533,13 @@ export function StormSidebar({
         ) : null}
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[#145CFF]/15 bg-slate-950">
+        <div className="flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md">
           <button
             onClick={() => setActiveTab("filters")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
               activeTab === "filters"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
             }`}
           >
             FILTERS
@@ -543,13 +548,13 @@ export function StormSidebar({
             onClick={() => setActiveTab("targets")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "targets"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
             }`}
           >
             OPPORTUNITIES
             {clusters.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-[#145CFF]/10 text-[#145CFF] border border-[#145CFF]/20 text-[8px] font-bold">
+              <span className="px-1.5 py-0.5 rounded-md bg-[rgba(20,92,255,0.14)] text-[#145CFF] border border-[rgba(20,92,255,0.24)] text-[8px] font-extrabold">
                 {clusters.length}
               </span>
             )}
@@ -558,13 +563,13 @@ export function StormSidebar({
             onClick={() => setActiveTab("leads")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "leads"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
             }`}
           >
             Property Leads
             {leads.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold animate-pulse">
+              <span className="px-1.5 py-0.5 rounded-md bg-[#0E8F6E]/16 text-[#00A86B] border border-[#0E8F6E]/30 text-[8px] font-extrabold animate-pulse">
                 {leads.length}
               </span>
             )}
@@ -576,10 +581,10 @@ export function StormSidebar({
           {activeTab === "filters" && (
             <>
               {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
-              <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-1.5 space-y-1.5">
+              <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-2.5 space-y-2 shadow-lg shadow-black/20">
                 <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
-                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">Reports Summary</span>
-                  <div className="flex gap-0.5 bg-slate-950/60 p-0.5 rounded border border-slate-900/60">
+                  <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
+                  <div className="flex gap-0.5 bg-[#050B16]/60 p-0.5 rounded border border-[rgba(20,92,255,0.14)]">
                     {(["24h", "today", "yesterday"] as const).map((win) => (
                       <button
                         key={win}
@@ -587,8 +592,8 @@ export function StormSidebar({
                         onClick={() => onFiltersChange({ timeWindow: win })}
                         className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold capitalize transition-all cursor-pointer ${
                           filters.timeWindow === win
-                            ? "bg-red-500/15 text-slate-200"
-                            : "text-slate-500 hover:text-slate-300"
+                            ? "bg-[#145CFF]/20 text-[#F8FAFC] border border-[#145CFF]/45 shadow-sm"
+                            : "text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
                         }`}
                       >
                         {win === "24h" ? "24h" : win}
@@ -597,24 +602,24 @@ export function StormSidebar({
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-1 text-center">
-                  <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-blue-400">{hailCount}</span>
-                    <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Hail</span>
+                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                    <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
+                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
                   </div>
-                  <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-violet-400">{windCount}</span>
-                    <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Wind</span>
+                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                    <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
+                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
                   </div>
-                  <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-red-500">{tornadoCount}</span>
-                    <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Torn</span>
+                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                    <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
+                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
                   </div>
-                  <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
-                    <span className="text-sm font-black text-amber-500">{warningCount}</span>
-                    <span className="text-[7px] text-slate-500 block font-bold uppercase leading-none mt-0.5">Warn</span>
+                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                    <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
+                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
                   </div>
                 </div>
-                <div className="text-[8px] text-slate-500 flex justify-between items-center border-t border-slate-900/40 pt-1 font-medium px-0.5">
+                <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1 font-medium px-0.5">
                   <span>Total Reports: {hailCount + windCount + tornadoCount}</span>
                   <span>Active Watches: {watchCount}</span>
                 </div>
@@ -623,63 +628,63 @@ export function StormSidebar({
               {/* 2. SPC Reports & Legend (Side-by-Side Grid) */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Show Reports</span>
+                  <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block">Show Reports</span>
                   <div className="flex flex-col gap-0.5">
-                    <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
-                      <span className="text-[9.5px] text-slate-355 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-blue-500 shadow-glow-hail"></span>
+                    <label className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.24)] transition-all duration-150 cursor-pointer select-none">
+                      <span className="text-[9.5px] text-[#94A3B8] flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-[#2F7DFF] shadow-glow-hail"></span>
                         Hail Hits
                       </span>
                       <input
                         type="checkbox"
                         checked={filters.showHail}
                         onChange={(e) => onFiltersChange({ showHail: e.target.checked })}
-                        className="w-3 h-3 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
-                    <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
-                      <span className="text-[9.5px] text-slate-355 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-violet-500 shadow-glow-wind"></span>
+                    <label className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.24)] transition-all duration-150 cursor-pointer select-none">
+                      <span className="text-[9.5px] text-[#94A3B8] flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-[#8B5CF6] shadow-glow-wind"></span>
                         Wind Damage
                       </span>
                       <input
                         type="checkbox"
                         checked={filters.showWind}
                         onChange={(e) => onFiltersChange({ showWind: e.target.checked })}
-                        className="w-3 h-3 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
-                    <label className="flex items-center justify-between px-1.5 py-0.5 rounded bg-slate-900/25 border border-slate-900/60 hover:border-slate-800 transition-colors cursor-pointer select-none">
-                      <span className="text-[9.5px] text-slate-355 flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-red-500 shadow-glow-tornado animate-pulse"></span>
+                    <label className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.24)] transition-all duration-150 cursor-pointer select-none">
+                      <span className="text-[9.5px] text-[#94A3B8] flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-[#F43F5E] shadow-glow-tornado animate-pulse"></span>
                         Tornadoes
                       </span>
                       <input
                         type="checkbox"
                         checked={filters.showTornado}
                         onChange={(e) => onFiltersChange({ showTornado: e.target.checked })}
-                        className="w-3 h-3 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Supporting Context Only</span>
-                  <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900/60 space-y-1 select-none">
-                    <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider block border-b border-slate-900/40 pb-0.5">SPC Storm Reports</span>
+                  <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block">Supporting Context Only</span>
+                  <div className="bg-[rgba(11,25,48,0.50)] p-2 rounded-lg border border-[rgba(20,92,255,0.12)] space-y-1 select-none">
+                    <span className="text-[8px] font-bold text-[#94A3B8] uppercase tracking-wider block border-b border-slate-900/40 pb-0.5">SPC Storm Reports</span>
                     <div className="flex flex-col gap-1 text-[9px] font-semibold">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] shadow-glow-hail shrink-0"></span>
-                        <span className="text-slate-400">Hail Reports (Royal Blue)</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-glow-hail shrink-0"></span>
+                        <span className="text-[#64748B]">Hail Reports (Blue)</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#7C3AED] shadow-glow-wind shrink-0"></span>
-                        <span className="text-slate-400">Damaging Wind (Violet)</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-glow-wind shrink-0"></span>
+                        <span className="text-[#64748B]">Damaging Wind (Purple)</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] shadow-glow-tornado shrink-0"></span>
-                        <span className="text-slate-400">Tornado Reports (Crimson Red)</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-glow-tornado shrink-0"></span>
+                        <span className="text-[#64748B]">Tornado Reports (Red)</span>
                       </div>
                     </div>
                   </div>
@@ -689,11 +694,11 @@ export function StormSidebar({
               {/* 3. Geographic Filters */}
               <div className="grid grid-cols-2 gap-2 border-t border-slate-900 pt-2">
                 <div className="space-y-0.5">
-                  <label className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">State Boundary</label>
+                  <label className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block">State Boundary</label>
                   <select
                     value={filters.state}
                     onChange={(e) => onFiltersChange({ state: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-850 rounded p-1 text-[9.5px] text-slate-250 focus:outline-none focus:border-red-500/50 cursor-pointer"
+                    className="w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded-md px-2 py-1 text-[9.5px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer"
                   >
                     {US_STATES.map((st) => (
                       <option key={st.code} value={st.code}>
@@ -704,12 +709,12 @@ export function StormSidebar({
                 </div>
 
                 <div className="space-y-0.5">
-                  <label className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Target Radius</label>
+                  <label className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block">Target Radius</label>
                   <select
                     value={filters.radius}
                     disabled={!filters.center}
                     onChange={(e) => onFiltersChange({ radius: parseInt(e.target.value, 10) })}
-                    className={`w-full bg-slate-900 border border-slate-850 rounded p-1 text-[9.5px] text-slate-250 focus:outline-none focus:border-red-500/50 cursor-pointer ${
+                    className={`w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded-md px-2 py-1 text-[9.5px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer ${
                       !filters.center ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   >
@@ -724,18 +729,18 @@ export function StormSidebar({
 
               {/* 4. Secondary Map Settings (Collapsible Accordion) & Legend */}
               <div className="border-t border-slate-900 pt-2 relative">
-                <details className="group border border-slate-900 rounded bg-slate-950/20 overflow-visible">
-                  <summary className="flex items-center justify-between p-1.5 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-900/30 select-none">
+                <details className="group border border-[rgba(20,92,255,0.14)] rounded-lg bg-[rgba(11,25,48,0.40)] overflow-visible">
+                  <summary className="flex items-center justify-between px-2.5 py-2 text-[9.5px] font-extrabold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider cursor-pointer hover:bg-[rgba(20,92,255,0.08)] rounded-lg select-none transition-colors">
                     <span>Basemap & Layer Toggles</span>
-                    <span className="text-[7px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    <span className="text-[7px] text-[#64748B] group-open:rotate-180 transition-transform">▼</span>
                   </summary>
-                  <div className="absolute left-0 right-0 z-[20] mt-1 p-2.5 border border-slate-900 rounded bg-slate-950 shadow-2xl space-y-2.5 hidden group-open:block">
+                  <div className="absolute left-0 right-0 z-[20] mt-1 p-3 border border-[rgba(20,92,255,0.20)] rounded-lg bg-[#0B1220] shadow-2xl space-y-2.5 hidden group-open:block backdrop-blur-md">
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-slate-400 block uppercase">Basemap style</label>
+                      <label className="text-[9px] font-bold text-[#94A3B8] block uppercase">Basemap style</label>
                       <select
                         value={filters.mapStyle}
                         onChange={(e) => onFiltersChange({ mapStyle: e.target.value as StormMapStyle })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-slate-200 focus:outline-none focus:border-red-500/50 cursor-pointer"
+                        className="w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer"
                       >
                         <option value="streets">Streets</option>
                         <option value="dark">Operational Dark</option>
@@ -743,46 +748,46 @@ export function StormSidebar({
                       </select>
                     </div>
 
-                    <label className="flex items-center justify-between p-1.5 rounded bg-slate-900/20 border border-slate-900/65 cursor-pointer">
-                      <span className="text-[10px] text-slate-300">Show neighborhood labels</span>
+                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                      <span className="text-[10px] text-[#94A3B8]">Show neighborhood labels</span>
                       <input
                         type="checkbox"
                         checked={filters.showNeighborhoodLabels}
                         onChange={(e) => onFiltersChange({ showNeighborhoodLabels: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-1.5 rounded bg-slate-900/20 border border-slate-900/65 cursor-pointer">
-                      <span className="text-[10px] text-slate-300">Show building footprints</span>
+                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                      <span className="text-[10px] text-[#94A3B8]">Show building footprints</span>
                       <input
                         type="checkbox"
                         checked={filters.showBuildings}
                         onChange={(e) => onFiltersChange({ showBuildings: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-1.5 rounded bg-slate-900/20 border border-slate-900/65 cursor-pointer">
-                      <span className="text-[10px] text-slate-300">Show house numbers</span>
+                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                      <span className="text-[10px] text-[#94A3B8]">Show house numbers</span>
                       <input
                         type="checkbox"
                         checked={filters.showHouseNumbers}
                         onChange={(e) => onFiltersChange({ showHouseNumbers: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-1.5 rounded bg-slate-900/20 border border-slate-900/65 cursor-pointer">
-                      <span className="text-[10px] text-slate-300 flex items-center gap-1">
-                        <Layers size={10} className="text-slate-500" />
+                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                      <span className="text-[10px] text-[#94A3B8] flex items-center gap-1">
+                        <Layers size={10} className="text-[#64748B]" />
                         NOAA Radar Overlay
                       </span>
                       <input
                         type="checkbox"
                         checked={filters.showRadar}
                         onChange={(e) => onFiltersChange({ showRadar: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
                       />
                     </label>
 
@@ -958,7 +963,7 @@ export function StormSidebar({
                                 e.stopPropagation();
                                 handleCollectRadiusLeads(cluster);
                               }}
-                              className="flex-1 py-1.5 px-3 rounded bg-red-650 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1"
+                              className="flex-1 py-2 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[rgba(20,92,255,0.08)] disabled:text-slate-500 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/20 hover:shadow-[#145CFF]/30"
                             >
                               {loadingClusterId === cluster.id ? "Adding..." : "Add Properties in Radius"}
                             </button>
@@ -972,7 +977,7 @@ export function StormSidebar({
                                   data: cluster,
                                 });
                               }}
-                              className="py-1.5 px-2.5 rounded border border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200 text-[9.5px] font-black uppercase transition-all cursor-pointer flex items-center justify-center"
+                              className="py-2 px-2.5 rounded-lg border border-[rgba(20,92,255,0.20)] hover:border-[rgba(20,92,255,0.40)] bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] text-[#94A3B8] hover:text-[#F8FAFC] text-[10px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center shadow-sm"
                               title="View on Map"
                             >
                               <Eye size={10} />
@@ -1060,30 +1065,30 @@ export function StormSidebar({
                         }}
                         className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
                           isActive
-                            ? "bg-emerald-950/15 border-emerald-500/40 hover:border-emerald-500/60 shadow-md shadow-emerald-950/20"
-                            : "bg-slate-900/40 hover:bg-slate-900/80 border-slate-900 hover:border-slate-800"
+                            ? "bg-[#0E8F6E]/12 border-[#0E8F6E]/40 hover:border-[#0E8F6E]/60 shadow-md shadow-[#0E8F6E]/5"
+                            : "bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border-[rgba(20,92,255,0.14)] hover:border-[rgba(20,92,255,0.30)]"
                         }`}
                       >
                         <div className="flex gap-2 truncate">
                           <MapPin
                             size={12}
-                            className={`shrink-0 mt-0.5 ${isActive ? "text-emerald-500 animate-bounce" : "text-slate-600 group-hover:text-slate-450"}`}
+                            className={`shrink-0 mt-0.5 ${isActive ? "text-[#0E8F6E] animate-bounce" : "text-slate-600 group-hover:text-slate-400"}`}
                           />
                           <div className="truncate flex flex-col gap-0.5">
-                            <span className={`text-[11px] font-bold leading-tight truncate ${isActive ? "text-slate-100 animate-pulse" : "text-slate-300"}`}>
+                            <span className={`text-[11px] font-bold leading-tight truncate ${isActive ? "text-[#F8FAFC] animate-pulse" : "text-[#94A3B8]"}`}>
                               {lead.fullAddress}
                             </span>
-                            <span className="text-[9.5px] text-slate-550 font-medium">
+                            <span className="text-[9.5px] text-[#64748B] font-medium">
                               {[lead.city, lead.state, lead.postcode].filter(Boolean).join(", ")}
                             </span>
                             <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-[8.5px] text-slate-600 font-mono">
+                              <span className="text-[8.5px] text-[#64748B] font-mono">
                                 {lead.latitude.toFixed(4)}, {lead.longitude.toFixed(4)}
                               </span>
-                              <span className={`px-1 rounded-sm text-[7px] font-bold uppercase ${
+                              <span className={`px-1.5 py-0.2 rounded-sm text-[7px] font-extrabold uppercase ${
                                 lead.confidence === "exact"
-                                  ? "bg-emerald-500/10 text-emerald-400/90 border border-emerald-500/20"
-                                  : "bg-amber-500/10 text-amber-400/90 border border-amber-500/20"
+                                  ? "bg-[#0E8F6E]/12 text-[#00A86B] border border-[#0E8F6E]/20"
+                                  : "bg-[#F59E0B]/12 text-[#F59E0B]/90 border border-[#F59E0B]/20"
                               }`}>
                                 {lead.confidence}
                               </span>
@@ -1097,7 +1102,7 @@ export function StormSidebar({
                             e.stopPropagation(); // prevent map panning
                             onRemoveLead(lead.id);
                           }}
-                          className="text-slate-600 hover:text-red-400 p-1 rounded bg-slate-950/20 hover:bg-red-500/10 border border-slate-900/40 hover:border-red-950/40 transition-colors shrink-0"
+                          className="text-[#64748B] hover:text-[#F43F5E] p-1.5 rounded-md bg-[rgba(20,92,255,0.06)] hover:bg-[#F43F5E]/10 border border-[rgba(20,92,255,0.12)] hover:border-[#F43F5E]/20 transition-all shrink-0"
                           title="Remove lead"
                         >
                           <Trash2 size={11} />
@@ -1116,7 +1121,7 @@ export function StormSidebar({
       {/* Floating Toggle Button for Mobile */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-[68px] left-3 z-[1001] p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 shadow-glass md:hidden focus:outline-none"
+        className="fixed top-[68px] left-3 z-[1001] p-2.5 rounded-lg bg-[#061A2F]/90 border border-[rgba(20,92,255,0.24)] text-[#F8FAFC] shadow-glass backdrop-blur-md md:hidden focus:outline-none hover:bg-[#145CFF]/16 transition-all"
       >
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>

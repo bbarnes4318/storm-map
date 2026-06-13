@@ -9,7 +9,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ sidebarOpen, setSidebarOpen }: AppHeaderProps) {
   return (
-    <header className="w-full h-14 md:h-16 flex items-center justify-between px-4 bg-gradient-to-r from-[#061A2F] via-[#0B1220] to-[#001B46] border-b border-[#145CFF]/22 shadow-[0_10px_30px_rgba(0,0,0,0.28)] z-[1002] shrink-0">
+    <header className="w-full h-14 md:h-16 flex items-center justify-between px-4 bg-gradient-to-r from-[#071426] via-[#050B16] to-[#071426] border-b border-[#145CFF]/15 shadow-md shadow-black/10 z-[1002] shrink-0">
       {/* Left section: Logo & App Title */}
       <div className="flex items-center gap-3">
         {/* Mobile Hamburger Menu Toggle */}

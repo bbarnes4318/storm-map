@@ -130,8 +130,11 @@ export function MapDetailOverlay({
   };
 
   const borderStyle: React.CSSProperties = {
+    border: "1px solid rgba(20, 92, 255, 0.28)",
     borderTop: `3px solid ${accentColor}`,
-    boxShadow: `0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 0 20px -3px ${accentColor}1c, inset 0 1px 0 0 rgba(255, 255, 255, 0.05)`,
+    boxShadow: `0 24px 70px rgba(0, 0, 0, 0.42), 0 0 20px -3px ${accentColor}1c, inset 0 1px 0 0 rgba(255, 255, 255, 0.05)`,
+    background: "rgba(6, 26, 47, 0.96)",
+    borderRadius: "18px",
   };
 
   const desktopStyle: React.CSSProperties = {
@@ -149,14 +152,14 @@ export function MapDetailOverlay({
       ref={cardRef}
       onClick={handleContainerClick}
       style={isMobile ? mobileStyle : desktopStyle}
-      className={`z-[1001] bg-[#061A2F]/95 border border-[#145CFF]/25 rounded-xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
+      className={`z-[1001] backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
         isMobile
-          ? "fixed bottom-3 left-3 right-3 w-[calc(100%-24px)] max-h-[75vh]"
+          ? "fixed bottom-3 left-3 right-3 w-[calc(100%-24px)] max-h-[75vh] rounded-[18px]"
           : "absolute w-[360px] max-h-[calc(100vh-80px)] pointer-events-auto"
       }`}
     >
       {/* Sticky Header */}
-      <div className="flex-shrink-0 flex items-center justify-between border-b border-slate-800 p-4 pb-3">
+      <div className="flex-shrink-0 flex items-center justify-between border-b border-[#145CFF]/15 p-4 pb-3">
         <div className="flex-1 min-w-0 pr-2">
           {header}
         </div>
@@ -171,13 +174,13 @@ export function MapDetailOverlay({
       </div>
 
       {/* Scrollable Body */}
-      <div className="flex-1 overflow-y-auto p-4 pr-3.5 space-y-4 min-h-0 text-slate-300 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 pr-3.5 space-y-4 min-h-0 text-slate-350 custom-scrollbar">
         {children}
       </div>
 
       {/* Sticky Footer */}
       {footer && (
-        <div className="flex-shrink-0 border-t border-slate-800 p-4 pt-3.5 bg-slate-950/40 rounded-b-xl">
+        <div className="flex-shrink-0 border-t border-[#145CFF]/15 p-4 pt-3.5 bg-slate-950/40 rounded-b-[18px]">
           {footer}
         </div>
       )}

@@ -1505,16 +1505,16 @@ export function StormMap({
         return (
           <div className="flex flex-col gap-1.5">
             {isLocked ? (
-              <div className="flex flex-col gap-1">
-                <div className="w-full text-center py-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9.5px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="flex flex-col gap-1.5">
+                <div className="w-full text-center py-2 px-3 rounded-lg bg-[#0E8F6E]/12 text-[#00A86B] border border-[#0E8F6E]/20 text-[9.5px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#0E8F6E] animate-pulse" />
                   Selected for Property Leads
                 </div>
                 <button
                   onClick={() => {
                     setActiveDetail(null);
                   }}
-                  className="w-full text-center py-2 px-3 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                  className="w-full text-center py-2 px-3 rounded-lg bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] text-slate-300 hover:text-[#F8FAFC] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
                   View Property Details
                 </button>
@@ -1526,7 +1526,7 @@ export function StormMap({
                     onLockProperty(target);
                     setActiveDetail(null);
                   }}
-                  className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-650 to-red-750 hover:from-red-600 hover:to-red-700 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:shadow-red-900/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full text-center py-2.5 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-[#145CFF]/20 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <MapPin size={11} />
                   Add to Property Leads
@@ -1537,7 +1537,7 @@ export function StormMap({
                       onLockProperty(target);
                       setActiveDetail(null);
                     }}
-                    className="py-1.5 px-2 rounded bg-slate-905 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
+                    className="py-1.5 px-2 rounded-lg bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] text-slate-300 hover:text-[#F8FAFC] text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
                   >
                     Access Homeowner Contact Information
                   </button>
@@ -1546,7 +1546,7 @@ export function StormMap({
                       onLockProperty(target);
                       setActiveDetail(null);
                     }}
-                    className="py-1.5 px-2 rounded bg-slate-905 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
+                    className="py-1.5 px-2 rounded-lg bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] text-slate-300 hover:text-[#F8FAFC] text-[8.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center"
                   >
                     View Property Details
                   </button>
@@ -1624,7 +1624,11 @@ export function StormMap({
               id="radar-layer"
               type="raster"
               paint={{
-                "raster-opacity": filters.radarOpacity,
+                "raster-opacity": filters.radarOpacity * 0.82,
+                "raster-contrast": 0.11,
+                "raster-saturation": 0.15,
+                "raster-brightness-min": 0.02,
+                "raster-brightness-max": 0.95,
               }}
             />
           </Source>
@@ -1671,14 +1675,15 @@ export function StormMap({
                   "interpolate",
                   ["linear"],
                   ["zoom"],
-                  3.8, 6.5,
-                  7, 9,
-                  9, 11.5
+                  3.8, 5.5,
+                  7, 8,
+                  9, 10.5
                 ],
                 "circle-color": stormFillColorExpression,
-                "circle-opacity": 0.7,
+                "circle-opacity": 0.82,
                 "circle-stroke-color": stormStrokeColorExpression,
-                "circle-stroke-width": 1,
+                "circle-stroke-width": 1.25,
+                "circle-stroke-opacity": 0.88,
               }}
             />
             <Layer
@@ -1687,13 +1692,16 @@ export function StormMap({
               maxzoom={9}
               layout={{
                 "text-field": ["get", "label"],
-                "text-size": 7,
+                "text-size": 8,
+                "text-font": ["Open Sans Bold", "Arial HTML5 Bold"],
                 "text-justify": "center",
                 "text-allow-overlap": true,
                 "text-ignore-placement": true,
               }}
               paint={{
-                "text-color": "#ffffff",
+                "text-color": "#F8FAFC",
+                "text-halo-color": "rgba(5, 11, 22, 0.85)",
+                "text-halo-width": 1.5,
               }}
             />
           </Source>
@@ -1763,12 +1771,13 @@ export function StormMap({
                 "interpolate",
                 ["linear"],
                 ["zoom"],
-                9, 0.35,
-                12, 0.5,
-                15, 0.62
+                9, 0.45,
+                12, 0.65,
+                15, 0.82
               ],
               "circle-stroke-color": stormStrokeColorExpression,
-              "circle-stroke-width": 1,
+              "circle-stroke-width": 1.25,
+              "circle-stroke-opacity": 0.88,
             }}
           />
           {/* Label Text Layer */}
@@ -1778,13 +1787,16 @@ export function StormMap({
             minzoom={11}
             layout={{
               "text-field": ["get", "label"],
-              "text-size": 7,
+              "text-size": 8,
+              "text-font": ["Open Sans Bold", "Arial HTML5 Bold"],
               "text-justify": "center",
               "text-allow-overlap": true,
               "text-ignore-placement": true,
             }}
             paint={{
-              "text-color": "#ffffff",
+              "text-color": "#F8FAFC",
+              "text-halo-color": "rgba(5, 11, 22, 0.85)",
+              "text-halo-width": 1.5,
             }}
           />
         </Source>
@@ -1862,8 +1874,8 @@ export function StormMap({
         {filters.center && (
           <Marker latitude={filters.center[0]} longitude={filters.center[1]} anchor="center">
             <div className="relative flex items-center justify-center">
-              <div className="w-5 h-5 rounded-full bg-red-500/20 border-2 border-red-500/50 animate-ping absolute" />
-              <div className="w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-white shadow-glow-tornado relative" />
+              <div className="w-5 h-5 rounded-full bg-[#145CFF]/20 border-2 border-[#145CFF]/40 animate-ping absolute" />
+              <div className="w-3.5 h-3.5 rounded-full bg-[#145CFF] border-2 border-white shadow-glass relative" />
             </div>
           </Marker>
         )}
@@ -1917,11 +1929,15 @@ export function StormMap({
                   onLockProperty(lead);
                 }}
               >
-                <div className={`rounded-full bg-emerald-500/25 border-2 border-emerald-500/50 absolute transition-all ${
-                  isActive ? "w-8 h-8 animate-target-pulse" : "w-6 h-6 animate-ping duration-1000"
+                <div className={`rounded-full absolute transition-all ${
+                  isActive 
+                    ? "w-8 h-8 bg-[rgba(14,143,110,0.28)] border-2 border-[rgba(14,143,110,0.48)] animate-target-pulse" 
+                    : "w-6 h-6 bg-[#0E8F6E]/16 border border-[#0E8F6E]/30 animate-ping duration-1000"
                 }`} />
-                <div className={`rounded-full bg-emerald-500 border-2 border-white shadow-glow-hail relative flex items-center justify-center transition-all ${
-                  isActive ? "w-5 h-5 scale-110 bg-emerald-600" : "w-4 h-4 hover:scale-110"
+                <div className={`rounded-full border-2 shadow-glow-hail relative flex items-center justify-center transition-all ${
+                  isActive 
+                    ? "w-5 h-5 scale-110 bg-[#0E8F6E] border-[#D1FAE5]" 
+                    : "w-4 h-4 bg-[#0E8F6E] border-[#D1FAE5]/80 hover:scale-110"
                 }`}>
                   <MapPin size={isActive ? 10 : 8} className="text-white" />
                 </div>
@@ -1931,6 +1947,20 @@ export function StormMap({
         })}
 
       </Map>
+
+      {/* Cinematic Map Atmosphere Overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[5] mix-blend-screen"
+        style={{
+          background: `
+            radial-gradient(circle at 72% 18%, rgba(20, 92, 255, 0.13), transparent 34%),
+            radial-gradient(circle at 18% 78%, rgba(14, 143, 110, 0.08), transparent 30%),
+            linear-gradient(90deg, rgba(5, 11, 22, 0.28), transparent 18%, transparent 78%, rgba(5, 11, 22, 0.18)),
+            linear-gradient(180deg, rgba(5, 11, 22, 0.12), transparent 22%, rgba(5, 11, 22, 0.18))
+          `,
+          opacity: 0.85,
+        }}
+      />
 
       {/* Viewport-Safe Map Detail Overlay */}
       {activeDetail && pixelPos && (
@@ -1964,10 +1994,19 @@ export function StormMap({
       )}
 
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
-        <div className="bg-[#061A2F]/95 border border-[#145CFF]/20 rounded-lg p-1.5 shadow-glass flex flex-col gap-1 pointer-events-auto">
+        <div 
+          className="rounded-xl p-1.5 flex flex-col gap-1 pointer-events-auto transition-all"
+          style={{
+            background: "rgba(6, 26, 47, 0.88)",
+            border: "1px solid rgba(20, 92, 255, 0.24)",
+            boxShadow: "0 18px 45px rgba(0, 0, 0, 0.35)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
+        >
           <button
             onClick={handleGeolocate}
-            className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
             title="Locate Me"
             type="button"
           >
@@ -1975,7 +2014,7 @@ export function StormMap({
           </button>
           <button
             onClick={handleResetMap}
-            className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
             title="Reset Map Bounds"
             type="button"
           >
@@ -1983,7 +2022,7 @@ export function StormMap({
           </button>
           <button
             onClick={handleZoomToStreetLevel}
-            className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
             title="Zoom to Street Level"
             type="button"
           >
@@ -1992,7 +2031,7 @@ export function StormMap({
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 disabled:opacity-40 active:scale-[0.95]"
             title="Manual Refresh Data"
             type="button"
           >
