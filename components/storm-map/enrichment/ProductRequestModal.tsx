@@ -1,7 +1,19 @@
 "use client";
 
 import React from "react";
-import { X, CalendarDays, PhoneCall, FileText, Check, AlertTriangle, Sparkles, MapPin, Target } from "lucide-react";
+import { createPortal } from "react-dom";
+import { 
+  X, 
+  CalendarDays, 
+  PhoneCall, 
+  FileText, 
+  Check, 
+  AlertTriangle, 
+  MapPin, 
+  Target, 
+  ArrowRight, 
+  FileDown 
+} from "lucide-react";
 import { ProductType, StormAreaContextData, PropertyContextData } from "./StormProductActionPanel";
 import { collectRadiusLeads } from "./enrichment-client";
 
@@ -26,161 +38,144 @@ export function ProductRequestModal({
   onAddLeads,
   onTriggerEnrichmentFlow,
 }: ProductRequestModalProps) {
+  const [isMounted, setIsMounted] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [statusMsg, setStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [collectedLeads, setCollectedLeads] = React.useState<any[]>([]);
 
-  // Clear stale errors when modal opens or product changes
+  // Mount check to safe-guard SSR portals
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Reset states on toggle or product change
   React.useEffect(() => {
     if (isOpen) {
       setStatusMsg(null);
       setIsLoading(false);
+      setCollectedLeads([]);
     }
-  }, [isOpen, productType]);
+  }, [isOpen, productType, contextType]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   const getProductTitle = () => {
     switch (productType) {
       case "STORM_REPORT_ADDRESSES":
-        return "Detailed Storm Report + Addresses";
+        return "Storm Report + Address List";
       case "STORM_REPORT_CONTACT":
-        return "Detailed Storm Report + Addresses + Full Homeowner Contact Information";
+        return "Homeowner Contact Data";
       case "ROOF_INSPECTION_APPOINTMENTS":
-        return "Exclusive Roof Inspection Appointments";
+        return "Inspection Appointments";
     }
   };
 
   const getProductIcon = (colorClass = "") => {
     switch (productType) {
       case "STORM_REPORT_ADDRESSES":
-        return <FileText className={colorClass || "text-blue-400"} size={16} />;
+        return <FileText className={colorClass || "text-[#145CFF]"} size={16} />;
       case "STORM_REPORT_CONTACT":
-        return <PhoneCall className={colorClass || "text-violet-400"} size={16} />;
+        return <PhoneCall className={colorClass || "text-[#145CFF]"} size={16} />;
       case "ROOF_INSPECTION_APPOINTMENTS":
-        return <CalendarDays className={colorClass || "text-red-500"} size={16} />;
+        return <CalendarDays className={colorClass || "text-[#0E8F6E]"} size={16} />;
     }
   };
 
+  // Switch to Property Leads tab inside Sidebar
+  const handleSwitchToLeads = () => {
+    if (onTriggerEnrichmentFlow) {
+      onTriggerEnrichmentFlow();
+    }
+    onClose();
+  };
 
+  // Export collected radius leads to a browser-downloaded CSV file
+  const handleExportCSV = () => {
+    if (collectedLeads.length === 0) return;
+    const headers = ["Address", "City", "State", "ZIP", "Latitude", "Longitude", "Confidence"];
+    const rows = collectedLeads.map(l => [
+      `"${l.fullAddress || ''}"`,
+      `"${l.city || ''}"`,
+      `"${l.state || ''}"`,
+      `"${l.postcode || ''}"`,
+      l.latitude || '',
+      l.longitude || '',
+      `"${l.confidence || 'unknown'}"`
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().slice(0,10);
+    link.setAttribute("download", `stormtarget_leads_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  const handleAction = async () => {
+  // Perform backend radius property collection
+  const handleAddressGeneration = async () => {
     setStatusMsg(null);
     setIsLoading(true);
 
     try {
-      if (productType === "STORM_REPORT_ADDRESSES") {
-        if (contextType === "storm-area") {
-          const area = contextData as StormAreaContextData;
-          // Trigger the API endpoint to fetch properties within radius
-          const res = await collectRadiusLeads(
-            area.center[0], area.center[1], area.radius, "area-opt",
-            { county: area.county, state: area.state }
-          );
-          if (res.leads && res.leads.length > 0) {
-            if (onAddLeads) {
-              onAddLeads(res.leads);
-            }
-            setStatusMsg({
-              type: "success",
-              text: `Successfully generated and added ${res.leads.length} properties inside the ${area.radius} mi storm opportunity area to your Saved Properties.`
-            });
-          } else {
-            setStatusMsg({
-              type: "info",
-              text: "No available properties found for this storm area radius."
-            });
-          }
-        } else {
-          // Property context
-          setStatusMsg({
-            type: "error",
-            text: "Address list generation is best suited for a storm area. Click a storm opportunity to generate addresses."
-          });
+      const area = contextData as StormAreaContextData;
+      const res = await collectRadiusLeads(
+        area.center[0], 
+        area.center[1], 
+        area.radius, 
+        "area-opt",
+        { county: area.county, state: area.state }
+      );
+
+      if (res.leads && res.leads.length > 0) {
+        if (onAddLeads) {
+          onAddLeads(res.leads);
         }
-      } else if (productType === "STORM_REPORT_CONTACT") {
-        if (contextType === "property") {
-          // Trigger the original quote/unlock flow inside Sidebar/LeadIntelligencePanel
-          if (onTriggerEnrichmentFlow) {
-            onTriggerEnrichmentFlow();
-            onClose();
-          }
-        } else {
-          // Storm area context - bulk contact enrichment not configured yet
-          setStatusMsg({
-            type: "error",
-            text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
-          });
-        }
-      } else if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
-        // Appointment workflow is not active yet
+        setCollectedLeads(res.leads);
+      } else {
         setStatusMsg({
-          type: "error",
-          text: "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person inspection appointments for the selected storm area."
+          type: "info",
+          text: "No available properties found for this storm area radius."
         });
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Radius leads query failed:", err);
       const errCode = err.code || "";
       const errStatus = err.status || 0;
 
-      // Feature-level disabled
+      // Professional product-specific error messages
       if (errCode === "FEATURE_DISABLED" || errStatus === 503) {
         setStatusMsg({
           type: "error",
           text: "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
         });
-      // Product-specific PROVIDER_NOT_CONFIGURED
       } else if (errCode === "PROVIDER_NOT_CONFIGURED") {
-        if (productType === "STORM_REPORT_ADDRESSES") {
-          setStatusMsg({
-            type: "error",
-            text: "Bulk property lead collection is not enabled yet. Connect a radius-capable property/address provider to gather properties in this storm area."
-          });
-        } else if (productType === "STORM_REPORT_CONTACT") {
-          setStatusMsg({
-            type: "error",
-            text: "Homeowner contact provider is not configured yet. Add MELISSA_LICENSE_KEY to the server environment to enable contact data access."
-          });
-        } else if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
-          setStatusMsg({
-            type: "error",
-            text: "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person roof inspection appointments for the selected storm area."
-          });
-        } else {
-          setStatusMsg({
-            type: "error",
-            text: "The required service provider is not configured yet."
-          });
-        }
-      // Provider returned no data match
-      } else if (errCode === "PROVIDER_NO_MATCH") {
         setStatusMsg({
-          type: "info",
-          text: "No homeowner contact match was found for this property."
+          type: "error",
+          text: "Bulk property lead collection is not enabled yet. Connect a radius-capable property/address provider to gather properties in this storm area."
         });
-      // Provider timeout
       } else if (errCode === "PROVIDER_TIMEOUT") {
         setStatusMsg({
           type: "error",
           text: "Unable to gather address records from the radius provider right now. Please try again."
         });
-      // Provider upstream error
       } else if (errCode === "PROVIDER_ERROR") {
         setStatusMsg({
           type: "error",
           text: "The address provider returned an error. Please try again."
         });
-      // Authentication required
       } else if (errCode === "UNAUTHORIZED" || errStatus === 401) {
         setStatusMsg({
           type: "error",
           text: "Sign in to access this product."
         });
-      // Generic fallback — only when no known error code matched
       } else {
         setStatusMsg({
           type: "error",
-          text: "Unable to process this request right now. Please try again."
+          text: "We encountered a temporary connection issue. Please retry your request."
         });
       }
     } finally {
@@ -188,205 +183,292 @@ export function ProductRequestModal({
     }
   };
 
+  const handleContactAction = () => {
+    // Preserve existing compliance, auth & unlock triggers in parent
+    if (onTriggerEnrichmentFlow) {
+      onTriggerEnrichmentFlow();
+    }
+    onClose();
+  };
+
+  // Render content depending on active product selected
+  const renderDrawerBody = () => {
+    // 1. SUCCESS STATE (Currently only STORM_REPORT_ADDRESSES can succeed inline in this drawer)
+    if (productType === "STORM_REPORT_ADDRESSES" && collectedLeads.length > 0) {
+      return (
+        <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="p-5 bg-[#0E8F6E]/5 border border-[#0E8F6E]/20 rounded-lg text-center space-y-3">
+            <div className="mx-auto w-10 h-10 rounded-full bg-[#0E8F6E]/10 border border-[#0E8F6E]/30 flex items-center justify-center text-[#0E8F6E] animate-pulse">
+              <Check size={20} />
+            </div>
+            <h3 className="font-extrabold text-[12px] text-[#F8FAFC] uppercase tracking-wide">
+              Address List Generated
+            </h3>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              Successfully gathered and added <strong className="text-[#F8FAFC]">{collectedLeads.length}</strong> property addresses within the <strong className="text-[#F8FAFC]">{contextData.radius} mi</strong> storm target radius to your Property Leads.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button
+              type="button"
+              onClick={handleSwitchToLeads}
+              className="flex items-center justify-center gap-1.5 w-full text-center py-2 px-3.5 rounded bg-[#145CFF] hover:bg-[#1F5BFF] text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-md shadow-[#145CFF]/15 border-none"
+            >
+              View Property Leads
+              <ArrowRight size={11} />
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="flex items-center justify-center gap-1.5 w-full text-center py-2 px-3.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <FileDown size={11} />
+              Export CSV
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 2. PRODUCT 3: APPOINTMENTS (Polished unavailable state)
+    if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
+      return (
+        <div className="space-y-4">
+          <div className="p-4 bg-[#0B1220]/60 border border-[#145CFF]/15 rounded-lg space-y-3 shadow-md">
+            <div className="flex items-center gap-2 text-[#F8FAFC]">
+              <CalendarDays size={18} className="text-[#0E8F6E]" />
+              <h4 className="font-extrabold text-xs uppercase tracking-wider">Appointment Requests Not Active Yet</h4>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              This option will allow contractors to request confirmed in-person roof inspection appointments for the selected storm area.
+            </p>
+            <div className="p-2.5 bg-[#0E8F6E]/5 border border-[#0E8F6E]/10 rounded text-[9px] text-[#0E8F6E] font-extrabold tracking-wide uppercase italic">
+              Booked inspections are the outcome.
+            </div>
+            <p className="text-[9.5px] text-slate-500 leading-relaxed pt-1 border-t border-slate-900">
+              Outreach, storm-damage pre-screening, and calendar scheduling will be fully managed by our agent desk to deliver exclusive, ready-to-run opportunities.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // 3. PRODUCT 2: CONTACT DATA
+    if (productType === "STORM_REPORT_CONTACT") {
+      // Blocked: running against storm-area (requires a selected property address first)
+      if (contextType === "storm-area") {
+        return (
+          <div className="space-y-4">
+            <div className="p-4 bg-[#0B1220]/60 border border-amber-500/20 rounded-lg space-y-3 shadow-md">
+              <div className="flex items-center gap-2 text-[#F8FAFC]">
+                <PhoneCall size={18} className="text-amber-500 animate-pulse" />
+                <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">Select a Property First</h4>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Choose a property from the map or Property Leads tab before requesting homeowner contact information.
+              </p>
+              <p className="text-[9.5px] text-slate-500 leading-relaxed border-t border-slate-900 pt-2">
+                We do not support bulk or storm-wide radius contact retrieval to protect consumer privacy and maintain regulatory compliance. Select individual properties to request details.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      // Actionable: property selected
+      return (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="p-3 bg-slate-900/30 border border-slate-850 rounded-lg space-y-2">
+            <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-500 block">
+              Target Address
+            </span>
+            <div className="flex items-start gap-2">
+              <MapPin size={14} className="text-[#0E8F6E] mt-0.5 shrink-0" />
+              <div>
+                <h4 className="font-extrabold text-[#F8FAFC] leading-snug">{contextData.fullAddress}</h4>
+                {contextData.confidence && (
+                  <p className="text-[9px] text-slate-400 mt-0.5 font-mono">
+                    Confidence: <span className="uppercase font-bold text-slate-300">{contextData.confidence}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#0B1220]/50 border border-slate-900 rounded-lg space-y-2.5">
+            <span className="text-[7.5px] font-black uppercase tracking-widest text-[#145CFF] block">
+              Contact Intelligence Includes
+            </span>
+            <div className="space-y-1.5 text-[9.5px] text-slate-400">
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Homeowner first & last name</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> DNC-checked phone numbers (landline/mobile)</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Active personal email addresses</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Stored, provider-normalized metadata</div>
+            </div>
+          </div>
+
+          <div className="p-3 bg-[#145CFF]/5 border border-[#145CFF]/15 rounded-lg text-[9px] text-slate-450 leading-relaxed">
+            Clicking below will initiate the secure authentication check, regulatory compliance attestation, credit check, and data retrieval flow.
+          </div>
+        </div>
+      );
+    }
+
+    // 4. PRODUCT 1: ADDRESS LIST
+    if (productType === "STORM_REPORT_ADDRESSES") {
+      // Blocked: running against property (requires a storm opportunity area first)
+      if (contextType === "property") {
+        return (
+          <div className="space-y-4">
+            <div className="p-4 bg-[#0B1220]/60 border border-amber-500/20 rounded-lg space-y-3 shadow-md">
+              <div className="flex items-center gap-2 text-[#F8FAFC]">
+                <FileText size={18} className="text-amber-500" />
+                <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">Storm Target Area Required</h4>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Address list generation is best suited for a storm area. Click a storm opportunity circle on the map to generate matching addresses.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      // Actionable: storm-area selected
+      return (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="p-3 bg-[#001B46]/20 border border-[#145CFF]/15 rounded-lg space-y-2">
+            <span className="text-[7.5px] font-black uppercase tracking-widest text-[#145CFF] block">
+              Selected Storm Target Area
+            </span>
+            <div className="flex items-start gap-2">
+              <Target size={14} className="text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="font-extrabold text-[#F8FAFC] uppercase">{contextData.label}</h4>
+                <p className="text-[9.5px] text-slate-450 mt-1 leading-snug">
+                  Threat: <span className="text-slate-200 uppercase font-semibold">{contextData.primaryThreat}</span> · Score: <span className="text-slate-200 font-semibold">{contextData.score} pts</span>
+                </p>
+                <p className="text-[9.5px] text-slate-450 leading-snug">
+                  Radius: <span className="text-slate-200 font-semibold">{contextData.radius} mi</span> · Storm Reports: <span className="text-slate-200 font-semibold">{contextData.reportsCount}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#0B1220]/50 border border-slate-900 rounded-lg space-y-2.5">
+            <span className="text-[7.5px] font-black uppercase tracking-widest text-[#145CFF] block">
+              Address List Generation Includes
+            </span>
+            <div className="space-y-1.5 text-[9.5px] text-slate-400">
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Street addresses inside the affected boundary</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Storm reports and meteorological metrics</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Instant addition of leads to the Property Leads tab</div>
+              <div className="flex items-center gap-2"><Check size={12} className="text-[#0E8F6E]" /> Ready-to-go CSV export downloads</div>
+            </div>
+          </div>
+
+          {statusMsg && (
+            <div className={`p-3 rounded-lg border text-[9.5px] flex items-start gap-2 leading-relaxed ${
+              statusMsg.type === "success" ? "bg-emerald-950/15 border-emerald-500/20 text-[#0E8F6E]" :
+              statusMsg.type === "error" ? "bg-red-950/15 border-red-500/20 text-red-400" :
+              "bg-blue-950/15 border-blue-500/20 text-[#145CFF]"
+            }`}>
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-current" />
+              <span>{statusMsg.text}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
+
   const isActionDisabled = () => {
+    if (isLoading) return true;
     if (productType === "ROOF_INSPECTION_APPOINTMENTS") return true;
     if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") return true;
-    if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) return true;
+    if (productType === "STORM_REPORT_ADDRESSES" && contextType === "property") return true;
     return false;
   };
 
-  const getDisabledTitle = () => {
-    if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
-      return "Appointment Requests Not Active Yet";
-    }
-    if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") {
-      return "Homeowner Contact Provider Not Connected";
-    }
-    if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) {
-      return "Lead Intelligence Disabled";
-    }
-    return "Service Not Available";
+  const getActionBtnText = () => {
+    if (isLoading) return "Processing...";
+    if (productType === "STORM_REPORT_ADDRESSES") return "Generate Addresses";
+    if (productType === "STORM_REPORT_CONTACT") return "Get Contact Info";
+    return "Request Solution";
   };
 
-  const getDisabledExplanation = () => {
-    if (productType === "ROOF_INSPECTION_APPOINTMENTS") {
-      return "Appointment requests are not active yet. This option will allow contractors to request confirmed in-person roof inspection appointments for the selected storm area.";
+  const handleActionClick = () => {
+    if (productType === "STORM_REPORT_ADDRESSES") {
+      handleAddressGeneration();
+    } else if (productType === "STORM_REPORT_CONTACT") {
+      handleContactAction();
     }
-    if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") {
-      return "Homeowner contact provider is not configured yet. Add MELISSA_LICENSE_KEY to the server environment to enable contact data access.";
-    }
-    if (productType === "STORM_REPORT_CONTACT" && contextType === "property" && !isEnrichmentEnabled) {
-      return "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet.";
-    }
-    return null;
   };
 
-  return (
-    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+  const showSubmitBtn = !isActionDisabled() && collectedLeads.length === 0;
+
+  // React portal node to render outside clipped container hierarchy
+  const portalNode = (
+    <div className="fixed inset-0 z-[2099] flex justify-end">
+      {/* Backdrop overlay */}
+      {backdropHtml}
+
+      {/* Drawer slide-out panel */}
       <div 
-        className="relative w-full max-w-md bg-[#090d16] border border-slate-900 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 select-text"
+        className="fixed bottom-0 md:top-0 md:bottom-auto right-0 h-[85vh] md:h-full w-full max-w-md bg-[#0B1220] border-t md:border-t-0 md:border-l border-slate-800 shadow-2xl flex flex-col z-[2200] rounded-t-2xl md:rounded-t-none animate-in slide-in-from-bottom md:slide-in-from-right duration-300 select-text"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-900 px-4 py-3 bg-slate-950/50">
+        <div className="flex items-center justify-between border-b border-slate-900 px-5 py-4 bg-[#061A2F]/90 backdrop-blur-md">
           <div className="flex items-center gap-2">
-            {getProductIcon("text-red-500 animate-pulse")}
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-250">
-              Confirm Solution Request
+            {getProductIcon("text-[#145CFF]")}
+            <h3 className="font-extrabold text-[12px] uppercase tracking-wider text-[#F8FAFC]">
+              {getProductTitle()}
             </h3>
           </div>
           <button
             onClick={onClose}
             type="button"
-            className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-900 border border-transparent transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-900 border border-transparent transition-colors cursor-pointer"
+            aria-label="Close drawer"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto custom-scrollbar text-[10.5px]">
-          
-          {/* Context Card */}
-          <div className="p-3 bg-slate-900/35 border border-slate-850 rounded-lg space-y-2">
-            <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-500 block">
-              Selected Target Context
-            </span>
-            {contextType === "storm-area" ? (
-              <div className="flex items-start gap-2">
-                <Target size={14} className="text-red-400 mt-0.5 shrink-0" />
-                <div>
-                  <h4 className="font-extrabold text-slate-200 uppercase">{contextData.label}</h4>
-                  <p className="text-[9.5px] text-slate-400 mt-0.5">
-                    Threat: <span className="capitalize text-slate-300 font-semibold">{contextData.primaryThreat}</span> · Score: <span className="text-slate-300 font-semibold">{contextData.score} pts</span> · Radius: <span className="text-slate-300 font-semibold">{contextData.radius} mi</span>
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2">
-                <MapPin size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                <div>
-                  <h4 className="font-extrabold text-slate-200">{contextData.fullAddress}</h4>
-                  <p className="text-[9.5px] text-slate-400 mt-0.5">
-                    Confidence: <span className="capitalize text-slate-300 font-semibold">{contextData.confidence}</span> · Coordinates: <span className="text-slate-300 font-semibold">{contextData.latitude.toFixed(5)}, {contextData.longitude.toFixed(5)}</span>
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Product Details */}
-          <div className="space-y-2">
-            <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-500 block">
-              Outreach Service
-            </span>
-            <div className="p-3 border border-slate-900 bg-slate-950/20 rounded-lg space-y-2">
-              <h4 className="font-extrabold text-slate-205 text-[11px] uppercase">
-                {getProductTitle()}
-              </h4>
-              {productType === "ROOF_INSPECTION_APPOINTMENTS" && (
-                <p className="text-[9px] text-red-400 font-black uppercase tracking-wide italic">
-                  Raw data is optional. Booked inspections are the outcome.
-                </p>
-              )}
-              
-              <div className="border-t border-slate-900/60 pt-2 space-y-1">
-                <span className="text-[7.5px] font-bold text-slate-500 uppercase block tracking-wider mb-1">Includes:</span>
-                {productType === "STORM_REPORT_ADDRESSES" && (
-                  <>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Storm event summary report</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Hail/wind report metrics</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Affected target area boundary details</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Property addresses inside radius</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> CSV export-ready leads list</div>
-                  </>
-                )}
-                {productType === "STORM_REPORT_CONTACT" && (
-                  <>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Storm report & property addresses</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Homeowner first/last name</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Landline and mobile phone numbers (DNC checked)</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Homeowner email addresses</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-emerald-500" /> Verified mailing addresses</div>
-                  </>
-                )}
-                {productType === "ROOF_INSPECTION_APPOINTMENTS" && (
-                  <>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-red-500" /> Outbound homeowner target outreach campaign</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-red-500" /> Interest qualification & storm damage screen</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-red-500" /> Calendar scheduling of inspection appointments</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-red-500" /> 100% Exclusive, confirmed in-person appointment</div>
-                    <div className="flex items-center gap-1.5 text-slate-400"><Check size={10} className="text-red-500" /> Route-ready appointment detail coordinates</div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Status / Disabled Explanations */}
-          {isActionDisabled() && (
-            <div className="p-3 bg-red-950/15 border border-red-500/20 rounded-lg text-red-400 flex items-start gap-2 leading-relaxed">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-red-500" />
-              <div>
-                <strong className="block font-bold">{getDisabledTitle()}</strong>
-                {getDisabledExplanation()}
-              </div>
-            </div>
-          )}
-
-          {/* Toast / Status Message */}
-          {/* Show statusMsg ONLY when the disabled banner is NOT already showing — prevents duplicate stacking */}
-          {!isActionDisabled() && statusMsg && (
-            <div className={`p-3 rounded-lg border flex items-start gap-2 leading-relaxed ${
-              statusMsg.type === "success" ? "bg-emerald-950/15 border-emerald-500/20 text-emerald-400" :
-              statusMsg.type === "error" ? "bg-red-950/15 border-red-500/20 text-red-400" :
-              "bg-blue-950/15 border-blue-500/20 text-blue-400"
-            }`}>
-              {statusMsg.type === "error" ? (
-                <AlertTriangle size={14} className="shrink-0 mt-0.5 text-red-500" />
-              ) : statusMsg.type === "info" ? (
-                <AlertTriangle size={14} className="shrink-0 mt-0.5 text-blue-400" />
-              ) : (
-                <Check size={14} className="shrink-0 mt-0.5 text-emerald-450" />
-              )}
-              <span>{statusMsg.text}</span>
-            </div>
-          )}
-
+        {/* Scrollable Body */}
+        <div className="p-5 space-y-5 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-slate-350">
+          {renderDrawerBody()}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-900 p-3 bg-slate-950/50 flex justify-end gap-2 text-[10px]">
+        <div className="border-t border-slate-900 p-4 bg-slate-950/40 flex justify-end gap-3 text-[10px]">
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="px-3.5 py-2 rounded border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900 font-extrabold uppercase transition-all cursor-pointer"
+            className="px-4 py-2 rounded border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900 font-extrabold uppercase transition-all cursor-pointer"
           >
-            Cancel
+            {collectedLeads.length > 0 ? "Done" : "Cancel"}
           </button>
           
-          {!isActionDisabled() && (
+          {showSubmitBtn && (
             <button
-              onClick={handleAction}
+              onClick={handleActionClick}
               disabled={isLoading}
-              className="px-4 py-2 rounded bg-red-650 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-500 text-white font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1 shadow-md"
+              className="px-5 py-2 rounded bg-[#145CFF] hover:bg-[#1F5BFF] disabled:bg-slate-900 disabled:text-slate-600 disabled:border-slate-850 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/15"
             >
-              {isLoading ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
-                  Processing...
-                </>
-              ) : productType === "STORM_REPORT_ADDRESSES" ? (
-                "Generate Addresses"
-              ) : productType === "STORM_REPORT_CONTACT" ? (
-                "Get Contact Info"
-              ) : (
-                "Request Appointments"
+              {isLoading && (
+                <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-[#F8FAFC] rounded-full animate-spin"></span>
               )}
+              {getActionBtnText()}
             </button>
           )}
         </div>
       </div>
     </div>
   );
+
+  return createPortal(portalNode, document.body);
 }
+
+export default ProductRequestModal;

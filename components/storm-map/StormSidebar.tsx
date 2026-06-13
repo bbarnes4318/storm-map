@@ -299,8 +299,8 @@ export function StormSidebar({
     <>
       {/* Sidebar container */}
       <div
-        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 bg-slate-950 border-r border-[#145CFF]/15 flex flex-col transition-all duration-300 ${
-          sidebarOpen ? "w-[360px]" : "w-0 md:w-0 overflow-hidden border-r-0"
+        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 bg-slate-950 border-r border-[#145CFF]/15 flex flex-col overflow-hidden transition-all duration-300 ${
+          sidebarOpen ? "w-[360px]" : "w-0 md:w-0 border-r-0"
         }`}
       >
         {/* Brand Header & Search Inline */}
@@ -386,7 +386,7 @@ export function StormSidebar({
         )}
         {/* Unified Active Target Selection Panel (Property or Storm Area Context) */}
         {selectedProperty ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[calc(100vh-180px)] md:max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4">
             {/* Selected Property Summary */}
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-1.5 min-w-0">
@@ -454,7 +454,7 @@ export function StormSidebar({
             </div>
           </div>
         ) : activeDetail && activeDetail.type === "cluster" ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-[#145CFF]/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[calc(100vh-180px)] md:max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#061A2F]/20 border border-[#145CFF]/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4">
             {/* Selected Storm Area Summary */}
             {(() => {
               const cluster = activeDetail.data as TargetCluster;
