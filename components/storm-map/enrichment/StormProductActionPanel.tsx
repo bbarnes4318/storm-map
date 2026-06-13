@@ -53,21 +53,21 @@ export function StormProductActionPanel({
         <div className="grid grid-cols-3 gap-1.5 w-full">
           <button
             onClick={() => onSelectProduct("STORM_REPORT_ADDRESSES")}
-            className="py-1.5 px-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 hover:text-white text-[8px] font-black uppercase tracking-wider transition-all active:scale-[0.98] text-center truncate cursor-pointer"
+            className="py-1.5 px-1 rounded bg-[#145CFF] hover:bg-[#2570FF] text-white text-[8px] font-black uppercase tracking-wider transition-all active:scale-[0.98] text-center truncate cursor-pointer border-none shadow-sm"
             title="Generate Address List"
           >
             1. Generate Addresses
           </button>
           <button
             onClick={() => onSelectProduct("STORM_REPORT_CONTACT")}
-            className="py-1.5 px-1 rounded bg-slate-900 border border-slate-850 hover:border-slate-750 text-slate-200 hover:text-white text-[8px] font-black uppercase tracking-wider transition-all active:scale-[0.98] text-center truncate cursor-pointer"
+            className="py-1.5 px-1 rounded bg-[#145CFF] hover:bg-[#2570FF] text-white text-[8px] font-black uppercase tracking-wider transition-all active:scale-[0.98] text-center truncate cursor-pointer border-none shadow-sm"
             title="Get Homeowner Contact Info"
           >
             2. Get Contact Info
           </button>
           <button
             onClick={() => onSelectProduct("ROOF_INSPECTION_APPOINTMENTS")}
-            className="py-1.5 px-1 rounded bg-red-650 hover:bg-red-600 text-white text-[8px] font-black uppercase tracking-widest transition-all active:scale-[0.98] text-center truncate cursor-pointer flex items-center justify-center gap-0.5 shadow-md shadow-red-950/20"
+            className="py-1.5 px-1 rounded bg-[#0E8F6E] hover:bg-[#00A86B] text-white text-[8px] font-black uppercase tracking-widest transition-all active:scale-[0.98] text-center truncate cursor-pointer flex items-center justify-center gap-0.5 shadow-md shadow-[#0E8F6E]/20 border-none"
             title="Request Confirmed Roof Inspection Appointments"
           >
             <Sparkles size={8} className="animate-pulse" />
@@ -91,9 +91,9 @@ export function StormProductActionPanel({
 
       <div className="space-y-3">
         {/* CARD 1: Detailed Storm Report + Addresses */}
-        <div className="p-3 rounded-lg border bg-slate-900/40 border-slate-900 hover:border-slate-800 transition-all flex flex-col gap-2">
+        <div className="p-3 rounded-lg border bg-[#0B1220]/60 border-slate-900/60 hover:border-[#145CFF]/30 transition-all flex flex-col gap-2 shadow-sm">
           <div className="flex items-start gap-1.5">
-            <FileText size={13} className="text-blue-400 mt-0.5 shrink-0" />
+            <FileText size={13} className="text-[#145CFF] mt-0.5 shrink-0" />
             <div>
               <h4 className="font-extrabold text-[11px] text-slate-200">
                 Detailed Storm Report + Addresses
@@ -105,25 +105,25 @@ export function StormProductActionPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-slate-950/40 pt-1.5 text-[8.5px] text-slate-500">
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Storm event summary</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Hail/wind report details</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Affected area context</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Property addresses</div>
-            <div className="flex items-center gap-1 col-span-2"><Check size={8} className="text-emerald-500" /> Export-ready lead spreadsheet</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Storm event summary</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Hail/wind report details</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Affected area context</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Property addresses</div>
+            <div className="flex items-center gap-1 col-span-2"><Check size={8} className="text-[#0E8F6E]" /> Export-ready lead spreadsheet</div>
           </div>
 
           <button
             onClick={() => onSelectProduct("STORM_REPORT_ADDRESSES")}
-            className="w-full text-center py-1.5 px-2.5 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100 text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer"
+            className="w-full text-center py-1.5 px-2.5 rounded bg-[#145CFF] hover:bg-[#2570FF] text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none shadow-sm"
           >
             Generate Address List
           </button>
         </div>
 
         {/* CARD 2: Storm Report + Homeowner Contact Information */}
-        <div className="p-3 rounded-lg border bg-slate-900/40 border-slate-900 hover:border-slate-800 transition-all flex flex-col gap-2">
+        <div className="p-3 rounded-lg border bg-[#0B1220]/60 border-slate-900/60 hover:border-[#145CFF]/30 transition-all flex flex-col gap-2 shadow-sm">
           <div className="flex items-start gap-1.5">
-            <PhoneCall size={13} className="text-violet-400 mt-0.5 shrink-0" />
+            <PhoneCall size={13} className="text-[#145CFF] mt-0.5 shrink-0" />
             <div>
               <h4 className="font-extrabold text-[11px] text-slate-200">
                 Detailed Storm Report + Addresses + Full Homeowner Contact Information
@@ -135,35 +135,35 @@ export function StormProductActionPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-slate-950/40 pt-1.5 text-[8.5px] text-slate-500">
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Address list included</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Homeowner names</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Verified mobile numbers</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Email addresses</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Mailing addresses</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-emerald-500" /> Property/roof previews</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Address list included</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Homeowner names</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Verified mobile numbers</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Email addresses</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Mailing addresses</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Property/roof previews</div>
           </div>
 
           <button
             onClick={() => onSelectProduct("STORM_REPORT_CONTACT")}
-            className="w-full text-center py-1.5 px-2.5 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100 text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer"
+            className="w-full text-center py-1.5 px-2.5 rounded bg-[#145CFF] hover:bg-[#2570FF] text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none shadow-sm"
           >
             Get Homeowner Contact Info
           </button>
         </div>
 
         {/* CARD 3: Visually Emphasized - Exclusive Roof Inspection Appointments */}
-        <div className="p-3.5 rounded-lg border bg-gradient-to-br from-red-950/10 to-red-950/5 border-red-500/30 hover:border-red-500/50 shadow-lg shadow-red-950/10 transition-all flex flex-col gap-2 relative overflow-hidden group">
-          <span className="absolute top-2 right-2 px-1.5 py-0.2 rounded bg-red-500/15 border border-red-500/25 text-red-400 text-[7.5px] font-black uppercase tracking-widest leading-none">
+        <div className="p-3.5 rounded-lg border bg-gradient-to-br from-[#0E8F6E]/10 to-[#0E8F6E]/5 border-[#0E8F6E]/30 hover:border-[#0E8F6E]/50 shadow-lg shadow-[#0E8F6E]/10 transition-all flex flex-col gap-2 relative overflow-hidden group">
+          <span className="absolute top-2 right-2 px-1.5 py-0.2 rounded bg-[#0E8F6E]/15 border border-[#0E8F6E]/25 text-[#0E8F6E] text-[7.5px] font-black uppercase tracking-widest leading-none">
             Highest Value
           </span>
 
           <div className="flex items-start gap-1.5">
-            <CalendarDays size={14} className="text-red-500 mt-0.5 shrink-0" />
+            <CalendarDays size={14} className="text-[#0E8F6E] mt-0.5 shrink-0" />
             <div className="min-w-0">
               <h4 className="font-black text-[11.5px] text-slate-100 uppercase tracking-wide">
                 Exclusive Roof Inspection Appointments
               </h4>
-              <p className="text-[8.5px] text-red-400 font-extrabold uppercase mt-0.5 tracking-wider italic">
+              <p className="text-[8.5px] text-[#0E8F6E] font-extrabold uppercase mt-0.5 tracking-wider italic">
                 Raw data is optional. Booked inspections are the outcome.
               </p>
               <p className="text-[9.5px] text-slate-350 leading-snug mt-1">
@@ -172,20 +172,20 @@ export function StormProductActionPanel({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-red-900/10 pt-1.5 text-[8.5px] text-slate-400">
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> Target opportunities</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> Homeowner outreach</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> Interest qualification</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> Confirmed scheduling</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> Route-ready appointment</div>
-            <div className="flex items-center gap-1"><Check size={8} className="text-red-500" /> No-show replacements</div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-[#0E8F6E]/10 pt-1.5 text-[8.5px] text-slate-400">
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Target opportunities</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Homeowner outreach</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Interest qualification</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Confirmed scheduling</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> Route-ready appointment</div>
+            <div className="flex items-center gap-1"><Check size={8} className="text-[#0E8F6E]" /> No-show replacements</div>
           </div>
 
           <button
             onClick={() => onSelectProduct("ROOF_INSPECTION_APPOINTMENTS")}
-            className="w-full text-center py-2 px-3 rounded-lg bg-red-650 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1 shadow-md hover:shadow-red-950/40"
+            className="w-full text-center py-2 px-3 rounded-lg bg-[#0E8F6E] hover:bg-[#00A86B] text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1 shadow-md hover:shadow-[#0E8F6E]/40 border-none"
           >
-            <Sparkles size={11} className="animate-pulse text-red-200" />
+            <Sparkles size={11} className="animate-pulse text-[#0E8F6E]" />
             Request Inspection Appointments
           </button>
         </div>

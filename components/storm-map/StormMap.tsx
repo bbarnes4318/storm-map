@@ -1989,9 +1989,8 @@ export function StormMap({
         />
       )}
 
-      {/* Floating Control Toolbar */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
-        <div className="bg-slate-950/95 border border-slate-800 rounded-lg p-1.5 shadow-glass flex flex-col gap-1 pointer-events-auto">
+        <div className="bg-[#061A2F]/95 border border-[#145CFF]/20 rounded-lg p-1.5 shadow-glass flex flex-col gap-1 pointer-events-auto">
           <button
             onClick={handleGeolocate}
             className="p-2 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"

@@ -149,7 +149,7 @@ export function MapDetailOverlay({
       ref={cardRef}
       onClick={handleContainerClick}
       style={isMobile ? mobileStyle : desktopStyle}
-      className={`z-[1001] bg-[#090d16]/95 border border-slate-900/60 rounded-xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
+      className={`z-[1001] bg-[#061A2F]/95 border border-[#145CFF]/25 rounded-xl backdrop-blur-md flex flex-col transition-all duration-150 ease-out select-text ${
         isMobile
           ? "fixed bottom-3 left-3 right-3 w-[calc(100%-24px)] max-h-[75vh]"
           : "absolute w-[360px] max-h-[calc(100vh-80px)] pointer-events-auto"

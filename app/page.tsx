@@ -4,6 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, ActivePopupDetail } from "@/lib/weather/types";
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
+import { AppHeader } from "@/components/storm-map/AppHeader";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
 
 // Dynamically import the map component with SSR disabled to prevent Mapbox window reference errors
@@ -218,105 +219,106 @@ export default function StormMapPage() {
   };
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-slate-950 font-sans relative">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
+      <AppHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
-      {/* Collapsible Sidebar */}
-      <StormSidebar
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        reports={reports}
-        alerts={alerts}
-        onSelectCoords={handleSelectCoords}
-        onResetView={handleResetView}
-        onRefresh={() => fetchWeatherData(true)}
-        isRefreshing={isRefreshing}
-        lastUpdated={lastUpdated}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        selectedProperty={selectedProperty}
-        onUnlockProperty={handleUnlockProperty}
-        leads={leads}
-        onRemoveLead={handleRemoveLead}
-        onUpdateLead={handleUpdateLead}
-        activeDetail={activeDetail}
-        setActiveDetail={setActiveDetail}
-        onSelectProperty={handleLockProperty}
-        onAddLeads={handleAddLeads}
-      />
+      <div className="flex-1 w-full flex overflow-hidden relative">
+        {/* Collapsible Sidebar */}
+        <StormSidebar
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          reports={reports}
+          alerts={alerts}
+          onSelectCoords={handleSelectCoords}
+          onResetView={handleResetView}
+          onRefresh={() => fetchWeatherData(true)}
+          isRefreshing={isRefreshing}
+          lastUpdated={lastUpdated}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          selectedProperty={selectedProperty}
+          onUnlockProperty={handleUnlockProperty}
+          leads={leads}
+          onRemoveLead={handleRemoveLead}
+          onUpdateLead={handleUpdateLead}
+          activeDetail={activeDetail}
+          setActiveDetail={setActiveDetail}
+          onSelectProperty={handleLockProperty}
+          onAddLeads={handleAddLeads}
+        />
 
-      {/* Main Map Viewer Panel */}
-      <div className="flex-1 h-full relative flex flex-col">
-        
-        {/* Granular Error Banners (Non-crashing alerts with manual retry triggers) */}
-        {(errors.alerts || errors.reports) && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] max-w-md w-[90%] flex flex-col gap-1.5">
-            {errors.alerts && (
-              <div className="bg-red-950/90 border border-red-500/30 p-2.5 rounded-lg flex items-center justify-between text-xs text-red-200 shadow-glass backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <AlertCircle size={14} className="text-red-400 shrink-0" />
-                  <span>NWS Warning Polygons temporary unavailable.</span>
+        {/* Main Map Viewer Panel */}
+        <div className="flex-1 h-full relative flex flex-col">
+          
+          {/* Granular Error Banners (Non-crashing alerts with manual retry triggers) */}
+          {(errors.alerts || errors.reports) && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] max-w-md w-[90%] flex flex-col gap-1.5">
+              {errors.alerts && (
+                <div className="bg-red-950/90 border border-red-500/30 p-2.5 rounded-lg flex items-center justify-between text-xs text-red-200 shadow-glass backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} className="text-red-400 shrink-0" />
+                    <span>NWS Warning Polygons temporary unavailable.</span>
+                  </div>
+                  <button
+                    onClick={() => fetchWeatherData()}
+                    className="px-2 py-1 rounded bg-red-900/40 hover:bg-red-900 border border-red-500/20 text-[10px] font-extrabold uppercase transition-colors shrink-0"
+                  >
+                    Retry
+                  </button>
                 </div>
-                <button
-                  onClick={() => fetchWeatherData()}
-                  className="px-2 py-1 rounded bg-red-900/40 hover:bg-red-900 border border-red-500/20 text-[10px] font-extrabold uppercase transition-colors shrink-0"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            
-            {errors.reports && (
-              <div className="bg-red-950/90 border border-red-500/30 p-2.5 rounded-lg flex items-center justify-between text-xs text-red-200 shadow-glass backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <AlertCircle size={14} className="text-red-400 shrink-0" />
-                  <span>SPC Storm Reports temporary unavailable.</span>
+              )}
+              
+              {errors.reports && (
+                <div className="bg-red-950/90 border border-red-500/30 p-2.5 rounded-lg flex items-center justify-between text-xs text-red-200 shadow-glass backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} className="text-red-400 shrink-0" />
+                    <span>SPC Storm Reports temporary unavailable.</span>
+                  </div>
+                  <button
+                    onClick={() => fetchWeatherData()}
+                    className="px-2 py-1 rounded bg-red-900/40 hover:bg-red-900 border border-red-500/20 text-[10px] font-extrabold uppercase transition-colors shrink-0"
+                  >
+                    Retry
+                  </button>
                 </div>
-                <button
-                  onClick={() => fetchWeatherData()}
-                  className="px-2 py-1 rounded bg-red-900/40 hover:bg-red-900 border border-red-500/20 text-[10px] font-extrabold uppercase transition-colors shrink-0"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Dynamic Loading Panel */}
-        {isLoading ? (
-          <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-400">
-            <div className="w-12 h-12 border-4 border-red-600/10 border-t-red-600 rounded-full animate-spin"></div>
-            <div className="flex flex-col items-center gap-1.5 text-center">
-              <span className="text-xs uppercase font-extrabold tracking-wider text-slate-300 flex items-center gap-1.5">
-                <Zap size={14} className="text-red-500 animate-pulse" />
-                Initializing StormTarget Live
-              </span>
-              <p className="text-[10px] text-slate-600 font-medium max-w-[280px]">
-                Connecting to NOAA/NWS alerts API and parsing Storm Prediction Center climo reports...
-              </p>
+              )}
             </div>
-          </div>
-        ) : (
-          /* Client-side Hydrated Mapbox Canvas */
-          <StormMap
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            reports={reports}
-            alerts={alerts}
-            onRefresh={() => fetchWeatherData(true)}
-            isRefreshing={isRefreshing}
-            selectedProperty={selectedProperty}
-            onLockProperty={handleLockProperty}
-            onUnlockProperty={handleUnlockProperty}
-            leads={leads}
-            activeDetail={activeDetail}
-            setActiveDetail={setActiveDetail}
-            onAddLeads={handleAddLeads}
-          />
-        )}
+          )}
 
+          {/* Dynamic Loading Panel */}
+          {isLoading ? (
+            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-400">
+              <div className="w-12 h-12 border-4 border-red-600/10 border-t-red-600 rounded-full animate-spin"></div>
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                <span className="text-xs uppercase font-extrabold tracking-wider text-slate-300 flex items-center gap-1.5">
+                  <Zap size={14} className="text-red-500 animate-pulse" />
+                  Initializing StormTarget Live
+                </span>
+                <p className="text-[10px] text-slate-600 font-medium max-w-[280px]">
+                  Connecting to NOAA/NWS alerts API and parsing Storm Prediction Center climo reports...
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Client-side Hydrated Mapbox Canvas */
+            <StormMap
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              reports={reports}
+              alerts={alerts}
+              onRefresh={() => fetchWeatherData(true)}
+              isRefreshing={isRefreshing}
+              selectedProperty={selectedProperty}
+              onLockProperty={handleLockProperty}
+              onUnlockProperty={handleUnlockProperty}
+              leads={leads}
+              activeDetail={activeDetail}
+              setActiveDetail={setActiveDetail}
+              onAddLeads={handleAddLeads}
+            />
+          )}
 
-
+        </div>
       </div>
     </div>
   );

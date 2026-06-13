@@ -299,19 +299,12 @@ export function StormSidebar({
     <>
       {/* Sidebar container */}
       <div
-        className={`fixed md:relative top-0 left-0 h-full z-[1000] md:z-10 bg-slate-950 border-r border-slate-900 flex flex-col transition-all duration-300 ${
+        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 bg-slate-950 border-r border-[#145CFF]/15 flex flex-col transition-all duration-300 ${
           sidebarOpen ? "w-[360px]" : "w-0 md:w-0 overflow-hidden border-r-0"
         }`}
       >
         {/* Brand Header & Search Inline */}
-        <div className="py-1.5 px-2.5 border-b border-slate-900 flex items-center gap-2 bg-slate-950">
-          {/* Brand/Logo */}
-          <div className="flex items-center gap-1 shrink-0">
-            <Zap size={11} className="text-red-500 shrink-0" />
-            <h1 className="font-black text-[9.5px] tracking-wider text-slate-100 uppercase">
-              StormTarget
-            </h1>
-          </div>
+        <div className="py-2.5 px-3 border-b border-[#145CFF]/15 flex items-center gap-2 bg-slate-950">
 
           {/* Search Box Inline */}
           <form onSubmit={handleSearchSubmit} className="flex-1 relative">
@@ -535,12 +528,12 @@ export function StormSidebar({
         ) : null}
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-900 bg-slate-950">
+        <div className="flex border-b border-[#145CFF]/15 bg-slate-950">
           <button
             onClick={() => setActiveTab("filters")}
-            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
+            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
               activeTab === "filters"
-                ? "border-red-500 text-slate-200 bg-slate-900/20"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
@@ -548,24 +541,24 @@ export function StormSidebar({
           </button>
           <button
             onClick={() => setActiveTab("targets")}
-            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "targets"
-                ? "border-red-500 text-slate-200 bg-slate-900/20"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
             OPPORTUNITIES
             {clusters.length > 0 && (
-              <span className="px-1 py-0.2 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-[8px]">
+              <span className="px-1.5 py-0.5 rounded bg-[#145CFF]/10 text-[#145CFF] border border-[#145CFF]/20 text-[8px] font-bold">
                 {clusters.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("leads")}
-            className={`flex-1 py-2 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "leads"
-                ? "border-red-500 text-slate-200 bg-slate-900/20"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[#145CFF]/5"
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
@@ -1019,7 +1012,7 @@ export function StormSidebar({
                     <button
                       type="button"
                       onClick={handleExportCSV}
-                      className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-extrabold uppercase rounded shadow transition-colors cursor-pointer"
+                      className="flex items-center gap-1 px-2 py-1 bg-[#145CFF] hover:bg-[#2570FF] text-white text-[9px] font-extrabold uppercase rounded shadow transition-colors cursor-pointer border-none"
                     >
                       <Download size={10} />
                       Export CSV
@@ -1123,7 +1116,7 @@ export function StormSidebar({
       {/* Floating Toggle Button for Mobile */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-3 left-3 z-[1001] p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 shadow-glass md:hidden focus:outline-none"
+        className="fixed top-[68px] left-3 z-[1001] p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 shadow-glass md:hidden focus:outline-none"
       >
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
