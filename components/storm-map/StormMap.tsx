@@ -14,7 +14,7 @@ import { MapDetailOverlay } from "./MapDetailOverlay";
 import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCDescriptor } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { parseAlertCounties, resolveCountyBounds } from "@/lib/weather/county-resolver";
-import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
+import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle, ArrowLeft } from "lucide-react";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
 import { StormProductActionPanel } from "./enrichment/StormProductActionPanel";
 import { ProductRequestModal } from "./enrichment/ProductRequestModal";
@@ -1480,7 +1480,12 @@ export function StormMap({
 
     switch (activeDetail.type) {
       case "cluster": {
-        return undefined;
+        return (
+          <div className="flex items-center gap-2 py-2 px-3 rounded bg-[#145CFF]/10 border border-[#145CFF]/20 text-[#145CFF] text-[10px] font-black uppercase tracking-wider justify-center shadow-sm select-none">
+            <ArrowLeft size={12} className="shrink-0 animate-pulse text-[#145CFF]" />
+            <span>Choose Outreach Product in Left Sidebar</span>
+          </div>
+        );
       }
       case "warning": {
         const alert = activeDetail.data;
