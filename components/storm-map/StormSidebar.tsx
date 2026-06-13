@@ -364,6 +364,25 @@ export function StormSidebar({
             <>
               {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
               <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-1.5 space-y-1.5">
+                <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
+                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">Reports Summary</span>
+                  <div className="flex gap-0.5 bg-slate-950/60 p-0.5 rounded border border-slate-900/60">
+                    {(["24h", "today", "yesterday"] as const).map((win) => (
+                      <button
+                        key={win}
+                        type="button"
+                        onClick={() => onFiltersChange({ timeWindow: win })}
+                        className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold capitalize transition-all cursor-pointer ${
+                          filters.timeWindow === win
+                            ? "bg-red-500/15 text-slate-200"
+                            : "text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        {win === "24h" ? "24h" : win}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-4 gap-1 text-center">
                   <div className="bg-slate-950/60 p-1 rounded border border-slate-900">
                     <span className="text-sm font-black text-blue-400">{hailCount}</span>
@@ -388,7 +407,7 @@ export function StormSidebar({
                 </div>
               </div>
 
-              {/* 2. SPC Reports & Time Window (Side-by-Side Grid) */}
+              {/* 2. SPC Reports & Legend (Side-by-Side Grid) */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Show Reports</span>
@@ -433,22 +452,23 @@ export function StormSidebar({
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Time Window</span>
-                  <div className="grid grid-cols-3 gap-0.5">
-                    {(["24h", "today", "yesterday"] as const).map((win) => (
-                      <button
-                        key={win}
-                        type="button"
-                        onClick={() => onFiltersChange({ timeWindow: win })}
-                        className={`py-1 rounded border text-[8.5px] font-bold capitalize transition-colors text-center cursor-pointer ${
-                          filters.timeWindow === win
-                            ? "bg-red-500/15 border-red-500/40 text-slate-200"
-                            : "bg-slate-900/40 border-slate-850 text-slate-400 hover:bg-slate-900/70"
-                        }`}
-                      >
-                        {win === "24h" ? "24h" : win}
-                      </button>
-                    ))}
+                  <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider block">Supporting Context Only</span>
+                  <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900/60 space-y-1 select-none">
+                    <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider block border-b border-slate-900/40 pb-0.5">SPC Storm Reports</span>
+                    <div className="flex flex-col gap-1 text-[9px] font-semibold">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] shadow-glow-hail shrink-0"></span>
+                        <span className="text-slate-400">Hail Reports (Royal Blue)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#7C3AED] shadow-glow-wind shrink-0"></span>
+                        <span className="text-slate-400">Damaging Wind (Violet)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] shadow-glow-tornado shrink-0"></span>
+                        <span className="text-slate-400">Tornado Reports (Crimson Red)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
