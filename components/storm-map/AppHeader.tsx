@@ -5,9 +5,10 @@ import React from "react";
 interface AppHeaderProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  onOpenWelcome: () => void;
 }
 
-export function AppHeader({ sidebarOpen, setSidebarOpen }: AppHeaderProps) {
+export function AppHeader({ sidebarOpen, setSidebarOpen, onOpenWelcome }: AppHeaderProps) {
   return (
     <header className="w-full h-14 md:h-16 flex items-center justify-between px-4 bg-gradient-to-r from-[#071426] via-[#050B16] to-[#071426] border-b border-[#145CFF]/15 shadow-md shadow-black/10 z-[1002] shrink-0">
       {/* Left section: Logo & App Title */}
@@ -56,13 +57,20 @@ export function AppHeader({ sidebarOpen, setSidebarOpen }: AppHeaderProps) {
 
         {/* Console Subtitle */}
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400/90 border-l border-slate-800/80 pl-3 ml-1 hidden sm:inline-block">
-          Storm Intelligence Console
+          Storm Opportunity Console
         </span>
       </div>
 
-      {/* Right section: LIVE DATA Pill */}
+      {/* Right section: Help & Options and LIVE DATA Pill */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#0E8F6E]/10 border border-[#0E8F6E]/20 text-[#0E8F6E] text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+        <button
+          onClick={onOpenWelcome}
+          className="px-2.5 py-1 text-[9px] font-extrabold text-[#145CFF] hover:text-[#2570FF] uppercase tracking-wider bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.14)] border border-[rgba(20,92,255,0.20)] hover:border-[rgba(20,92,255,0.35)] rounded-md transition-all cursor-pointer flex items-center gap-1 select-none"
+          type="button"
+        >
+          Help & Options
+        </button>
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#0E8F6E]/10 border border-[#0E8F6E]/20 text-[#0E8F6E] text-[10px] font-extrabold uppercase tracking-wider shadow-sm select-none">
           <span className="relative flex h-1.5 w-1.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0E8F6E] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0E8F6E]"></span>

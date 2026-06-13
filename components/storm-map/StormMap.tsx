@@ -1948,6 +1948,18 @@ export function StormMap({
 
       </Map>
 
+      {/* Subtle Map Overlay Label */}
+      <div 
+        className="absolute top-4 left-4 z-[10] pointer-events-none select-none max-w-[200px] sm:max-w-xs p-3 rounded-lg border border-[rgba(20,92,255,0.16)] bg-[#061A2F]/80 backdrop-blur-md shadow-lg"
+      >
+        <h3 className="text-[10px] font-black uppercase tracking-wider text-[#F8FAFC]">
+          Live Storm Opportunity Map
+        </h3>
+        <p className="text-[9px] text-[#94A3B8] leading-tight mt-0.5">
+          Radar, storm reports, alerts, and property targeting in one view.
+        </p>
+      </div>
+
       {/* Cinematic Map Atmosphere Overlay */}
       <div
         className="absolute inset-0 pointer-events-none z-[5] mix-blend-screen"

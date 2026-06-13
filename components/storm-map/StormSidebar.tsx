@@ -3,7 +3,7 @@
 import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
 import { clusterStormReports, formatSPCDescriptor } from "@/lib/weather/geo";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Map, FileText, CalendarDays, ArrowRight } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
@@ -31,6 +31,9 @@ interface StormSidebarProps {
   setActiveDetail: (detail: ActivePopupDetail | null | ((prev: ActivePopupDetail | null) => ActivePopupDetail | null)) => void;
   onSelectProperty?: (property: SelectedPropertyTarget | null) => void;
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
+  activeTab: "start" | "filters" | "targets" | "leads";
+  onTabChange: (tab: "start" | "filters" | "targets" | "leads") => void;
+  onOpenRequestModal: (contextType: "storm-area" | "property" | "standalone", contextData: any, product: ProductType | "ZIP_REPORT") => void;
 }
 
 const US_STATES = [
@@ -67,23 +70,20 @@ export function StormSidebar({
   setActiveDetail,
   onSelectProperty,
   onAddLeads,
+  activeTab,
+  onTabChange,
+  onOpenRequestModal,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
-  const [modalOpen, setModalOpen] = React.useState(false);
-  const [modalProduct, setModalProduct] = React.useState<ProductType | null>(null);
-  const [modalContextType, setModalContextType] = React.useState<"storm-area" | "property" | null>(null);
-  const [modalContextData, setModalContextData] = React.useState<any | null>(null);
-
   const handleOpenRequestModal = (contextType: "storm-area" | "property", contextData: any, product: ProductType) => {
-    setModalContextType(contextType);
+    let formattedContext: any = null;
     if (contextType === "storm-area") {
       const cluster = contextData as TargetCluster;
-      setModalContextData({
+      formattedContext = {
         label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
         county: cluster.county,
         state: cluster.state,
@@ -92,10 +92,10 @@ export function StormSidebar({
         reportsCount: cluster.reportsCount,
         primaryThreat: cluster.mainStormType,
         score: cluster.totalScore,
-      });
+      };
     } else {
       const prop = contextData as SelectedPropertyTarget;
-      setModalContextData({
+      formattedContext = {
         fullAddress: prop.fullAddress,
         latitude: prop.latitude,
         longitude: prop.longitude,
@@ -103,10 +103,9 @@ export function StormSidebar({
         state: prop.state,
         postcode: prop.postcode,
         confidence: prop.confidence,
-      });
+      };
     }
-    setModalProduct(product);
-    setModalOpen(true);
+    onOpenRequestModal(contextType, formattedContext, product);
   };
 
   const handleCollectRadiusLeads = async (cluster: TargetCluster) => {
@@ -128,7 +127,7 @@ export function StormSidebar({
           type: "success",
           text: `Added ${res.leads.length} properties from this ${cluster.suggestedRadius} mi storm area.`
         });
-        setActiveTab("leads");
+        onTabChange("leads");
       } else {
         setStatusBanner({
           type: "info",
@@ -171,9 +170,9 @@ export function StormSidebar({
   // Switch to leads tab automatically when a property is selected
   React.useEffect(() => {
     if (selectedProperty) {
-      setActiveTab("leads");
+      onTabChange("leads");
     }
-  }, [selectedProperty]);
+  }, [selectedProperty, onTabChange]);
 
   // Geocoding search using free Nominatim API
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -535,17 +534,17 @@ export function StormSidebar({
         {/* Navigation Tabs */}
         <div className="flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md">
           <button
-            onClick={() => setActiveTab("filters")}
+            onClick={() => onTabChange("start")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
-              activeTab === "filters"
+              activeTab === "start"
                 ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
                 : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
             }`}
           >
-            FILTERS
+            START
           </button>
           <button
-            onClick={() => setActiveTab("targets")}
+            onClick={() => onTabChange("targets")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "targets"
                 ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
@@ -560,7 +559,7 @@ export function StormSidebar({
             )}
           </button>
           <button
-            onClick={() => setActiveTab("leads")}
+            onClick={() => onTabChange("leads")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
               activeTab === "leads"
                 ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
@@ -574,10 +573,125 @@ export function StormSidebar({
               </span>
             )}
           </button>
+          <button
+            onClick={() => onTabChange("filters")}
+            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
+              activeTab === "filters"
+                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+            }`}
+          >
+            FILTERS
+          </button>
         </div>
 
         {/* Tab Contents */}
         <div className="flex-1 overflow-y-auto p-2 space-y-2.5">
+          {activeTab === "start" && (
+            <div className="space-y-4 p-2.5 animate-in fade-in duration-200 text-[#94A3B8] text-[11px]">
+              {/* Headline & Body */}
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-black text-[#F8FAFC] uppercase tracking-wide leading-snug">
+                  Find Storm-Hit Homes <br /> Before Your Competitors Do
+                </h3>
+                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                  StormTarget Live turns hail, wind, and tornado activity into roofing opportunities by helping you find affected neighborhoods, generate property address lists, access homeowner contact data, and request booked inspection appointments.
+                </p>
+              </div>
+
+              {/* Quick Actions List */}
+              <div className="space-y-2 pt-2 border-t border-[#145CFF]/15">
+                <span className="text-[7.5px] font-black uppercase text-slate-505 tracking-widest block mb-1">
+                  Quick Actions
+                </span>
+                
+                <div className="flex flex-col gap-2">
+                  {/* Action 1: View Top Opportunities */}
+                  <button
+                    onClick={() => onTabChange("targets")}
+                    className="w-full text-left p-2.5 rounded-lg border bg-[#0B1220]/65 border-[#145CFF]/15 hover:border-[#145CFF]/40 hover:bg-[#145CFF]/5 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-extrabold text-[10.5px] text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5">
+                        <Zap size={11} className="text-[#145CFF]" />
+                        View Top Opportunities
+                      </div>
+                      <p className="text-[8.5px] text-slate-500">Go directly to storm strike clusters and active zones.</p>
+                    </div>
+                    <ArrowRight size={12} className="text-slate-600 group-hover:text-slate-350 transition-colors" />
+                  </button>
+
+                  {/* Action 2: Use Live Map */}
+                  <button
+                    onClick={() => onTabChange("targets")}
+                    className="w-full text-left p-2.5 rounded-lg border bg-[#0B1220]/65 border-[#145CFF]/15 hover:border-[#145CFF]/40 hover:bg-[#145CFF]/5 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-extrabold text-[10.5px] text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5">
+                        <Map size={11} className="text-[#145CFF]" />
+                        Use Live Map
+                      </div>
+                      <p className="text-[8.5px] text-slate-500">Explore and pan around the live storm intelligence map canvas.</p>
+                    </div>
+                    <ArrowRight size={12} className="text-slate-600 group-hover:text-slate-350 transition-colors" />
+                  </button>
+
+                  {/* Action 3: Request Hail Strike Report */}
+                  <button
+                    onClick={() => onOpenRequestModal("standalone", null, "ZIP_REPORT")}
+                    className="w-full text-left p-2.5 rounded-lg border bg-[#0B1220]/65 border-[#145CFF]/15 hover:border-[#145CFF]/40 hover:bg-[#145CFF]/5 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-extrabold text-[10.5px] text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText size={11} className="text-[#145CFF]" />
+                        Request Hail Strike Report
+                      </div>
+                      <p className="text-[8.5px] text-slate-500">Order targeted list for a ZIP code, neighborhood, or area.</p>
+                    </div>
+                    <ArrowRight size={12} className="text-slate-600 group-hover:text-slate-350 transition-colors" />
+                  </button>
+
+                  {/* Action 4: Request appointments */}
+                  <button
+                    onClick={() => onOpenRequestModal("standalone", null, "ROOF_INSPECTION_APPOINTMENTS")}
+                    className="w-full text-left p-2.5 rounded-lg border bg-gradient-to-r from-[#0B1220]/65 to-[#0E8F6E]/5 border-[#0E8F6E]/15 hover:border-[#0E8F6E]/30 hover:from-[#0B1220]/80 hover:to-[#0E8F6E]/10 transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-extrabold text-[10.5px] text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5">
+                        <CalendarDays size={11} className="text-[#0E8F6E]" />
+                        Request Appointments
+                      </div>
+                      <p className="text-[8.5px] text-slate-500">Get pre-set roofing roof inspection appointments.</p>
+                    </div>
+                    <ArrowRight size={12} className="text-slate-600 group-hover:text-[#0E8F6E] transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Stacked Summary of the 3 Options */}
+              <div className="space-y-2.5 pt-3 border-t border-[#145CFF]/15">
+                <span className="text-[7.5px] font-black uppercase text-slate-500 tracking-widest block mb-1">
+                  Contractor Growth Options
+                </span>
+
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-md bg-[#050B16]/40 border border-slate-900 leading-snug">
+                    <h4 className="font-extrabold text-[#F8FAFC] uppercase text-[9px]">1. StormTarget Live</h4>
+                    <p className="text-[8.5px] text-slate-400 mt-0.5">Use the map to find active storm areas, property addresses, and contact info yourself.</p>
+                  </div>
+                  <div className="p-2.5 rounded-md bg-[#050B16]/40 border border-slate-900 leading-snug">
+                    <h4 className="font-extrabold text-[#F8FAFC] uppercase text-[9px]">2. Hail Strike Report</h4>
+                    <p className="text-[8.5px] text-slate-400 mt-0.5">Order custom property lists by ZIP code or neighborhood without map work.</p>
+                  </div>
+                  <div className="p-2.5 rounded-md bg-[#050B16]/40 border border-slate-900 leading-snug">
+                    <h4 className="font-extrabold text-[#F8FAFC] uppercase text-[9px] text-[#0E8F6E]">3. Homeowner Appointments</h4>
+                    <p className="text-[8.5px] text-slate-400 mt-0.5">Have our team set roof inspection appointments for you in storm-hit areas.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === "filters" && (
             <>
               {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
@@ -1126,24 +1240,6 @@ export function StormSidebar({
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
 
-      {modalProduct && modalContextType && modalContextData && (
-        <ProductRequestModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          productType={modalProduct}
-          contextType={modalContextType}
-          contextData={modalContextData}
-          isEnrichmentEnabled={false}
-          onAddLeads={(newLeads) => {
-            if (onAddLeads) {
-              onAddLeads(newLeads);
-            }
-          }}
-          onTriggerEnrichmentFlow={() => {
-            setActiveTab("leads");
-          }}
-        />
-      )}
     </>
   );
 }

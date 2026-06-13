@@ -6,6 +6,9 @@ import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, Active
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AppHeader } from "@/components/storm-map/AppHeader";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
+import { StormTargetWelcomePanel } from "@/components/storm-map/StormTargetWelcomePanel";
+import { ProductRequestModal } from "@/components/storm-map/enrichment/ProductRequestModal";
+import { ProductType } from "@/components/storm-map/enrichment/StormProductActionPanel";
 
 // Dynamically import the map component with SSR disabled to prevent Mapbox window reference errors
 const StormMap = dynamic(() => import("@/components/storm-map/StormMap"), {
@@ -48,6 +51,70 @@ export default function StormMapPage() {
   const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
   const [activeDetail, setActiveDetail] = React.useState<ActivePopupDetail | null>(null);
   const [leads, setLeads] = React.useState<SelectedPropertyTarget[]>([]);
+
+  const [welcomeOpen, setWelcomeOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<"start" | "filters" | "targets" | "leads">("start");
+
+  // Lifted modal drawer states
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [modalProduct, setModalProduct] = React.useState<ProductType | "ZIP_REPORT" | null>(null);
+  const [modalContextType, setModalContextType] = React.useState<"storm-area" | "property" | "standalone" | null>(null);
+  const [modalContextData, setModalContextData] = React.useState<any | null>(null);
+
+  // Check localStorage for dismissal on mount to avoid hydration mismatch
+  React.useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem("stormtargetWelcomeDismissed");
+      if (dismissed !== "true") {
+        setWelcomeOpen(true);
+      }
+    } catch (e) {
+      console.error("Failed to check welcome dismissal", e);
+      setWelcomeOpen(true);
+    }
+  }, []);
+
+  const handleCloseWelcome = () => {
+    setWelcomeOpen(false);
+    try {
+      localStorage.setItem("stormtargetWelcomeDismissed", "true");
+    } catch (e) {
+      console.error("Failed to set welcome dismissal", e);
+    }
+  };
+
+  const handleOpenWelcome = () => {
+    setWelcomeOpen(true);
+  };
+
+  const handleOpenRequestModal = (
+    contextType: "storm-area" | "property" | "standalone",
+    contextData: any,
+    product: ProductType | "ZIP_REPORT"
+  ) => {
+    setModalContextType(contextType);
+    setModalContextData(contextData);
+    setModalProduct(product);
+    setModalOpen(true);
+  };
+
+  const handleSelectWelcomeOption = (option: "map" | "report" | "appointments") => {
+    setWelcomeOpen(false);
+    // Mark welcome panel as dismissed in localStorage too when selecting an option
+    try {
+      localStorage.setItem("stormtargetWelcomeDismissed", "true");
+    } catch (e) {
+      console.error("Failed to set welcome dismissal", e);
+    }
+
+    if (option === "map") {
+      setActiveTab("targets");
+    } else if (option === "report") {
+      handleOpenRequestModal("standalone", null, "ZIP_REPORT");
+    } else if (option === "appointments") {
+      handleOpenRequestModal("standalone", null, "ROOF_INSPECTION_APPOINTMENTS");
+    }
+  };
 
   // Load from localStorage on mount
   React.useEffect(() => {
@@ -220,7 +287,7 @@ export default function StormMapPage() {
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
-      <AppHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <AppHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onOpenWelcome={handleOpenWelcome} />
       
       <div className="flex-1 w-full flex overflow-hidden relative">
         {/* Collapsible Sidebar */}
@@ -245,6 +312,9 @@ export default function StormMapPage() {
           setActiveDetail={setActiveDetail}
           onSelectProperty={handleLockProperty}
           onAddLeads={handleAddLeads}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onOpenRequestModal={handleOpenRequestModal}
         />
 
         {/* Main Map Viewer Panel */}
@@ -320,6 +390,27 @@ export default function StormMapPage() {
 
         </div>
       </div>
+
+      {/* Onboarding Welcome Panel Overlay */}
+      <StormTargetWelcomePanel
+        isOpen={welcomeOpen}
+        onClose={handleCloseWelcome}
+        onSelectOption={handleSelectWelcomeOption}
+      />
+
+      {/* App-level Product Action Request Drawer Overlay */}
+      {modalOpen && modalProduct && modalContextType && (
+        <ProductRequestModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          productType={modalProduct}
+          contextType={modalContextType}
+          contextData={modalContextData}
+          isEnrichmentEnabled={false}
+          onAddLeads={handleAddLeads}
+          onTriggerEnrichmentFlow={() => setActiveTab("leads")}
+        />
+      )}
     </div>
   );
 }
