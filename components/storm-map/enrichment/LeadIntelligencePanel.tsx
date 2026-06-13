@@ -9,7 +9,8 @@ import {
   UnlockedDataDetailResponse, 
   EnrichmentApiError 
 } from "./enrichment-client";
-import { EnrichmentProductCards } from "./EnrichmentProductCards";
+import { StormProductActionPanel, ProductType } from "./StormProductActionPanel";
+import { ProductRequestModal } from "./ProductRequestModal";
 import { ComplianceAttestationModal } from "./ComplianceAttestationModal";
 import { UnlockLeadModal } from "./UnlockLeadModal";
 import { UnlockedLeadDetails } from "./UnlockedLeadDetails";
@@ -37,6 +38,9 @@ export function LeadIntelligencePanel({
   const [showAttestationModal, setShowAttestationModal] = React.useState(false);
   const [showUnlockModal, setShowUnlockModal] = React.useState(false);
   const [idempotencyKey, setIdempotencyKey] = React.useState<string>("");
+
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [modalProduct, setModalProduct] = React.useState<ProductType | null>(null);
 
   // Fetch unlocked data if unlockId is present in property UI state
   React.useEffect(() => {
@@ -141,12 +145,12 @@ export function LeadIntelligencePanel({
         </div>
       </div>
 
-      {/* Feature Disabled Banner (Correction 3) */}
+      {/* Feature Disabled Banner */}
       <div className="p-2.5 bg-red-950/10 border border-red-500/20 rounded-lg text-[9.5px] text-red-400 flex items-start gap-2 leading-relaxed">
         <AlertTriangle size={12} className="shrink-0 mt-0.5 text-red-500" />
         <div>
           <strong className="block font-bold">Feature Guard Active</strong>
-          Lead Intelligence is currently disabled on this server. The interface is ready, but purchases/access are not active yet.
+          Homeowner & Property Intelligence is currently disabled on this server. The interface is ready, but purchases/access are not active yet.
         </div>
       </div>
 
@@ -239,10 +243,22 @@ export function LeadIntelligencePanel({
             </p>
           </div>
 
-          {/* Product selection cards (Disabled when not authenticated, Correction 3: Always disabled in UI as API flag is off) */}
-          <EnrichmentProductCards 
-            onSelectProduct={handleSelectProduct}
-            disabled={!isSignedIn} 
+          {/* Product selection cards */}
+          <StormProductActionPanel
+            contextType="property"
+            contextData={{
+              fullAddress: selectedProperty.fullAddress,
+              latitude: selectedProperty.latitude,
+              longitude: selectedProperty.longitude,
+              city: selectedProperty.city,
+              state: selectedProperty.state,
+              postcode: selectedProperty.postcode,
+              confidence: selectedProperty.confidence || "unknown",
+            }}
+            onSelectProduct={(productType) => {
+              setModalProduct(productType);
+              setModalOpen(true);
+            }}
           />
         </div>
       )}
@@ -273,6 +289,29 @@ export function LeadIntelligencePanel({
             onTriggerAttestation={handleTriggerAttestation}
           />
         </>
+      )}
+
+      {modalProduct && (
+        <ProductRequestModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          productType={modalProduct}
+          contextType="property"
+          contextData={{
+            fullAddress: selectedProperty.fullAddress,
+            latitude: selectedProperty.latitude,
+            longitude: selectedProperty.longitude,
+            city: selectedProperty.city,
+            state: selectedProperty.state,
+            postcode: selectedProperty.postcode,
+            confidence: selectedProperty.confidence || "unknown",
+          }}
+          isEnrichmentEnabled={false}
+          onAddLeads={() => {}}
+          onTriggerEnrichmentFlow={() => {
+            handleSelectProduct("OWNER_CONTACT");
+          }}
+        />
       )}
     </div>
   );

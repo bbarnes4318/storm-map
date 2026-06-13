@@ -7,6 +7,8 @@ import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft,
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
+import { StormProductActionPanel, ProductType } from "./enrichment/StormProductActionPanel";
+import { ProductRequestModal } from "./enrichment/ProductRequestModal";
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -72,6 +74,41 @@ export function StormSidebar({
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [modalProduct, setModalProduct] = React.useState<ProductType | null>(null);
+  const [modalContextType, setModalContextType] = React.useState<"storm-area" | "property" | null>(null);
+  const [modalContextData, setModalContextData] = React.useState<any | null>(null);
+
+  const handleOpenRequestModal = (contextType: "storm-area" | "property", contextData: any, product: ProductType) => {
+    setModalContextType(contextType);
+    if (contextType === "storm-area") {
+      const cluster = contextData as TargetCluster;
+      setModalContextData({
+        label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
+        county: cluster.county,
+        state: cluster.state,
+        center: cluster.center,
+        radius: cluster.suggestedRadius,
+        reportsCount: cluster.reportsCount,
+        primaryThreat: cluster.mainStormType,
+        score: cluster.totalScore,
+      });
+    } else {
+      const prop = contextData as SelectedPropertyTarget;
+      setModalContextData({
+        fullAddress: prop.fullAddress,
+        latitude: prop.latitude,
+        longitude: prop.longitude,
+        city: prop.city,
+        state: prop.state,
+        postcode: prop.postcode,
+        confidence: prop.confidence,
+      });
+    }
+    setModalProduct(product);
+    setModalOpen(true);
+  };
+
   const handleCollectRadiusLeads = async (cluster: TargetCluster) => {
     setLoadingClusterId(cluster.id);
     setStatusBanner(null);
@@ -101,7 +138,7 @@ export function StormSidebar({
       } else if (err.code === "FEATURE_DISABLED") {
         setStatusBanner({
           type: "error",
-          text: "Lead Intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
+          text: "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
         });
       } else {
         setStatusBanner({
@@ -333,44 +370,148 @@ export function StormSidebar({
             </button>
           </div>
         )}
-        {/* Sleek Active Target Property Indicator */}
-        {selectedProperty && (
-          <div className="mx-2.5 mt-2 mb-1 p-2.5 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex flex-col gap-2 text-[10px] shrink-0 select-none animate-in fade-in slide-in-from-top-1 duration-150">
-            <div className="flex items-start gap-1.5 text-emerald-400">
-              <MapPin size={12} className="animate-pulse shrink-0 text-emerald-400 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Selected Property</span>
-                <span className="text-slate-100 font-bold block truncate" title={selectedProperty.fullAddress}>
-                  {selectedProperty.fullAddress}
-                </span>
-                {(selectedProperty.city || selectedProperty.state || selectedProperty.postcode) && (
-                  <span className="text-slate-400 text-[8.5px] block mt-0.5">
-                    {[
-                      selectedProperty.city,
-                      [selectedProperty.state, selectedProperty.postcode].filter(Boolean).join(" ")
-                    ].filter(Boolean).join(", ")}
+        {/* Unified Active Target Selection Panel (Property or Storm Area Context) */}
+        {selectedProperty ? (
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-slate-900/40 border border-emerald-500/25 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200">
+            {/* Selected Property Summary */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-1.5 min-w-0">
+                <MapPin size={13} className="text-emerald-500 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
+                    Selected Property
                   </span>
-                )}
+                  <h4 className="font-extrabold text-slate-100 text-[11px] leading-tight truncate" title={selectedProperty.fullAddress}>
+                    {selectedProperty.fullAddress}
+                  </h4>
+                  {(selectedProperty.city || selectedProperty.state || selectedProperty.postcode) && (
+                    <span className="text-slate-400 text-[9px] block mt-0.5">
+                      {[
+                        selectedProperty.city,
+                        [selectedProperty.state, selectedProperty.postcode].filter(Boolean).join(" ")
+                      ].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 pt-1.5 border-t border-emerald-950/45">
-              <button
-                type="button"
-                onClick={() => setActiveTab("leads")}
-                className="flex-1 text-center py-1 px-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-350 text-[8.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                View Property Details
-              </button>
               <button
                 type="button"
                 onClick={onUnlockProperty}
-                className="py-1 px-2.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-red-400 text-[8.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                className="text-[8.5px] font-black text-slate-505 hover:text-red-400 uppercase tracking-wider bg-slate-950 border border-slate-900 hover:border-red-950/30 px-1.5 py-0.5 rounded cursor-pointer shrink-0 transition-colors ml-2"
               >
                 Clear
               </button>
             </div>
+
+            {/* Masked Homeowner Contact Preview */}
+            <div className="p-2 bg-slate-950/50 border border-slate-900 rounded-md text-[9px] font-mono text-slate-400 space-y-1 relative overflow-hidden">
+              <div className="absolute inset-0 bg-slate-950/10 pointer-events-none flex items-center justify-center select-none opacity-20">
+                <span className="font-black text-[10px] tracking-widest text-slate-800 uppercase rotate-6">
+                  Preview
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-900/60 pb-1 mb-1">
+                <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider">Contact Preview</span>
+                <span className="text-[7.5px] font-bold text-emerald-400 bg-emerald-500/10 px-1 rounded">Available</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div><span className="text-slate-650 text-[7px] block uppercase">Owner</span><strong>J*** D****</strong></div>
+                <div><span className="text-slate-650 text-[7px] block uppercase">Phone</span><strong>(***) ***-1289</strong></div>
+                <div><span className="text-slate-650 text-[7px] block uppercase">Email</span><strong className="block truncate">j***@g****.com</strong></div>
+                <div><span className="text-slate-650 text-[7px] block uppercase">Roof</span><strong>Asphalt · 14-18 yrs</strong></div>
+              </div>
+            </div>
+
+            {/* Product Actions */}
+            <div className="border-t border-slate-950/40 pt-2">
+              <StormProductActionPanel
+                contextType="property"
+                contextData={{
+                  fullAddress: selectedProperty.fullAddress,
+                  latitude: selectedProperty.latitude,
+                  longitude: selectedProperty.longitude,
+                  city: selectedProperty.city,
+                  state: selectedProperty.state,
+                  postcode: selectedProperty.postcode,
+                  confidence: selectedProperty.confidence,
+                }}
+                onSelectProduct={(prod) => handleOpenRequestModal("property", selectedProperty, prod)}
+              />
+            </div>
           </div>
-        )}
+        ) : activeDetail && activeDetail.type === "cluster" ? (
+          <div className="mx-2.5 mt-2 mb-2 p-3 bg-slate-900/40 border border-red-500/20 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200">
+            {/* Selected Storm Area Summary */}
+            {(() => {
+              const cluster = activeDetail.data as TargetCluster;
+              return (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <Zap size={13} className="text-red-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
+                          Selected Storm Area
+                        </span>
+                        <h4 className="font-extrabold text-slate-100 text-[11px] leading-tight truncate uppercase">
+                          {cluster.county ? `${cluster.county} County` : "Storm Target"}, {cluster.state || "ST"}
+                        </h4>
+                        <span className="text-slate-400 text-[9px] block mt-0.5 truncate">
+                          Approx. Area: {formatSPCDescriptor(cluster.name)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetail(null)}
+                      className="text-[8.5px] font-black text-slate-505 hover:text-red-400 uppercase tracking-wider bg-slate-950 border border-slate-900 hover:border-red-950/30 px-1.5 py-0.5 rounded cursor-pointer shrink-0 transition-colors ml-2"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Metrics Row */}
+                  <div className="grid grid-cols-4 gap-1 text-center bg-slate-950/50 p-1.5 border border-slate-900 rounded-md text-[9px]">
+                    <div>
+                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Threat</span>
+                      <span className="font-extrabold text-slate-205 capitalize truncate block">{cluster.mainStormType}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Score</span>
+                      <span className="font-extrabold text-red-400">{cluster.totalScore}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Radius</span>
+                      <span className="font-extrabold text-slate-205">{cluster.suggestedRadius} mi</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-505 block text-[6.5px] uppercase font-bold">Reports</span>
+                      <span className="font-extrabold text-slate-205">{cluster.reportsCount}</span>
+                    </div>
+                  </div>
+
+                  {/* Product Actions */}
+                  <div className="border-t border-slate-950/40 pt-2">
+                    <StormProductActionPanel
+                      contextType="storm-area"
+                      contextData={{
+                        label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
+                        county: cluster.county,
+                        state: cluster.state,
+                        center: cluster.center,
+                        radius: cluster.suggestedRadius,
+                        reportsCount: cluster.reportsCount,
+                        primaryThreat: cluster.mainStormType,
+                        score: cluster.totalScore,
+                      }}
+                      onSelectProduct={(prod) => handleOpenRequestModal("storm-area", cluster, prod)}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        ) : null}
 
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-900 bg-slate-950">
@@ -965,6 +1106,25 @@ export function StormSidebar({
       >
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
+
+      {modalProduct && modalContextType && modalContextData && (
+        <ProductRequestModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          productType={modalProduct}
+          contextType={modalContextType}
+          contextData={modalContextData}
+          isEnrichmentEnabled={false}
+          onAddLeads={(newLeads) => {
+            if (onAddLeads) {
+              onAddLeads(newLeads);
+            }
+          }}
+          onTriggerEnrichmentFlow={() => {
+            setActiveTab("leads");
+          }}
+        />
+      )}
     </>
   );
 }

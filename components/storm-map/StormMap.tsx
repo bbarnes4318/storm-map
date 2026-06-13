@@ -16,6 +16,8 @@ import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { parseAlertCounties, resolveCountyBounds } from "@/lib/weather/county-resolver";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
+import { StormProductActionPanel } from "./enrichment/StormProductActionPanel";
+import { ProductRequestModal } from "./enrichment/ProductRequestModal";
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -151,6 +153,11 @@ export function StormMap({
   const [radiusStatusMsg, setRadiusStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [selectedCounty, setSelectedCounty] = React.useState<AlertTargetCounty | null>(null);
   const [resolvingCountyId, setResolvingCountyId] = React.useState<string | null>(null);
+
+  const [mapModalOpen, setMapModalOpen] = React.useState(false);
+  const [mapModalProduct, setMapModalProduct] = React.useState<any>(null);
+  const [mapModalContextType, setMapModalContextType] = React.useState<any>(null);
+  const [mapModalContextData, setMapModalContextData] = React.useState<any>(null);
 
   React.useEffect(() => {
     if (!activeDetail || activeDetail.type !== "warning") {
@@ -1463,76 +1470,36 @@ export function StormMap({
     switch (activeDetail.type) {
       case "cluster": {
         const cluster = activeDetail.data;
-        const isLoading = loadingClusterId === cluster.id;
         return (
-          <div className="flex flex-col gap-2">
-            {radiusStatusMsg && (
-              <div className={`p-2 rounded text-[9.5px] border ${
-                radiusStatusMsg.type === "success" ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400" :
-                radiusStatusMsg.type === "error" ? "bg-red-950/20 border-red-500/30 text-red-400" :
-                "bg-blue-950/20 border-blue-500/30 text-blue-400"
-              }`}>
-                {radiusStatusMsg.text}
-              </div>
-            )}
-            <button
-              disabled={isLoading}
-              onClick={async () => {
-                setLoadingClusterId(cluster.id);
-                setRadiusStatusMsg(null);
-                try {
-                  const res = await collectRadiusLeads(cluster.center[0], cluster.center[1], cluster.suggestedRadius, cluster.id);
-                  if (res.leads && res.leads.length > 0) {
-                    if (onAddLeads) {
-                      onAddLeads(res.leads);
-                    }
-                    setRadiusStatusMsg({
-                      type: "success",
-                      text: `Added ${res.leads.length} properties from ${cluster.suggestedRadius} mi storm opportunity area.`
-                    });
-                  } else {
-                    setRadiusStatusMsg({
-                      type: "info",
-                      text: "No available properties found for this radius."
-                    });
-                  }
-                } catch (err: any) {
-                  console.error(err);
-                  if (err.code === "PROVIDER_NOT_CONFIGURED" || err.message?.includes("provider")) {
-                    setRadiusStatusMsg({
-                      type: "error",
-                      text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
-                    });
-                  } else if (err.code === "FEATURE_DISABLED") {
-                    setRadiusStatusMsg({
-                      type: "error",
-                      text: "Lead Intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
-                    });
-                  } else {
-                    setRadiusStatusMsg({
-                      type: "error",
-                      text: err.message || "Failed to collect radius properties."
-                    });
-                  }
-                } finally {
-                  setLoadingClusterId(null);
-                }
-              }}
-              className="w-full text-center py-2 px-3 rounded bg-red-650 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[9.5px] font-black uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1"
-            >
-              {isLoading ? "Adding..." : "Add Properties in Radius"}
-            </button>
-            <button
-              onClick={() => {
-                handleClusterClick(cluster.center);
-                setActiveDetail(null);
-              }}
-              className="w-full text-center py-2 px-3 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 text-[9.5px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <Target size={11} className="text-slate-400" />
-              Zoom to Area
-            </button>
-          </div>
+          <StormProductActionPanel
+            contextType="storm-area"
+            contextData={{
+              label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
+              county: cluster.county,
+              state: cluster.state,
+              center: cluster.center,
+              radius: cluster.suggestedRadius,
+              reportsCount: cluster.reportsCount,
+              primaryThreat: cluster.mainStormType,
+              score: cluster.totalScore,
+            }}
+            compact={true}
+            onSelectProduct={(prod) => {
+              setMapModalProduct(prod);
+              setMapModalContextType("storm-area");
+              setMapModalContextData({
+                label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
+                county: cluster.county,
+                state: cluster.state,
+                center: cluster.center,
+                radius: cluster.suggestedRadius,
+                reportsCount: cluster.reportsCount,
+                primaryThreat: cluster.mainStormType,
+                score: cluster.totalScore,
+              });
+              setMapModalOpen(true);
+            }}
+          />
         );
       }
       case "warning": {
@@ -1993,6 +1960,22 @@ export function StormMap({
         >
           {renderOverlayBody()}
         </MapDetailOverlay>
+      )}
+
+      {mapModalProduct && mapModalContextType && mapModalContextData && (
+        <ProductRequestModal
+          isOpen={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          productType={mapModalProduct}
+          contextType={mapModalContextType}
+          contextData={mapModalContextData}
+          isEnrichmentEnabled={false}
+          onAddLeads={(newLeads) => {
+            if (onAddLeads) {
+              onAddLeads(newLeads);
+            }
+          }}
+        />
       )}
 
       {/* Floating Control Toolbar */}
