@@ -1305,7 +1305,7 @@ export function StormMap({
             {isLocked ? (
               <div className="w-full text-center py-2.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Locked for Lead Route
+                Selected for Lead Route
               </div>
             ) : (
               <button
@@ -1315,8 +1315,8 @@ export function StormMap({
                 }}
                 className="w-full text-center py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:shadow-red-900/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Lock size={11} />
-                Lock Address for Lead Route
+                <MapPin size={11} />
+                Access Homeowner Data
               </button>
             )}
           </div>

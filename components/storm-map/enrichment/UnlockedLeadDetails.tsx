@@ -14,7 +14,7 @@ export function UnlockedLeadDetails({
   unlockedData,
   onClose,
 }: UnlockedLeadDetailsProps) {
-  const [activeTab, setActiveTab] = React.useState<TabType>("overview");
+  const [activeTab, setActiveTab] = React.useState<TabType>("contact");
 
   // Helper to format values with fallback
   const renderVal = <T,>(
@@ -66,20 +66,20 @@ export function UnlockedLeadDetails({
 
   const tabs: { id: TabType; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: "overview", label: "Overview", icon: Info },
-    { id: "contact", label: "Contact", icon: User },
-    { id: "property", label: "Property", icon: Home },
-    { id: "roof", label: "Roof", icon: Shield },
-    { id: "storm", label: "Storm", icon: Zap },
-    { id: "compliance", label: "Compliance", icon: Clock },
+    { id: "contact", label: "Homeowner Contact", icon: User },
+    { id: "property", label: "Property Details", icon: Home },
+    { id: "roof", label: "Roof Intelligence", icon: Shield },
+    { id: "storm", label: "Storm Context", icon: Zap },
+    { id: "compliance", label: "Source & Compliance", icon: Clock },
   ];
 
   return (
     <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col min-h-[350px] max-h-[550px]">
-      {/* Unlocked Address Header (Always Visible) */}
+      {/* Selected Address Header (Always Visible) */}
       <div className="p-3 bg-slate-900/30 border-b border-slate-900 flex items-start gap-2 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
         <MapPin size={13} className="text-emerald-500 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Unlocked Target Address</span>
+          <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Selected Target Address</span>
           <span className="text-slate-200 font-black text-[11px] leading-tight block break-words">
             {unlockedData.addressText}
           </span>
@@ -117,7 +117,7 @@ export function UnlockedLeadDetails({
             </h4>
             <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
               <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Product Unlocked</span>
+                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Product Accessed</span>
                 <span className="text-slate-200 font-bold uppercase truncate">{unlockedData.productType}</span>
               </div>
               <div className="flex flex-col gap-0.5">
@@ -429,14 +429,14 @@ export function UnlockedLeadDetails({
               <div className="space-y-1">
                 <span className="text-slate-500 font-bold uppercase text-[7.5px] block">System Audit Info</span>
                 <p>Provider: <strong className="text-slate-200 uppercase">{unlockedData.providerSource}</strong></p>
-                <p>Unlock Transaction ID: <strong className="text-slate-200 font-mono">{unlockedData.unlockId}</strong></p>
+                <p>Access Transaction ID: <strong className="text-slate-200 font-mono">{unlockedData.unlockId}</strong></p>
               </div>
             </div>
 
             <div className="flex items-start gap-1.5 p-2.5 bg-red-950/10 border border-red-500/20 rounded-lg text-[9px] text-slate-400 leading-normal">
               <AlertTriangle size={12} className="text-red-500 shrink-0 mt-0.5" />
               <span>
-                <strong>Lawful Use Certification</strong>: This data was unlocked under signed compliance attestation. Marketing calls, SMS, and mailing outreach must comply with TCPA, DNC registry, CAN-SPAM, and state laws.
+                <strong>Lawful Use Certification</strong>: This data was accessed under signed compliance attestation. Marketing calls, SMS, and mailing outreach must comply with TCPA, DNC registry, CAN-SPAM, and state laws.
               </span>
             </div>
           </div>

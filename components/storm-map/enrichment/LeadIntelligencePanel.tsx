@@ -111,11 +111,10 @@ export function LeadIntelligencePanel({
       <div className="flex justify-between items-center px-0.5">
         <div>
           <h3 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide flex items-center gap-1">
-            <Lock size={11} className="text-red-500 shrink-0" />
-            Lead Intelligence
+            Homeowner & Property Intelligence
           </h3>
           <p className="text-[9px] text-slate-550 font-medium">
-            Unlock homeowner contact, property, and roof metrics.
+            Access homeowner contact information, property details, roof indicators, and storm context for this selected address.
           </p>
         </div>
 
@@ -126,7 +125,7 @@ export function LeadIntelligencePanel({
             <span className="font-extrabold text-slate-300">Credits: —</span>
           </div>
           <span className="text-[7.5px] text-slate-650 font-bold block mt-0.5 uppercase tracking-tight">
-            Purchase coming soon
+            Access coming soon
           </span>
         </div>
       </div>
@@ -147,7 +146,7 @@ export function LeadIntelligencePanel({
         <AlertTriangle size={12} className="shrink-0 mt-0.5 text-red-500" />
         <div>
           <strong className="block font-bold">Feature Guard Active</strong>
-          Lead intelligence unlocks are currently disabled. This feature is being prepared for launch.
+          Lead Intelligence is currently disabled on this server. The interface is ready, but purchases/access are not active yet.
         </div>
       </div>
 
@@ -155,15 +154,14 @@ export function LeadIntelligencePanel({
         <div className="py-8 flex flex-col items-center justify-center gap-2">
           <div className="w-5 h-5 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin"></div>
           <span className="text-[9px] text-slate-555 font-bold uppercase tracking-wider">
-            Loading unlocked intelligence...
+            Loading intelligence details...
           </span>
         </div>
       ) : unlockedData ? (
-        /* Unlocked Details View (Correction 2) */
+        /* Details View (Correction 2) */
         <UnlockedLeadDetails 
           unlockedData={unlockedData}
           onClose={() => {
-            // Re-lock or clear local state
             onUpdateLead({ ...selectedProperty, unlockId: undefined });
           }}
         />
@@ -176,15 +174,15 @@ export function LeadIntelligencePanel({
               <LogIn size={20} className="text-red-500/70" />
               <div className="space-y-0.5">
                 <span className="text-[10px] font-extrabold text-slate-200 block">
-                  Sign in to unlock lead intelligence
+                  Sign in to access homeowner contact information
                 </span>
                 <p className="text-[8.5px] text-slate-500 leading-normal max-w-[240px]">
-                  Authorized accounts can request pricing quotes and unlock roof and contact profiles.
+                  Authorized accounts can request pricing quotes and access roof and contact profiles.
                 </p>
               </div>
               <a
                 href="/storm-map/sign-in"
-                className="mt-1 px-3 py-1.5 rounded bg-red-650 hover:bg-red-600 border border-red-650 text-white text-[9px] font-extrabold uppercase transition-all shadow"
+                className="mt-1 px-3 py-1.5 rounded bg-red-650 hover:bg-red-600 border border-red-650 text-white text-[9px] font-extrabold uppercase transition-all shadow cursor-pointer"
               >
                 Sign In
               </a>
@@ -192,43 +190,52 @@ export function LeadIntelligencePanel({
           ) : null}
 
           {/* Masked Teaser (Correction 2) */}
-          <div className="bg-slate-900/10 border border-slate-900 rounded-lg p-3 space-y-2.5 relative overflow-hidden">
+          <div className="bg-slate-900/20 border border-slate-800 rounded-lg p-3.5 space-y-3 relative overflow-hidden shadow-md">
             {/* Absolute watermark overlay */}
-            <div className="absolute inset-0 bg-slate-950/20 pointer-events-none flex items-center justify-center select-none opacity-40">
-              <span className="font-black text-[22px] tracking-widest text-slate-900 uppercase rotate-12">
-                Sample Preview
+            <div className="absolute inset-0 bg-slate-950/20 pointer-events-none flex items-center justify-center select-none opacity-30">
+              <span className="font-black text-[24px] tracking-widest text-slate-800 uppercase rotate-12">
+                Illustrative Preview
               </span>
             </div>
 
-            <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-widest block">
-              Lead Intelligence Preview
-            </span>
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+              <span className="text-[9.5px] font-extrabold text-slate-200 uppercase tracking-wider block">
+                Homeowner Contact Preview
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7.5px] font-extrabold uppercase tracking-widest">
+                Illustrative Preview
+              </span>
+            </div>
 
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 font-mono text-[9.5px] text-slate-400">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 font-mono text-[9.5px] text-slate-350">
               <div>
-                <span className="text-slate-600 text-[8px] font-bold block uppercase tracking-tight">Owner</span>
-                <span className="font-bold">J*** D****</span>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Owner</span>
+                <span className="font-bold text-slate-200">J*** D****</span>
               </div>
               <div>
-                <span className="text-slate-600 text-[8px] font-bold block uppercase tracking-tight">Mobile</span>
-                <span className="font-bold">(***) ***-1289</span>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Mobile</span>
+                <span className="font-bold text-slate-200">(***) ***-1289</span>
               </div>
               <div>
-                <span className="text-slate-600 text-[8px] font-bold block uppercase tracking-tight">Email</span>
-                <span className="font-bold pr-1 truncate block">j***@g****.com</span>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Email</span>
+                <span className="font-bold text-slate-200 block truncate">j***@g****.com</span>
               </div>
               <div>
-                <span className="text-slate-600 text-[8px] font-bold block uppercase tracking-tight">Home Details</span>
-                <span className="font-bold">2,140 sq ft · 1998</span>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Mailing Address</span>
+                <span className="font-bold text-slate-200">Available with contact information</span>
               </div>
-              <div className="col-span-2 border-t border-slate-900/50 pt-1.5 mt-0.5">
-                <span className="text-slate-600 text-[8px] font-bold block uppercase tracking-tight">Roof & Proximity</span>
-                <span className="font-bold">Asphalt shingle · 14–18 yrs · 0.4 mi from hail</span>
+              <div>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Property Details</span>
+                <span className="font-bold text-slate-200">2,140 sq ft · Built 1998</span>
+              </div>
+              <div>
+                <span className="text-slate-500 text-[7.5px] font-black block uppercase tracking-wider mb-0.5">Roof</span>
+                <span className="font-bold text-slate-200">Asphalt shingle · Est. 14–18 yrs</span>
               </div>
             </div>
 
-            <p className="text-[8px] text-slate-550 leading-snug border-t border-slate-900/40 pt-1.5 italic">
-              “Preview is illustrative. Actual data availability varies by provider/source coverage.”
+            <p className="text-[8px] text-slate-550 leading-snug border-t border-slate-800/60 pt-2 italic">
+              Illustrative Preview: Actual data availability varies by provider/source coverage.
             </p>
           </div>
 

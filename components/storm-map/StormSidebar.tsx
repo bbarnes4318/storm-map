@@ -288,27 +288,36 @@ export function StormSidebar({
         )}
         {/* Sleek Active Target Property Indicator */}
         {selectedProperty && (
-          <div className="mx-2.5 mt-2 mb-1 p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex items-center justify-between gap-1.5 text-[9.5px] shrink-0 select-none animate-in fade-in slide-in-from-top-1 duration-150">
-            <div className="flex items-center gap-1.5 truncate text-emerald-400">
-              <MapPin size={11} className="animate-pulse shrink-0 text-emerald-400" />
-              <span className="truncate font-extrabold" title={selectedProperty.fullAddress}>
-                Active: <span className="text-slate-100 font-semibold">{selectedProperty.fullAddress}</span>
-              </span>
+          <div className="mx-2.5 mt-2 mb-1 p-2.5 bg-emerald-950/20 border border-emerald-500/25 rounded-md flex flex-col gap-2 text-[10px] shrink-0 select-none animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-start gap-1.5 text-emerald-400">
+              <MapPin size={12} className="animate-pulse shrink-0 text-emerald-400 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Selected Property</span>
+                <span className="text-slate-100 font-bold block truncate" title={selectedProperty.fullAddress}>
+                  {selectedProperty.fullAddress}
+                </span>
+                {(selectedProperty.city || selectedProperty.state || selectedProperty.postcode) && (
+                  <span className="text-slate-400 text-[8.5px] block mt-0.5">
+                    {[
+                      selectedProperty.city,
+                      [selectedProperty.state, selectedProperty.postcode].filter(Boolean).join(" ")
+                    ].filter(Boolean).join(", ")}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {activeTab !== "leads" && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("leads")}
-                  className="text-[8px] text-emerald-400 hover:text-emerald-350 font-extrabold uppercase shrink-0 px-1 py-0.5 rounded border border-emerald-500/30 bg-slate-950 hover:bg-slate-900 transition-colors"
-                >
-                  View Intel
-                </button>
-              )}
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-emerald-950/45">
+              <button
+                type="button"
+                onClick={() => setActiveTab("leads")}
+                className="flex-1 text-center py-1 px-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-350 text-[8.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                View Lead Intelligence
+              </button>
               <button
                 type="button"
                 onClick={onUnlockProperty}
-                className="text-[8px] text-slate-400 hover:text-red-400 font-extrabold uppercase shrink-0 px-1.5 py-0.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 transition-colors"
+                className="py-1 px-2.5 rounded border border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-red-400 text-[8.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Clear
               </button>
@@ -351,7 +360,7 @@ export function StormSidebar({
                 : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
-            LOCKED LEADS
+            LEAD INTEL
             {leads.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold animate-pulse">
                 {leads.length}
@@ -729,7 +738,7 @@ export function StormSidebar({
               <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
                 <div className="flex items-center gap-1.5">
                   <ClipboardList size={14} className="text-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Leads</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Targets</span>
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold">
                     {leads.length}
                   </span>
@@ -762,9 +771,9 @@ export function StormSidebar({
               {leads.length === 0 ? (
                 <div className="py-10 text-center border border-dashed border-slate-805 rounded-lg text-slate-500 flex flex-col items-center justify-center gap-2">
                   <MapPin size={20} className="text-slate-700 animate-pulse" />
-                  <p className="text-[11px] font-bold text-slate-350">No saved leads yet</p>
+                  <p className="text-[11px] font-bold text-slate-350">No saved targets yet</p>
                   <p className="text-[9.5px] text-slate-600 max-w-[220px] leading-normal">
-                    Click on any location or address on the map, then click <strong className="text-slate-400">"Lock Address for Lead Route"</strong> to add it here.
+                    Click on any location or address on the map, then click <strong className="text-slate-400">"Access Homeowner Data"</strong> to add it here.
                   </p>
                 </div>
               ) : (

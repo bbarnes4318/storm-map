@@ -55,7 +55,7 @@ export function UnlockLeadModal({
       if (err instanceof EnrichmentApiError) {
         if (err.code === "FEATURE_DISABLED") {
           setIsDisabledFeature(true);
-          setErrorMsg("Lead intelligence unlocks are currently disabled. This feature is being prepared for launch.");
+          setErrorMsg("Lead Intelligence is currently disabled on this server. The interface is ready, but purchases/access are not active yet.");
         } else if (err.code === "COMPLIANCE_ATTESTATION_REQUIRED") {
           onTriggerAttestation();
         } else if (err.code === "UNAUTHORIZED") {
@@ -118,7 +118,7 @@ export function UnlockLeadModal({
       if (err instanceof EnrichmentApiError) {
         if (err.code === "FEATURE_DISABLED") {
           setIsDisabledFeature(true);
-          setErrorMsg("Lead intelligence unlocks are currently disabled. This feature is being prepared for launch.");
+          setErrorMsg("Lead Intelligence is currently disabled on this server. The interface is ready, but purchases/access are not active yet.");
         } else if (err.code === "INSUFFICIENT_CREDITS") {
           setIsInsufficientCredits(true);
           setErrorMsg("Insufficient credits. Credit purchase is coming soon. Contact us to add credits.");
@@ -130,9 +130,9 @@ export function UnlockLeadModal({
           setErrorMsg("The quote expired. Generating a new quote...");
           fetchQuote();
         } else if (err.code === "UNAUTHORIZED") {
-          setErrorMsg("Session expired. Please sign in to purchase unlocks.");
+          setErrorMsg("Session expired. Please sign in to access details.");
         } else {
-          setErrorMsg(err.message || "An unexpected error occurred during unlock.");
+          setErrorMsg(err.message || "An unexpected error occurred during the request.");
         }
       } else {
         setErrorMsg("Failed to complete transaction. Please check connection and try again.");
@@ -145,9 +145,25 @@ export function UnlockLeadModal({
   const getProductName = (type: DataProductType): string => {
     switch (type) {
       case "PROPERTY_PROFILE": return "Property Profile";
-      case "OWNER_CONTACT": return "Owner Contact";
+      case "OWNER_CONTACT": return "Homeowner Contact Information";
       case "ROOF_INTELLIGENCE": return "Roof Intelligence";
       case "FULL_STORM_LEAD": return "Full Storm Lead";
+    }
+  };
+
+  const getButtonText = (): string => {
+    if (isUnlocking) return "Processing...";
+    const creditsSuffix = creditCost ? ` (${creditCost} Credits)` : "";
+    switch (productType) {
+      case "PROPERTY_PROFILE":
+      case "ROOF_INTELLIGENCE":
+        return `Access Details${creditsSuffix}`;
+      case "OWNER_CONTACT":
+        return `Get Contact Information${creditsSuffix}`;
+      case "FULL_STORM_LEAD":
+        return `Request Lead Intelligence${creditsSuffix}`;
+      default:
+        return `Access Details${creditsSuffix}`;
     }
   };
 
@@ -162,7 +178,7 @@ export function UnlockLeadModal({
           <div className="flex items-center gap-1.5 text-slate-200">
             <Coins size={14} className="text-red-500 shrink-0 animate-pulse" />
             <h3 className="font-extrabold text-[11px] uppercase tracking-wider">
-              Unlock Confirmation
+              Confirm Access
             </h3>
           </div>
           <button
@@ -262,7 +278,7 @@ export function UnlockLeadModal({
           <button
             onClick={handleUnlock}
             disabled={isLoadingQuote || isUnlocking || isDisabledFeature || isInsufficientCredits}
-            className={`px-3 py-1.5 rounded text-white font-extrabold uppercase transition-all flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded text-white font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer ${
               isDisabledFeature || isInsufficientCredits
                 ? "bg-slate-900 border border-slate-800 text-slate-600 cursor-not-allowed"
                 : isUnlocking
@@ -270,7 +286,7 @@ export function UnlockLeadModal({
                 : "bg-red-650 hover:bg-red-600 border border-red-650"
             }`}
           >
-            {isUnlocking ? "Unlocking..." : `Unlock for ${creditCost || "—"} Credits`}
+            {getButtonText()}
           </button>
         </div>
       </div>
