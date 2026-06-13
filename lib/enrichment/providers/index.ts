@@ -42,14 +42,14 @@ export function getProviderForProduct(productType: DataProductType): EnrichmentP
       routingChain = [attomProvider, batchDataProvider, mockProvider];
       break;
     case "OWNER_CONTACT":
-      routingChain = [batchDataProvider, trestleProvider, melissaProvider, mockProvider];
+      routingChain = [melissaProvider, batchDataProvider, trestleProvider, mockProvider];
       break;
     case "ROOF_INTELLIGENCE":
       routingChain = [eagleViewProvider, batchDataProvider, attomProvider, mockProvider];
       break;
     case "FULL_STORM_LEAD":
-      // Full composed bundle defaults to mock for now, will combine vendor inputs in Route Handlers
-      routingChain = [mockProvider];
+      // Full composed bundle — try melissa for contact, then fall back to mock
+      routingChain = [melissaProvider, mockProvider];
       break;
     default:
       throw new EnrichmentProviderError(

@@ -165,14 +165,16 @@ export function clusterStormReports(
           let val = parseFloat(r.magnitude!);
           if (val > 10) val = val / 100;
           return val;
-        });
+        })
+        .filter((v) => !isNaN(v) && isFinite(v));
       if (sizes.length > 0) {
         highestMagnitude = `${Math.max(...sizes).toFixed(2)} in`;
       }
     } else if (mainStormType === "wind") {
       const speeds = clusterReports
         .filter((r) => r.type === "wind" && r.magnitude)
-        .map((r) => parseFloat(r.magnitude!));
+        .map((r) => parseFloat(r.magnitude!))
+        .filter((v) => !isNaN(v) && isFinite(v));
       if (speeds.length > 0) {
         highestMagnitude = `${Math.max(...speeds)} mph`;
       }

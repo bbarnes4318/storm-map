@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getCurrentEnrichmentAccount, handleAuthError } from "@/lib/enrichment/auth";
 import { apiSuccess, apiError } from "@/lib/enrichment/api-response";
 import { getEnrichmentRouteGuardResult } from "@/lib/enrichment/route-guard";
+import { queryOverpassAddresses, OsmProviderError } from "@/lib/enrichment/providers/osm-radius-address";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,19 +15,9 @@ export async function POST(request: NextRequest) {
     // 2. Auth check
     const authContext = await getCurrentEnrichmentAccount(request);
 
-    // 3. Provider check (only allow mock mode for now, reject others as not configured)
-    const isMockMode = process.env.ENRICHMENT_MOCK_MODE === "true";
-    if (!isMockMode) {
-      return apiError(
-        "PROVIDER_NOT_CONFIGURED",
-        "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius.",
-        400
-      );
-    }
-
-    // 4. Parse payload
+    // 3. Parse payload
     const body = await request.json();
-    const { centerLat, centerLon, radiusMiles, opportunityId } = body;
+    const { centerLat, centerLon, radiusMiles, opportunityId, county, state, maxResults } = body;
 
     if (
       typeof centerLat !== "number" ||
@@ -36,76 +27,54 @@ export async function POST(request: NextRequest) {
       return apiError("INVALID_REQUEST", "Latitude, longitude and radius must be valid numbers.", 400);
     }
 
-    // 5. Generate mock properties geolocated in radius
-    const mockLeads = [];
-    const count = 15;
-    const streetNames = [
-      "Rosecrest Dr",
-      "Pinecrest Ave",
-      "Oakridge Ln",
-      "Maplewood Ct",
-      "Cedar Ridge Rd",
-      "Elmwood St",
-      "Sherwood Dr",
-      "Highland Ave",
-      "Brookside Way",
-      "Lakeside Dr"
-    ];
-    const cities = ["Charlotte", "Raleigh", "Greensboro", "Asheville", "Wilmington"];
+    // 4. Check provider configuration
+    const provider = process.env.RADIUS_ADDRESS_PROVIDER || "osm_overpass";
 
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * radiusMiles;
-      // Latitude conversion: 1 degree latitude = 69 miles
-      const latOffset = (distance * Math.sin(angle)) / 69;
-      // Longitude conversion: 1 degree longitude = 69 * cos(lat)
-      const cosLat = Math.cos((centerLat * Math.PI) / 180);
-      const lonOffset = (distance * Math.cos(angle)) / (69 * (cosLat === 0 ? 1 : cosLat));
-
-      const leadLat = centerLat + latOffset;
-      const leadLon = centerLon + lonOffset;
-      const houseNum = Math.floor(Math.random() * 9000) + 100;
-      const street = streetNames[Math.floor(Math.random() * streetNames.length)];
-      const city = cities[Math.floor(Math.random() * cities.length)];
-      const postcode = Math.floor(Math.random() * 90000) + 10000;
-
-      mockLeads.push({
-        id: `mock-radius-lead-${opportunityId || "opt"}-${i}-${Date.now()}`,
-        fullAddress: `${houseNum} ${street}, ${city}, NC ${postcode}`,
-        latitude: leadLat,
-        longitude: leadLon,
-        neighborhood: "Mock Neighborhood",
-        city,
-        county: "Mock County",
-        state: "NC",
-        postcode: String(postcode),
-        confidence: "exact",
-        source: "mock-provider",
-        locked: false,
-        contactPreview: {
-          firstName: "J***",
-          lastName: "D****",
-          phones: ["(***) ***-1289"],
-          emails: ["j***@g****.com"],
-          mailingAddress: "Available with Homeowner Contact Information",
-        },
-        propertyPreview: {
-          yearBuilt: "Built 1998",
-          squareFeet: "2,140 sq ft",
-          roof: "Asphalt shingle · Est. 14–18 yrs",
-        }
-      });
+    if (provider !== "osm_overpass") {
+      return apiError(
+        "PROVIDER_NOT_CONFIGURED",
+        "Bulk property lead collection is not enabled yet. Connect a radius-capable property/address provider to gather properties in this storm area.",
+        400
+      );
     }
+
+    // 5. Query OSM/Overpass for real address records
+    const result = await queryOverpassAddresses(centerLat, centerLon, radiusMiles, {
+      maxResults: typeof maxResults === "number" ? maxResults : undefined,
+      county: typeof county === "string" ? county : undefined,
+      state: typeof state === "string" ? state : undefined,
+      opportunityId: typeof opportunityId === "string" ? opportunityId : undefined,
+    });
 
     return apiSuccess({
       ok: true,
-      addedCount: mockLeads.length,
-      leads: mockLeads,
-      providerStatus: "mock"
+      addedCount: result.leads.length,
+      leads: result.leads,
+      source: "osm_overpass",
+      providerStatus: "configured",
+      message: result.message,
     });
-  } catch (err) {
+
+  } catch (err: any) {
+    // Handle auth errors
     const authErrorResponse = handleAuthError(err);
     if (authErrorResponse) return authErrorResponse;
+
+    // Handle OSM provider-specific errors
+    if (err instanceof OsmProviderError) {
+      if (err.code === "PROVIDER_TIMEOUT") {
+        return apiError(
+          "PROVIDER_TIMEOUT",
+          "Unable to gather address records from the radius provider right now. Please try again.",
+          504
+        );
+      }
+      return apiError(
+        "PROVIDER_ERROR",
+        "The address provider returned an error. Please try again.",
+        502
+      );
+    }
 
     console.error("[POST /api/enrichment/radius-leads] Unhandled error:", err);
     return apiError("INTERNAL_ERROR", "An internal error occurred.", 500);

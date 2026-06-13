@@ -72,7 +72,10 @@ export function ProductRequestModal({
         if (contextType === "storm-area") {
           const area = contextData as StormAreaContextData;
           // Trigger the API endpoint to fetch properties within radius
-          const res = await collectRadiusLeads(area.center[0], area.center[1], area.radius, "area-opt");
+          const res = await collectRadiusLeads(
+            area.center[0], area.center[1], area.radius, "area-opt",
+            { county: area.county, state: area.state }
+          );
           if (res.leads && res.leads.length > 0) {
             if (onAddLeads) {
               onAddLeads(res.leads);
@@ -131,7 +134,7 @@ export function ProductRequestModal({
         if (productType === "STORM_REPORT_ADDRESSES") {
           setStatusMsg({
             type: "error",
-            text: "Bulk property lead collection is not enabled yet. Connect a property/address provider to gather homeowners in this radius."
+            text: "Bulk property lead collection is not enabled yet. Connect a radius-capable property/address provider to gather properties in this storm area."
           });
         } else if (productType === "STORM_REPORT_CONTACT") {
           setStatusMsg({
@@ -154,6 +157,18 @@ export function ProductRequestModal({
         setStatusMsg({
           type: "info",
           text: "No homeowner contact match was found for this property."
+        });
+      // Provider timeout
+      } else if (errCode === "PROVIDER_TIMEOUT") {
+        setStatusMsg({
+          type: "error",
+          text: "Unable to gather address records from the radius provider right now. Please try again."
+        });
+      // Provider upstream error
+      } else if (errCode === "PROVIDER_ERROR") {
+        setStatusMsg({
+          type: "error",
+          text: "The address provider returned an error. Please try again."
         });
       // Authentication required
       } else if (errCode === "UNAUTHORIZED" || errStatus === 401) {

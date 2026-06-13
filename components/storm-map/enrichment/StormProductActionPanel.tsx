@@ -48,7 +48,7 @@ export function StormProductActionPanel({
     return (
       <div className="flex flex-col gap-2 pt-2 border-t border-slate-900/50 w-full">
         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block text-center mb-0.5">
-          Select Outreach Solution
+          Choose Outreach Product
         </span>
         <div className="grid grid-cols-3 gap-1.5 w-full">
           <button
@@ -82,12 +82,12 @@ export function StormProductActionPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between px-0.5">
         <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-wider">
-          Outreach Solutions
-        </span>
-        <span className="text-[8.5px] text-emerald-400 font-extrabold uppercase bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded">
-          Campaign Options
+          Choose Outreach Product
         </span>
       </div>
+      <p className="text-[9px] text-slate-500 leading-snug px-0.5 -mt-1">
+        Select how you want to turn this storm opportunity into roofing leads or appointments.
+      </p>
 
       <div className="space-y-3">
         {/* CARD 1: Detailed Storm Report + Addresses */}

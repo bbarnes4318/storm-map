@@ -1110,23 +1110,30 @@ export function StormMap({
 
             {/* Details */}
             <div className="space-y-2.5 text-xs text-slate-350">
-              <div className="bg-slate-900/20 border border-slate-850 p-3 rounded-lg flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider block">Recorded Magnitude</span>
-                  <p className="font-black text-slate-100 text-lg leading-tight mt-0.5">
-                    {report.type === "hail" && report.magnitude
-                      ? `${(parseFloat(report.magnitude) > 10 ? parseFloat(report.magnitude) / 100 : parseFloat(report.magnitude)).toFixed(2)} in Hail`
-                      : report.type === "wind" && report.magnitude
-                      ? `${report.magnitude} mph Wind`
-                      : report.type === "tornado"
-                      ? `${report.magnitude || "Reported"} Tornado`
-                      : "N/A"}
-                  </p>
-                </div>
-                <div className="flex-shrink-0 p-1.5 rounded-full bg-slate-950 border border-slate-800">
-                  <Sparkles size={16} className="text-slate-400" />
-                </div>
-              </div>
+              {(() => {
+                let magnitudeText: string | null = null;
+                if (report.type === "hail" && report.magnitude) {
+                  const val = parseFloat(report.magnitude) > 10 ? parseFloat(report.magnitude) / 100 : parseFloat(report.magnitude);
+                  if (!isNaN(val) && isFinite(val)) magnitudeText = `${val.toFixed(2)} in Hail`;
+                } else if (report.type === "wind" && report.magnitude) {
+                  const val = parseFloat(report.magnitude);
+                  if (!isNaN(val) && isFinite(val)) magnitudeText = `${val} mph Wind`;
+                  else if (report.magnitude && report.magnitude !== "UNK") magnitudeText = `${report.magnitude} Wind`;
+                } else if (report.type === "tornado") {
+                  magnitudeText = `${report.magnitude || "Reported"} Tornado`;
+                }
+                return magnitudeText ? (
+                  <div className="bg-slate-900/20 border border-slate-850 p-3 rounded-lg flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-slate-500 font-bold text-[8px] uppercase tracking-wider block">Recorded Magnitude</span>
+                      <p className="font-black text-slate-100 text-lg leading-tight mt-0.5">{magnitudeText}</p>
+                    </div>
+                    <div className="flex-shrink-0 p-1.5 rounded-full bg-slate-950 border border-slate-800">
+                      <Sparkles size={16} className="text-slate-400" />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
               
               <div className="grid grid-cols-2 gap-2 text-[10px]">
                 <div className="bg-slate-900/10 p-2.5 rounded border border-slate-850/60">
@@ -1194,11 +1201,13 @@ export function StormMap({
           <div className="space-y-3.5 select-none">
             {/* Area Name */}
             <div className="bg-slate-900/20 border border-slate-850/80 p-3 rounded-lg">
-              <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Target Cluster Zone</span>
-              <p className="font-black text-slate-100 text-sm">{cluster.name || "Unknown Area"}</p>
+              <span className="text-slate-500 font-bold block text-[8px] uppercase tracking-wider mb-1">Storm Opportunity</span>
+              <p className="font-black text-slate-100 text-sm uppercase">
+                {cluster.county ? `${cluster.county} County` : "Unknown County"}, {cluster.state || "ST"} Storm Opportunity
+              </p>
               <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
                 <MapPin size={10} className="text-slate-500" />
-                {cluster.county ? `${cluster.county} County, ` : ""}{cluster.state}
+                Approx. storm report area: {formatSPCDescriptor(cluster.name)}
               </p>
             </div>
 
@@ -1226,11 +1235,13 @@ export function StormMap({
             </div>
 
             {/* Magnitude & Radius */}
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="bg-slate-900/20 p-2.5 rounded border border-slate-850">
-                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Highest Magnitude</span>
-                <p className="font-semibold text-slate-200">{cluster.highestMagnitude || "N/A"}</p>
-              </div>
+            <div className={`grid ${cluster.highestMagnitude && cluster.highestMagnitude !== "N/A" && !cluster.highestMagnitude.includes("NaN") && !cluster.highestMagnitude.includes("undefined") && !cluster.highestMagnitude.includes("null") ? "grid-cols-2" : "grid-cols-1"} gap-2 text-[10px]`}>
+              {cluster.highestMagnitude && cluster.highestMagnitude !== "N/A" && !cluster.highestMagnitude.includes("NaN") && !cluster.highestMagnitude.includes("undefined") && !cluster.highestMagnitude.includes("null") && (
+                <div className="bg-slate-900/20 p-2.5 rounded border border-slate-850">
+                  <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Highest Magnitude</span>
+                  <p className="font-semibold text-slate-200">{cluster.highestMagnitude}</p>
+                </div>
+              )}
               <div className="bg-slate-900/20 p-2.5 rounded border border-slate-850">
                 <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1">Target Radius</span>
                 <p className="font-semibold text-slate-200">{cluster.suggestedRadius} mi</p>
@@ -1253,7 +1264,7 @@ export function StormMap({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
                             <span className="font-black text-slate-300 uppercase text-[9px] tracking-wide" style={{ color: rColor }}>{r.type}</span>
-                            {r.magnitude && <span className="text-slate-400 font-semibold">{r.magnitude}</span>}
+                            {r.magnitude && !String(r.magnitude).includes("NaN") && r.magnitude !== "UNK" && <span className="text-slate-400 font-semibold">{r.magnitude}</span>}
                           </div>
                           {r.location && <span className="text-slate-500 block truncate mt-0.5">{r.location}, {r.county}</span>}
                           {r.comments && <span className="text-slate-550 italic block truncate mt-0.5">"{r.comments}"</span>}

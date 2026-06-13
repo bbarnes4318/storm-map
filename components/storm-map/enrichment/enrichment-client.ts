@@ -106,20 +106,31 @@ export interface CollectRadiusLeadsResponse {
   addedCount: number;
   leads: any[];
   providerStatus: string;
+  source?: string;
+  message?: string;
 }
 
 export async function collectRadiusLeads(
   centerLat: number,
   centerLon: number,
   radiusMiles: number,
-  opportunityId: string
+  opportunityId: string,
+  options?: { county?: string; state?: string; maxResults?: number }
 ): Promise<CollectRadiusLeadsResponse> {
   const response = await fetch("/storm-map/api/enrichment/radius-leads", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ centerLat, centerLon, radiusMiles, opportunityId }),
+    body: JSON.stringify({
+      centerLat,
+      centerLon,
+      radiusMiles,
+      opportunityId,
+      county: options?.county,
+      state: options?.state,
+      maxResults: options?.maxResults,
+    }),
   });
   return handleResponse<CollectRadiusLeadsResponse>(response);
 }

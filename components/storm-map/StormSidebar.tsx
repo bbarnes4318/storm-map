@@ -113,19 +113,26 @@ export function StormSidebar({
     setLoadingClusterId(cluster.id);
     setStatusBanner(null);
     try {
-      const res = await collectRadiusLeads(cluster.center[0], cluster.center[1], cluster.suggestedRadius, cluster.id);
+      const res = await collectRadiusLeads(
+        cluster.center[0],
+        cluster.center[1],
+        cluster.suggestedRadius,
+        cluster.id,
+        { county: cluster.county, state: cluster.state }
+      );
       if (res.leads && res.leads.length > 0) {
         if (onAddLeads) {
           onAddLeads(res.leads);
         }
         setStatusBanner({
           type: "success",
-          text: `Added ${res.leads.length} properties from ${cluster.suggestedRadius} mi storm opportunity area.`
+          text: `Added ${res.leads.length} properties from this ${cluster.suggestedRadius} mi storm area.`
         });
+        setActiveTab("leads");
       } else {
         setStatusBanner({
           type: "info",
-          text: "No available properties found for this radius."
+          text: res.message || "No address-tagged properties were returned for this storm area."
         });
       }
     } catch (err: any) {
@@ -133,12 +140,22 @@ export function StormSidebar({
       if (err.code === "PROVIDER_NOT_CONFIGURED" || err.message?.includes("provider")) {
         setStatusBanner({
           type: "error",
-          text: "Bulk property lead collection is not enabled yet. Connect a property/contact provider to gather homeowners in this radius."
+          text: "Bulk property lead collection is not enabled yet. Connect a radius-capable property/address provider to gather properties in this storm area."
         });
       } else if (err.code === "FEATURE_DISABLED") {
         setStatusBanner({
           type: "error",
           text: "Lead intelligence is currently disabled on this server. The interface is ready, but homeowner/contact access is not active yet."
+        });
+      } else if (err.code === "PROVIDER_TIMEOUT") {
+        setStatusBanner({
+          type: "error",
+          text: "Unable to gather address records from the radius provider right now. Please try again."
+        });
+      } else if (err.code === "PROVIDER_ERROR") {
+        setStatusBanner({
+          type: "error",
+          text: "The address provider returned an error. Please try again."
         });
       } else {
         setStatusBanner({
@@ -211,8 +228,13 @@ export function StormSidebar({
 
   const handleExportCSV = () => {
     if (leads.length === 0) return;
-    const headers = ["Address", "City", "State", "ZIP", "County", "Latitude", "Longitude", "Neighborhood", "Source", "Confidence", "Contact Available", "Property Details Available"];
-    const rows = leads.map((lead) => [
+    const headers = [
+      "Address", "City", "State", "ZIP", "County",
+      "Latitude", "Longitude",
+      "Source", "Confidence",
+      "Contact Available", "Property Details Available"
+    ];
+    const rows = leads.map((lead: any) => [
       `"${lead.fullAddress.replace(/"/g, '""')}"`,
       `"${(lead.city || "").replace(/"/g, '""')}"`,
       `"${(lead.state || "").replace(/"/g, '""')}"`,
@@ -220,11 +242,10 @@ export function StormSidebar({
       `"${(lead.county || "").replace(/"/g, '""')}"`,
       lead.latitude,
       lead.longitude,
-      `"${(lead.neighborhood || "").replace(/"/g, '""')}"`,
-      `"${lead.source}"`,
-      `"${lead.confidence}"`,
-      lead.unlockId ? "Yes" : "Preview Available",
-      lead.unlockId ? "Yes" : "Preview Available"
+      `"${lead.source || "map-click"}"`,
+      `"${lead.confidence || "unknown"}"`,
+      lead.contactAvailable === false ? "No" : lead.unlockId ? "Yes" : "Preview Available",
+      lead.propertyDetailsAvailable === false ? "No" : lead.unlockId ? "Yes" : "Preview Available"
     ]);
     const csvContent = [
       headers.join(","),
