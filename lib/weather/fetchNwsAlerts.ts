@@ -139,6 +139,7 @@ export async function fetchNwsAlerts(): Promise<NwsAlert[]> {
         instruction,
         polygon,
         source: "NWS Alerts API",
+        geocode: props.geocode,
       });
     }
 

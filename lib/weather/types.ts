@@ -26,6 +26,7 @@ export type NwsAlert = {
   instruction?: string;
   polygon?: [number, number][]; // Array of [lat, lon] coordinates representing warning bounds
   source: string;
+  geocode?: { SAME?: string[]; UGC?: string[] };
 };
 
 export type StormMapStyle = "streets" | "dark" | "satellite";
@@ -94,4 +95,15 @@ export type ActivePopupDetail = {
   type: "storm-report" | "cluster" | "warning" | "address";
   coordinates: [number, number]; // [lat, lon]
   data: any;
+};
+
+export type AlertTargetCounty = {
+  countyName: string;
+  stateCode?: string;
+  fips?: string;
+  label: string;
+  bbox?: [number, number, number, number]; // west, south, east, north
+  centroid?: [number, number]; // lat, lon unless otherwise documented
+  source: "nws-geocode" | "areaDesc" | "county-bounds" | "fallback";
+  confidence: "exact" | "approximate";
 };

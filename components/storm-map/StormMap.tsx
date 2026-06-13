@@ -7,12 +7,13 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Import types and custom components
-import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster, ActivePopupDetail } from "@/lib/weather/types";
+import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, TargetCluster, ActivePopupDetail, AlertTargetCounty } from "@/lib/weather/types";
 import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { MapDetailOverlay } from "./MapDetailOverlay";
 import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCDescriptor } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
+import { parseAlertCounties, resolveCountyBounds } from "@/lib/weather/county-resolver";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
 
@@ -148,6 +149,14 @@ export function StormMap({
   const [cursor, setCursor] = React.useState<string>("auto");
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [radiusStatusMsg, setRadiusStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [selectedCounty, setSelectedCounty] = React.useState<AlertTargetCounty | null>(null);
+  const [resolvingCountyId, setResolvingCountyId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!activeDetail || activeDetail.type !== "warning") {
+      setSelectedCounty(null);
+    }
+  }, [activeDetail]);
 
   const mapRef = React.useRef<MapRef>(null);
   const geocodeAbortControllerRef = React.useRef<AbortController | null>(null);
@@ -344,6 +353,38 @@ export function StormMap({
     }
   };
 
+  const handleCountyClick = async (county: AlertTargetCounty, alert: NwsAlert) => {
+    const countyKey = `${county.countyName}_${county.stateCode || ""}`;
+    setResolvingCountyId(countyKey);
+    try {
+      const resolved = await resolveCountyBounds(county, alert);
+      setSelectedCounty(resolved);
+      const map = mapRef.current?.getMap();
+      if (map) {
+        if (resolved.bbox) {
+          const [west, south, east, north] = resolved.bbox;
+          map.fitBounds([[west, south], [east, north]], {
+            padding: 50,
+            duration: 1500,
+            essential: true
+          });
+        } else if (resolved.centroid) {
+          const [lat, lon] = resolved.centroid;
+          map.easeTo({
+            center: [lon, lat],
+            zoom: 10,
+            duration: 1500,
+            essential: true
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to resolve county bounds:", err);
+    } finally {
+      setResolvingCountyId(null);
+    }
+  };
+
   // Canvas map click geocoding interceptor for warnings/reports clicks
   const handleMapClick = (event: MapLayerMouseEvent) => {
     const map = event.target;
@@ -505,6 +546,7 @@ export function StormMap({
       if (clickedWarning) {
         const props = clickedWarning.properties;
         if (props) {
+          const fullAlert = alerts.find((a) => String(a.id) === String(props.id));
           setActiveDetail({
             type: "warning",
             coordinates: [event.lngLat.lat, event.lngLat.lng],
@@ -520,6 +562,7 @@ export function StormMap({
               areaDesc: props.areaDesc,
               instruction: props.instruction || "",
               source: props.source,
+              geocode: fullAlert?.geocode,
             },
           });
           return;
@@ -684,6 +727,44 @@ export function StormMap({
     if (!filters.center || filters.radius <= 0) return null;
     return createGeoJsonCircle(filters.center, filters.radius);
   }, [filters.center, filters.radius]);
+
+  const countyPolygonGeoJSON = React.useMemo(() => {
+    if (!selectedCounty || !selectedCounty.bbox) return null;
+    const [west, south, east, north] = selectedCounty.bbox;
+    return {
+      type: "Feature" as const,
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [
+          [
+            [west, south],
+            [east, south],
+            [east, north],
+            [west, north],
+            [west, south]
+          ]
+        ]
+      },
+      properties: {
+        name: selectedCounty.label
+      }
+    };
+  }, [selectedCounty]);
+
+  const countyPointGeoJSON = React.useMemo(() => {
+    if (!selectedCounty || !selectedCounty.centroid) return null;
+    const [lat, lon] = selectedCounty.centroid;
+    return {
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [lon, lat]
+      },
+      properties: {
+        name: selectedCounty.countyName
+      }
+    };
+  }, [selectedCounty]);
 
   // Generate cluster boundary concentric rings GeoJSON polygon FeatureCollection
   const clusterCirclesGeoJson = React.useMemo(() => {
@@ -1220,10 +1301,53 @@ export function StormMap({
               </div>
 
               <div>
-                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-0.5">Target Counties</span>
-                <p className="text-slate-350 text-[11px] leading-relaxed max-h-20 overflow-y-auto pr-1 custom-scrollbar">
-                  {alert.areaDesc}
-                </p>
+                <span className="text-slate-550 font-bold block text-[8px] uppercase tracking-wider mb-1.5">Target Counties</span>
+                {(() => {
+                  const counties = parseAlertCounties(alert);
+                  if (counties.length === 0) {
+                    return (
+                      <p className="text-slate-500 italic text-[10px]">
+                        No target counties returned in alert metadata.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
+                      {counties.map((c) => {
+                        const cKey = `${c.countyName}_${c.stateCode || ""}`;
+                        const isResolving = resolvingCountyId === cKey;
+                        const isSelected = selectedCounty?.countyName === c.countyName && selectedCounty?.stateCode === c.stateCode;
+                        return (
+                          <button
+                            key={cKey}
+                            type="button"
+                            disabled={isResolving}
+                            onClick={() => handleCountyClick(c, alert)}
+                            className={`px-2 py-1 rounded text-[9.5px] font-black uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1 ${
+                              isSelected
+                                ? "bg-cyan-950/40 border-cyan-500 text-cyan-400 font-extrabold"
+                                : "bg-slate-900 border-slate-800 text-slate-300 hover:text-slate-100 hover:border-slate-700"
+                            }`}
+                            title="Zoom to County"
+                          >
+                            <MapPin size={9} className={isSelected ? "text-cyan-400" : "text-slate-500"} />
+                            {c.label}
+                            {isResolving && (
+                              <span className="w-2.5 h-2.5 border border-slate-500/20 border-t-slate-300 rounded-full animate-spin ml-0.5"></span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="p-2.5 bg-slate-900/20 border border-slate-850 rounded-lg text-[9.5px] text-slate-400 leading-normal flex items-start gap-1.5">
+                <AlertTriangle size={12} className="shrink-0 text-slate-500 mt-0.5" />
+                <span>
+                  These are affected warning counties, not property addresses. Click a house or house number on the map to view property and homeowner information.
+                </span>
               </div>
 
               {alert.instruction && (
@@ -1731,6 +1855,52 @@ export function StormMap({
                 "line-color": "#ef4444",
                 "line-width": 1.5,
                 "line-dasharray": [4, 4],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Selected County Bounding Box Highlight */}
+        {countyPolygonGeoJSON && (
+          <Source id="selected-county" type="geojson" data={countyPolygonGeoJSON}>
+            <Layer
+              id="selected-county-fill"
+              type="fill"
+              paint={{
+                "fill-color": "#06b6d4",
+                "fill-opacity": 0.05,
+              }}
+            />
+            <Layer
+              id="selected-county-outline"
+              type="line"
+              paint={{
+                "line-color": "#06b6d4",
+                "line-width": 2.2,
+                "line-dasharray": [3, 3],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Selected County Name Label at Centroid */}
+        {countyPointGeoJSON && (
+          <Source id="selected-county-label" type="geojson" data={countyPointGeoJSON}>
+            <Layer
+              id="selected-county-name-label"
+              type="symbol"
+              layout={{
+                "text-field": ["get", "name"],
+                "text-size": 10.5,
+                "text-justify": "center",
+                "text-anchor": "center",
+                "text-allow-overlap": true,
+                "text-ignore-placement": true,
+              }}
+              paint={{
+                "text-color": "#22d3ee",
+                "text-halo-color": "#090d16",
+                "text-halo-width": 2,
               }}
             />
           </Source>
