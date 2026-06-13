@@ -138,6 +138,17 @@ export function StormMap({
   React.useEffect(() => {
     if (filters.center) {
       const targetZoom = filters.targetZoom ?? (viewState.zoom < 7 ? 8.5 : viewState.zoom);
+      
+      // Prevent redundant camera flights if we are already focused on the target coordinates & zoom
+      const isAlreadyAtTarget =
+        Math.abs(viewState.latitude - filters.center[0]) < 0.001 &&
+        Math.abs(viewState.longitude - filters.center[1]) < 0.001 &&
+        Math.abs(viewState.zoom - targetZoom) < 0.1;
+
+      if (isAlreadyAtTarget) {
+        return;
+      }
+
       setViewState((prev) => ({
         ...prev,
         latitude: filters.center![0],
