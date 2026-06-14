@@ -20,9 +20,9 @@ import { collectRadiusLeads } from "./enrichment-client";
 interface ProductRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  productType: ProductType | "ZIP_REPORT";
-  contextType: "storm-area" | "property" | "standalone";
-  contextData?: any;
+  productType: ProductType;
+  contextType: "storm-area" | "property";
+  contextData: any;
   isEnrichmentEnabled: boolean;
   onAddLeads?: (leads: any[]) => void;
   onTriggerEnrichmentFlow?: () => void; // Trigger original quote/unlock flow if property contact info is chosen
@@ -42,11 +42,6 @@ export function ProductRequestModal({
   const [isLoading, setIsLoading] = React.useState(false);
   const [statusMsg, setStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [collectedLeads, setCollectedLeads] = React.useState<any[]>([]);
-  
-  // Custom states for ZIP report mode
-  const [zipOrArea, setZipOrArea] = React.useState("");
-  const [notes, setNotes] = React.useState("");
-  const [contactMethod, setContactMethod] = React.useState("");
 
   // Mount check to safe-guard SSR portals
   React.useEffect(() => {
@@ -59,9 +54,6 @@ export function ProductRequestModal({
       setStatusMsg(null);
       setIsLoading(false);
       setCollectedLeads([]);
-      setZipOrArea("");
-      setNotes("");
-      setContactMethod("");
     }
   }, [isOpen, productType, contextType]);
 
@@ -75,8 +67,6 @@ export function ProductRequestModal({
         return "Homeowner Contact Data";
       case "ROOF_INSPECTION_APPOINTMENTS":
         return "Inspection Appointments";
-      case "ZIP_REPORT":
-        return "Request Hail Strike Report";
     }
   };
 
@@ -88,8 +78,6 @@ export function ProductRequestModal({
         return <PhoneCall className={colorClass || "text-[#145CFF]"} size={16} />;
       case "ROOF_INSPECTION_APPOINTMENTS":
         return <CalendarDays className={colorClass || "text-[#0E8F6E]"} size={16} />;
-      case "ZIP_REPORT":
-        return <FileText className={colorClass || "text-[#145CFF]"} size={16} />;
     }
   };
 
@@ -205,71 +193,6 @@ export function ProductRequestModal({
 
   // Render content depending on active product selected
   const renderDrawerBody = () => {
-    // Standalone Hail Strike Report Request (ZIP_REPORT)
-    if (productType === "ZIP_REPORT") {
-      return (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="p-4 bg-[#0B1220]/60 border border-[#145CFF]/15 rounded-lg space-y-3 shadow-md">
-            <div className="flex items-center gap-2 text-[#F8FAFC]">
-              <FileText size={18} className="text-[#145CFF]" />
-              <h4 className="font-extrabold text-xs uppercase tracking-wider">Hail Strike Report Requests</h4>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              This option will allow contractors to request targeted hail-strike lead reports by ZIP code, neighborhood, or selected storm area.
-            </p>
-            <div className="p-2.5 bg-[#145CFF]/5 border border-[#145CFF]/10 rounded text-[9px] text-[#145CFF] font-extrabold tracking-wide uppercase italic">
-              Lead reports are generated on demand.
-            </div>
-            <p className="text-[9.5px] text-slate-500 leading-relaxed pt-1 border-t border-slate-900">
-              Our GIS desk compiles property records, homeowner registration directories, and historical radar overlays to deliver ready-to-use spreadsheet files.
-            </p>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-slate-500 tracking-wider">
-                ZIP Code or Target Area
-              </label>
-              <input
-                type="text"
-                value={zipOrArea}
-                onChange={(e) => setZipOrArea(e.target.value)}
-                placeholder="e.g. 73072, Norman OK, or North Dallas"
-                className="w-full bg-[#050B16]/60 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] placeholder:text-slate-600"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-slate-500 tracking-wider">
-                Notes / Target Market Details
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Describe specific criteria, minimum roof age, or target neighborhoods..."
-                rows={3}
-                className="w-full bg-[#050B16]/60 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] resize-none placeholder:text-slate-600"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-slate-550 tracking-wider">
-                Preferred Contact Method
-              </label>
-              <input
-                type="text"
-                value={contactMethod}
-                onChange={(e) => setContactMethod(e.target.value)}
-                placeholder="Email address or Phone number"
-                className="w-full bg-[#050B16]/60 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] placeholder:text-slate-600"
-              />
-            </div>
-            <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-lg text-[9px] text-amber-500/80 leading-relaxed">
-              <strong>Notice:</strong> Standalone report requesting is currently in beta/waitlist mode. Submitting this form adds your request to our priority queue but will not perform a live charge or active data generation yet.
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     // 1. SUCCESS STATE (Currently only STORM_REPORT_ADDRESSES can succeed inline in this drawer)
     if (productType === "STORM_REPORT_ADDRESSES" && collectedLeads.length > 0) {
       return (
@@ -411,23 +334,6 @@ export function ProductRequestModal({
         );
       }
 
-      // Blocked: running standalone (requires a storm opportunity area selected)
-      if (contextType === "standalone" || !contextData) {
-        return (
-          <div className="space-y-4">
-            <div className="p-4 bg-[#0B1220]/60 border border-amber-500/20 rounded-lg space-y-3 shadow-md">
-              <div className="flex items-center gap-2 text-[#F8FAFC]">
-                <FileText size={18} className="text-amber-500" />
-                <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">Select a Storm Opportunity First</h4>
-              </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Choose a storm opportunity from the map or Opportunities tab before generating an address list.
-              </p>
-            </div>
-          </div>
-        );
-      }
-
       // Actionable: storm-area selected
       return (
         <div className="space-y-4 animate-in fade-in duration-200">
@@ -479,9 +385,8 @@ export function ProductRequestModal({
   const isActionDisabled = () => {
     if (isLoading) return true;
     if (productType === "ROOF_INSPECTION_APPOINTMENTS") return true;
-    if (productType === "ZIP_REPORT") return true;
     if (productType === "STORM_REPORT_CONTACT" && contextType === "storm-area") return true;
-    if (productType === "STORM_REPORT_ADDRESSES" && (contextType === "property" || contextType === "standalone" || !contextData)) return true;
+    if (productType === "STORM_REPORT_ADDRESSES" && contextType === "property") return true;
     return false;
   };
 
@@ -506,7 +411,7 @@ export function ProductRequestModal({
   const portalNode = (
     <div className="fixed inset-0 z-[2099] flex justify-end">
       {/* Backdrop overlay */}
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      {backdropHtml}
 
       {/* Drawer slide-out panel */}
       <div 
