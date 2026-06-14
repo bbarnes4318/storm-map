@@ -425,76 +425,8 @@ export function StormSidebar({
             </button>
           </div>
         )}
-        {/* Unified Active Target Selection Panel (Property or Storm Area Context) */}
-        {selectedProperty ? (
-          <div className="mx-2.5 mt-2 mb-2 p-3 bg-[#0B1930]/60 border border-[#145CFF]/20 rounded-lg flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4 shadow-lg shadow-black/10">
-            {/* Selected Property Summary */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-1.5 min-w-0">
-                <MapPin size={13} className="text-[#0E8F6E] mt-0.5 shrink-0" />
-                <div className="min-w-0">
-                  <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">
-                    Selected Property
-                  </span>
-                  <h4 className="font-extrabold text-[#F8FAFC] text-[11px] leading-tight truncate" title={selectedProperty.fullAddress}>
-                    {selectedProperty.fullAddress}
-                  </h4>
-                  {(selectedProperty.city || selectedProperty.state || selectedProperty.postcode) && (
-                    <span className="text-slate-400 text-[9px] block mt-0.5">
-                      {[
-                        selectedProperty.city,
-                        [selectedProperty.state, selectedProperty.postcode].filter(Boolean).join(" ")
-                      ].filter(Boolean).join(", ")}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onUnlockProperty}
-                className="text-[8.5px] font-bold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] px-2 py-0.5 rounded transition-all cursor-pointer shrink-0 ml-2"
-              >
-                Clear
-              </button>
-            </div>
-
-            {/* Masked Homeowner Contact Preview */}
-            <div className="p-2 bg-slate-950/50 border border-slate-900 rounded-md text-[9px] font-mono text-slate-400 space-y-1 relative overflow-hidden">
-              <div className="absolute inset-0 bg-slate-950/10 pointer-events-none flex items-center justify-center select-none opacity-20">
-                <span className="font-black text-[10px] tracking-widest text-slate-800 uppercase rotate-6">
-                  Preview
-                </span>
-              </div>
-              <div className="flex justify-between items-center border-b border-slate-900/60 pb-1 mb-1">
-                <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider">Contact Preview</span>
-                <span className="text-[7.5px] font-bold text-emerald-400 bg-emerald-500/10 px-1 rounded">Available</span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                <div><span className="text-slate-650 text-[7px] block uppercase">Owner</span><strong>J*** D****</strong></div>
-                <div><span className="text-slate-650 text-[7px] block uppercase">Phone</span><strong>(***) ***-1289</strong></div>
-                <div><span className="text-slate-650 text-[7px] block uppercase">Email</span><strong className="block truncate">j***@g****.com</strong></div>
-                <div><span className="text-slate-650 text-[7px] block uppercase">Roof</span><strong>Asphalt · 14-18 yrs</strong></div>
-              </div>
-            </div>
-
-            {/* Product Actions */}
-            <div className="border-t border-slate-950/40 pt-2">
-              <StormProductActionPanel
-                contextType="property"
-                contextData={{
-                  fullAddress: selectedProperty.fullAddress,
-                  latitude: selectedProperty.latitude,
-                  longitude: selectedProperty.longitude,
-                  city: selectedProperty.city,
-                  state: selectedProperty.state,
-                  postcode: selectedProperty.postcode,
-                  confidence: selectedProperty.confidence,
-                }}
-                onSelectProduct={(prod) => handleOpenRequestModal("property", selectedProperty, prod)}
-              />
-            </div>
-          </div>
-        ) : activeDetail && activeDetail.type === "cluster" ? (
+        {/* Unified Active Target Selection Panel (Storm Area Context) */}
+        {activeDetail && activeDetail.type === "cluster" ? (
           <div className="mx-2.5 mt-2 mb-2 p-3 bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.20)] rounded-xl flex flex-col gap-2.5 shrink-0 select-none animate-in fade-in duration-200 max-h-[380px] md:max-h-[420px] overflow-y-auto custom-scrollbar pb-4 shadow-lg shadow-black/30 backdrop-blur-md">
             {/* Selected Storm Area Summary */}
             {(() => {
@@ -1193,16 +1125,6 @@ export function StormSidebar({
 
           {activeTab === "leads" && (
             <div className="space-y-4">
-              {selectedProperty && (
-                <div className="p-2.5 bg-slate-900/10 border border-slate-900 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
-                  <LeadIntelligencePanel
-                    selectedProperty={selectedProperty}
-                    onUpdateLead={onUpdateLead}
-                    onClearProperty={onUnlockProperty}
-                  />
-                </div>
-              )}
-
               <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
                 <div className="flex items-center gap-1.5">
                   <ClipboardList size={14} className="text-emerald-500 animate-pulse" />

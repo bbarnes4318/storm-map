@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, ActivePopupDetail } from "@/lib/weather/types";
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AppHeader } from "@/components/storm-map/AppHeader";
+import { LeadIntelligencePanel } from "@/components/storm-map/enrichment/LeadIntelligencePanel";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
 
 // Dynamically import the map component with SSR disabled to prevent Mapbox window reference errors
@@ -309,23 +310,39 @@ export default function StormMapPage() {
                 </p>
               </div>
             </div>
-          ) : (
-            /* Client-side Hydrated Mapbox Canvas */
-            <StormMap
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              reports={reports}
-              alerts={alerts}
-              onRefresh={() => fetchWeatherData(true)}
-              isRefreshing={isRefreshing}
-              selectedProperty={selectedProperty}
-              onLockProperty={handleLockProperty}
-              onUnlockProperty={handleUnlockProperty}
-              leads={leads}
-              activeDetail={activeDetail}
-              setActiveDetail={setActiveDetail}
-              onAddLeads={handleAddLeads}
-            />
+            <>
+              /* Client-side Hydrated Mapbox Canvas */
+              <StormMap
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                reports={reports}
+                alerts={alerts}
+                onRefresh={() => fetchWeatherData(true)}
+                isRefreshing={isRefreshing}
+                selectedProperty={selectedProperty}
+                onLockProperty={handleLockProperty}
+                onUnlockProperty={handleUnlockProperty}
+                leads={leads}
+                activeDetail={activeDetail}
+                setActiveDetail={setActiveDetail}
+                onAddLeads={handleAddLeads}
+              />
+
+              {/* Redesigned Floating Lead Target Info Panel */}
+              {selectedProperty && (
+                <div className="fixed bottom-0 left-0 right-0 md:absolute md:top-4 md:left-4 md:bottom-auto md:right-auto z-[999] w-full md:w-[410px] max-h-[75vh] md:max-h-[calc(100vh-96px)] overflow-hidden rounded-t-[24px] md:rounded-[24px] bg-[#060D1E]/90 backdrop-blur-md border-t md:border border-slate-500/18 shadow-2xl flex flex-col animate-in slide-in-from-bottom md:slide-in-from-left duration-300">
+                  <LeadIntelligencePanel
+                    selectedProperty={selectedProperty}
+                    onUpdateLead={handleUpdateLead}
+                    onClearProperty={handleUnlockProperty}
+                    leads={leads}
+                    onRemoveLead={handleRemoveLead}
+                    onAddLeads={handleAddLeads}
+                    filters={filters}
+                  />
+                </div>
+              )}
+            </>
           )}
 
         </div>

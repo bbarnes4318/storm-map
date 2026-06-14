@@ -74,7 +74,7 @@ export function UnlockedLeadDetails({
   ];
 
   return (
-    <div className="bg-slate-950 border border-slate-900 rounded-lg overflow-hidden flex flex-col min-h-[350px] max-h-[550px]">
+    <div className="flex flex-col min-h-[350px] max-h-[550px] overflow-hidden">
       {/* Selected Address Header (Always Visible) */}
       <div className="p-3 bg-slate-900/30 border-b border-slate-900 flex items-start gap-2 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
         <MapPin size={13} className="text-emerald-500 shrink-0 mt-0.5" />
