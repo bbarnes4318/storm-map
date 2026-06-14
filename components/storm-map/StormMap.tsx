@@ -2062,23 +2062,7 @@ export function StormMap({
         />
       )}
 
-      {filters.searchStatus === "empty" && (
-        <div className="absolute inset-0 z-[8] flex flex-col items-center justify-center p-6 text-center bg-[#050B16]/85 backdrop-blur-[4px] select-none pointer-events-auto">
-          <div className="max-w-md space-y-4">
-            <div className="w-16 h-16 rounded-full bg-[#145CFF]/10 border border-[#145CFF]/30 flex items-center justify-center mx-auto text-[#145CFF]">
-              <Target size={32} className="animate-pulse" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-extrabold text-base text-slate-100 uppercase tracking-wider">
-                Start With Your Storm Market
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                Choose a state and county to begin scanning live storm activity.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         <div 

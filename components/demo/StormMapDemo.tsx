@@ -31,6 +31,8 @@ import {
 } from "@/lib/weather/types";
 import { getCountyByStateAndName } from "@/lib/geo/us-counties";
 import { LeadIntelligencePanel } from "@/components/storm-map/enrichment/LeadIntelligencePanel";
+import { AppHeader } from "@/components/storm-map/AppHeader";
+import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import DemoProgress from "./DemoProgress";
 import DemoMarketSelector from "./DemoMarketSelector";
 import DemoProductCards from "./DemoProductCards";
@@ -131,6 +133,90 @@ export default function StormMapDemo() {
   const [reports, setReports] = React.useState<StormReport[]>([]);
   const [alerts, setAlerts] = React.useState<NwsAlert[]>([]);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
+
+  const handleFiltersChange = (newFilters: Partial<StormFilterState>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
+
+  const handleSelectCoords = (coords: [number, number], label: string, targetZoom?: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      center: coords,
+      searchQuery: label,
+      targetZoom: targetZoom,
+      radius: prev.radius === 0 ? 50 : prev.radius,
+    }));
+  };
+
+  const handleResetView = () => {
+    setFilters({
+      searchQuery: "",
+      state: "",
+      radius: 15,
+      center: null,
+      targetZoom: undefined,
+      showHail: true,
+      showWind: true,
+      showTornado: true,
+      showAlerts: true,
+      showRadar: true,
+      radarOpacity: 1.0,
+      timeWindow: "24h",
+      mapStyle: "dark",
+      showNeighborhoodLabels: true,
+      showHouseNumbers: true,
+      showBuildings: true,
+      selectedCounty: undefined,
+      selectedCountyFull: undefined,
+      selectedCountyFips: undefined,
+      countyBbox: undefined,
+      searchStatus: "empty",
+    });
+    setStep(2);
+  };
+
+  const handleRemoveLead = (leadId: string) => {
+    const updatedLeads = leads.filter((l) => l.id !== leadId);
+    setLeads(updatedLeads);
+    if (selectedProperty && selectedProperty.id === leadId) {
+      setSelectedProperty(null);
+    }
+  };
+
+  const handleUpdateLead = (updatedLead: SelectedPropertyTarget) => {
+    const updated = leads.map((l) => (l.id === updatedLead.id ? updatedLead : l));
+    setLeads(updated);
+    if (selectedProperty && selectedProperty.id === updatedLead.id) {
+      setSelectedProperty(updatedLead);
+    }
+  };
+
+  const handleAddLeads = (newLeads: SelectedPropertyTarget[]) => {
+    const filteredNewLeads = newLeads.filter(
+      (newLead) => !leads.some((lead) => lead.fullAddress === newLead.fullAddress)
+    );
+    if (filteredNewLeads.length > 0) {
+      setLeads([...leads, ...filteredNewLeads]);
+    }
+  };
+
+  // Synchronize sidebar search clicks with walkthrough steps
+  React.useEffect(() => {
+    if (filters.searchStatus === "loading" && step === 2) {
+      if (filters.state) setSelectedState(filters.state);
+      if (filters.selectedCounty) setSelectedCounty(filters.selectedCounty + " County");
+      if (filters.radius) setSelectedRadius(filters.radius);
+      setStep(3);
+    }
+  }, [filters.searchStatus, step, filters.state, filters.selectedCounty, filters.radius]);
+
+  React.useEffect(() => {
+    if (filters.searchStatus === "empty" && step > 2 && step < 5) {
+      setStep(2);
+    }
+  }, [filters.searchStatus, step]);
 
   // Request modal form state
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -160,6 +246,7 @@ export default function StormMapDemo() {
           const reportsData = await reportsRes.json();
           setReports(reportsData);
         }
+        setLastUpdated(new Date());
       } catch (e) {
         console.error("Failed to load weather data in walkthrough demo", e);
       }
@@ -321,499 +408,529 @@ export default function StormMapDemo() {
   };
 
   return (
-    <div className="w-screen h-screen min-h-screen bg-[#030712] text-[#F8FAFC] flex flex-col overflow-hidden relative select-none font-sans">
-      
-      {/* 1. REAL MAP CANVAS (Fills the entire background) */}
-      <div className="absolute inset-0 z-0">
-        <StormMap
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
+      {/* App Header */}
+      <AppHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+      <div className="flex-1 w-full flex overflow-hidden relative">
+        {/* Collapsible Sidebar */}
+        <StormSidebar
           filters={filters}
-          onFiltersChange={(newF) => setFilters((prev) => ({ ...prev, ...newF }))}
+          onFiltersChange={handleFiltersChange}
           reports={reports}
           alerts={alerts}
+          onSelectCoords={handleSelectCoords}
+          onResetView={handleResetView}
           onRefresh={() => {}}
           isRefreshing={isRefreshing}
+          lastUpdated={lastUpdated}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
           selectedProperty={selectedProperty}
-          onLockProperty={(prop) => setSelectedProperty(prop)}
           onUnlockProperty={() => setSelectedProperty(null)}
           leads={leads}
+          onRemoveLead={handleRemoveLead}
+          onUpdateLead={handleUpdateLead}
           activeDetail={activeDetail}
-          setActiveDetail={(det) => {
-            if (typeof det === "function") {
-              setActiveDetail(det(activeDetail));
-            } else {
-              setActiveDetail(det);
-            }
+          setActiveDetail={setActiveDetail}
+          onSelectProperty={(prop) => {
+            setSelectedProperty(prop);
           }}
-          onAddLeads={(newLeads) => {
-            setLeads(prev => [...prev, ...newLeads]);
-          }}
+          onAddLeads={handleAddLeads}
         />
-      </div>
 
-      {/* Dim backdrop overlay for static slides to keep content highly readable with background blur */}
-      {(step === 1 || step === 2 || step === 5 || step === 6) && (
-        <div className="absolute inset-0 bg-[#020617]/65 backdrop-blur-[5px] z-10 pointer-events-none" />
-      )}
+        {/* Main Map Viewer Panel */}
+        <div className="flex-1 h-full relative flex flex-col">
+          {/* Map canvas */}
+          <StormMap
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            reports={reports}
+            alerts={alerts}
+            onRefresh={() => {}}
+            isRefreshing={isRefreshing}
+            selectedProperty={selectedProperty}
+            onLockProperty={(prop) => {
+              setSelectedProperty(prop);
+            }}
+            onUnlockProperty={() => setSelectedProperty(null)}
+            leads={leads}
+            activeDetail={activeDetail}
+            setActiveDetail={setActiveDetail}
+            onAddLeads={handleAddLeads}
+          />
 
-      {/* 2. Top Progress bar */}
-      <div className="relative z-20 pointer-events-auto">
-        <DemoProgress currentStep={step} onStepClick={(s) => setStep(s)} />
-      </div>
+          {/* Dim backdrop overlay for static slides to keep content highly readable with background blur */}
+          {(step === 1 || step === 5 || step === 6) && (
+            <div className="absolute inset-0 bg-[#020617]/65 backdrop-blur-[5px] z-10 pointer-events-none" />
+          )}
 
-      {/* 3. Main Slide Workspace Container - set to pointer-events-none so click events reach map pins */}
-      <div className="flex-1 relative w-full h-full overflow-hidden flex items-center justify-center p-4 md:p-6 lg:p-8 z-20 pointer-events-none">
-        
-        {/* Step 1: Hero Intro */}
-        <DemoSlide isActive={step === 1} className="max-w-4xl flex flex-col gap-5 text-left p-6 md:p-8 bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] shadow-2xl animate-in fade-in duration-200 select-text pointer-events-auto">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2.5 py-1 rounded-md border border-[#145CFF]/20 self-start leading-none">
-            LIVE STORM INTELLIGENCE FOR ROOFING CONTRACTORS
-          </span>
-          
-          <h1 className="text-2xl md:text-4xl font-black text-[#F8FAFC] leading-[1.15] tracking-tight">
-            Find Storm-Hit Homes <br />
-            Before Your Competition Does
-          </h1>
-          
-          <p className="text-xs md:text-sm text-slate-300 font-semibold leading-relaxed max-w-lg">
-            StormTarget Live helps roofing contractors identify where hail, wind, and severe storms just hit — then turn those storm events into homeowner leads, property intelligence, and roof inspection appointments.
-          </p>
-
-          <p className="text-[10.5px] text-slate-455 leading-normal font-semibold max-w-lg">
-            Start with the live storm map, choose your target market, and decide whether you want full platform access, a ready-to-use Hail Strike Report, or done-for-you homeowner appointments.
-          </p>
-
-          <div className="flex items-center gap-3 pt-2 select-none">
-            <button
-              onClick={() => setStep(2)}
-              className="px-5 py-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[11px] tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-[#145CFF]/15 cursor-pointer border-none"
-            >
-              <Play size={11} className="fill-[#F8FAFC]" />
-              Start Walkthrough
-            </button>
-            <a
-              href="/storm-map"
-              className="px-5 py-3 rounded-lg bg-[#050B16]/50 hover:bg-[#0B1930] text-slate-300 hover:text-slate-100 font-extrabold uppercase text-[11px] tracking-wider border border-[#145CFF]/20 hover:border-[#145CFF]/45 transition-all cursor-pointer"
-            >
-              View Live Map
-            </a>
+          {/* Top Progress bar */}
+          <div className="absolute top-0 left-0 right-0 z-20 pointer-events-auto">
+            <DemoProgress currentStep={step} onStepClick={(s) => setStep(s)} />
           </div>
 
-          <div className="pt-1 select-none">
-            <button
-              onClick={handleSkipToOptions}
-              className="text-[10px] text-slate-450 hover:text-[#145CFF] underline font-semibold transition-colors bg-transparent border-none cursor-pointer"
-            >
-              Skip to Product Options & Pricing
-            </button>
-          </div>
-        </DemoSlide>
- 
-        {/* Step 2: Market Selection */}
-        <DemoSlide isActive={step === 2} className="max-w-md bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF]">
-                STEP 1 OF 4: DEFINE AREA
-              </span>
-              <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
-                Choose Your Market
-              </h2>
-              <p className="text-[11px] text-slate-400 font-semibold leading-normal">
-                Choose a state, county, and search radius. StormTarget Live scans recent hail, wind, tornado, and severe weather activity around that market.
-              </p>
-            </div>
-
-            <DemoMarketSelector onSearchSubmit={handleSelectorSubmit} />
-          </div>
-        </DemoSlide>
-
-        {/* Step 3: Scanning / Analysis Animation overlay */}
-        <DemoSlide isActive={step === 3} className="max-w-sm bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
-          <div className="space-y-4 text-left">
-            <div className="space-y-1">
-              <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] animate-pulse">
-                STEP 2 OF 4: SCANNING LIVE WEATHER
-              </span>
-              <h2 className="text-lg font-black text-[#F8FAFC] tracking-tight">
-                Scanning Storm Activity <br />
-                in {selectedCounty}, {selectedState}
-              </h2>
-              <p className="text-[10px] text-slate-400 font-semibold leading-normal">
-                StormTarget Live is checking recent hail, wind, tornado, and severe weather reports inside your selected radius.
-              </p>
-            </div>
-
-            {/* Checklist Items */}
-            <div className="bg-[#050B16]/60 border border-[#145CFF]/15 rounded-xl p-4 space-y-3">
-              {[
-                "Scanning NOAA/NWS alerts",
-                "Checking SPC storm reports",
-                "Mapping storm impact radius",
-                "Finding affected neighborhoods",
-                "Preparing opportunity summary",
-              ].map((item, idx) => {
-                const isChecked = checkedProgressItems.includes(idx);
-                const isScanningNow = idx === checkedProgressItems.length;
-
-                return (
-                  <div key={item} className="flex items-center gap-3 select-none">
-                    <div
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                        isChecked
-                          ? "bg-[#0E8F6E]/15 border-[#0E8F6E] text-[#00A86B]"
-                          : isScanningNow
-                          ? "border-[#145CFF] bg-[#145CFF]/5 text-[#145CFF] animate-pulse"
-                          : "border-slate-800 bg-[#050B16] text-slate-600"
-                      }`}
-                    >
-                      {isChecked ? (
-                        <Check size={9} strokeWidth={3} />
-                      ) : isScanningNow ? (
-                        <span className="w-1 h-1 rounded-full bg-[#145CFF] animate-ping" />
-                      ) : (
-                        <span className="w-1 h-1 rounded-full bg-slate-800" />
-                      )}
-                    </div>
-                    <span
-                      className={`text-[10px] font-semibold tracking-wide transition-colors ${
-                        isChecked
-                          ? "text-slate-350"
-                          : isScanningNow
-                          ? "text-[#F8FAFC] font-extrabold"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      {item}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Status Output Bar */}
-            <div className="bg-[#050B16] border border-[#145CFF]/10 rounded-lg p-3 flex items-center justify-between text-[9px] font-bold text-slate-400 select-none">
-              <span className="truncate flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${scanCompleted ? "bg-[#00A86B]" : "bg-[#145CFF] animate-ping"}`} />
-                {scanCompleted
-                  ? "Storm activity found. Opportunity summary ready."
-                  : `Scanning within ${selectedRadius} miles of ${selectedCounty}...`}
-              </span>
-            </div>
-          </div>
-        </DemoSlide>
-
-        {/* Step 4: Opportunity Summary & Floating Cards */}
-        {step === 4 && (
-          <div className="w-full h-full flex flex-col md:flex-row md:justify-end items-center relative pointer-events-none z-10 select-text">
+          {/* Main Slide Workspace Container */}
+          <div className="flex-1 relative w-full h-full overflow-hidden flex items-center justify-center p-4 md:p-6 lg:p-8 z-20 pointer-events-none">
             
-            {/* Redesigned Floating Lead Target Info Panel (Left Overlay) - Clickable */}
-            {selectedProperty && (
-              <div className="absolute top-4 left-4 z-[999] w-full max-w-[390px] md:max-w-[410px] rounded-[24px] bg-[#060D1E]/95 border border-slate-500/18 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 pointer-events-auto">
-                <LeadIntelligencePanel
-                  selectedProperty={selectedProperty}
-                  onUpdateLead={(updated) => {
-                    const updatedLeads = leads.map((l) => (l.id === updated.id ? updated : l));
-                    setLeads(updatedLeads);
-                    if (selectedProperty && selectedProperty.id === updated.id) {
-                      setSelectedProperty(updated);
-                    }
-                  }}
-                  onClearProperty={() => setSelectedProperty(null)}
-                  leads={leads}
-                  onRemoveLead={(leadId) => {
-                    const updatedLeads = leads.filter((l) => l.id !== leadId);
-                    setLeads(updatedLeads);
-                    if (selectedProperty && selectedProperty.id === leadId) {
-                      setSelectedProperty(null);
-                    }
-                  }}
-                  onAddLeads={(newLeads) => {
-                    const filtered = newLeads.filter(
-                      (newLead) => !leads.some((lead) => lead.fullAddress === newLead.fullAddress)
+            {/* Step 1: Hero Intro */}
+            <DemoSlide isActive={step === 1} className="max-w-4xl flex flex-col gap-5 text-left p-6 md:p-8 bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] shadow-2xl animate-in fade-in duration-200 select-text pointer-events-auto">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2.5 py-1 rounded-md border border-[#145CFF]/20 self-start leading-none">
+                LIVE STORM INTELLIGENCE FOR ROOFING CONTRACTORS
+              </span>
+              
+              <h1 className="text-2xl md:text-4xl font-black text-[#F8FAFC] leading-[1.15] tracking-tight">
+                Find Storm-Hit Homes <br />
+                Before Your Competition Does
+              </h1>
+              
+              <p className="text-xs md:text-sm text-slate-300 font-semibold leading-relaxed max-w-lg">
+                StormTarget Live helps roofing contractors identify where hail, wind, and severe storms just hit — then turn those storm events into homeowner leads, property intelligence, and roof inspection appointments.
+              </p>
+
+              <p className="text-[10.5px] text-slate-455 leading-normal font-semibold max-w-lg">
+                Start with the live storm map, choose your target market, and decide whether you want full platform access, a ready-to-use Hail Strike Report, or done-for-you homeowner appointments.
+              </p>
+
+              <div className="flex items-center gap-3 pt-2 select-none">
+                <button
+                  onClick={() => setStep(2)}
+                  className="px-5 py-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[11px] tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-[#145CFF]/15 cursor-pointer border-none"
+                >
+                  <Play size={11} className="fill-[#F8FAFC]" />
+                  Start Walkthrough
+                </button>
+                <a
+                  href="/storm-map"
+                  className="px-5 py-3 rounded-lg bg-[#050B16]/50 hover:bg-[#0B1930] text-slate-300 hover:text-slate-100 font-extrabold uppercase text-[11px] tracking-wider border border-[#145CFF]/20 hover:border-[#145CFF]/45 transition-all cursor-pointer"
+                >
+                  View Live Map
+                </a>
+              </div>
+
+              <div className="pt-1 select-none">
+                <button
+                  onClick={handleSkipToOptions}
+                  className="text-[10px] text-slate-455 hover:text-[#145CFF] underline font-semibold transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  Skip to Product Options & Pricing
+                </button>
+              </div>
+            </DemoSlide>
+             
+            {/* Step 2: Market Selection */}
+            <DemoSlide isActive={step === 2} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded border border-[#145CFF]/20 inline-block leading-none">
+                    STEP 1 OF 4: DEFINE AREA
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Choose Your Market
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Use the **Storm Intelligence Panel** on the left to select your target territory.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-indigo-500/5 border border-dashed border-indigo-500/25 rounded-xl space-y-2.5 text-[10.5px] leading-relaxed text-slate-300">
+                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    Quick-Start Market Instructions
+                  </span>
+                  <p>
+                    1. Select **Tennessee (TN)** as the state.
+                  </p>
+                  <p>
+                    2. Choose **Knox County** from the county selector.
+                  </p>
+                  <p>
+                    3. Choose a **15 miles** search radius.
+                  </p>
+                  <p>
+                    4. Click the blue **Search Storm Activity** button to run the scanner.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleSelectorSubmit("TN", "Knox County", 15)}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none"
+                >
+                  <span>Auto-Fill Knox County (Skip)</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 3: Scanning / Analysis Animation overlay */}
+            <DemoSlide isActive={step === 3} className="max-w-sm bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
+              <div className="space-y-4 text-left">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] animate-pulse">
+                    STEP 2 OF 4: SCANNING LIVE WEATHER
+                  </span>
+                  <h2 className="text-lg font-black text-[#F8FAFC] tracking-tight">
+                    Scanning Storm Activity <br />
+                    in {selectedCounty}, {selectedState}
+                  </h2>
+                  <p className="text-[10px] text-slate-400 font-semibold leading-normal">
+                    StormTarget Live is checking recent hail, wind, tornado, and severe weather reports inside your selected radius.
+                  </p>
+                </div>
+
+                {/* Checklist Items */}
+                <div className="bg-[#050B16]/60 border border-[#145CFF]/15 rounded-xl p-4 space-y-3">
+                  {[
+                    "Scanning NOAA/NWS alerts",
+                    "Checking SPC storm reports",
+                    "Mapping storm impact radius",
+                    "Finding affected neighborhoods",
+                    "Preparing opportunity summary",
+                  ].map((item, idx) => {
+                    const isChecked = checkedProgressItems.includes(idx);
+                    const isScanningNow = idx === checkedProgressItems.length;
+
+                    return (
+                      <div key={item} className="flex items-center gap-3 select-none">
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                            isChecked
+                              ? "bg-[#0E8F6E]/15 border-[#0E8F6E] text-[#00A86B]"
+                              : isScanningNow
+                              ? "border-[#145CFF] bg-[#145CFF]/5 text-[#145CFF] animate-pulse"
+                              : "border-slate-800 bg-[#050B16] text-slate-600"
+                          }`}
+                        >
+                          {isChecked ? (
+                            <Check size={9} strokeWidth={3} />
+                          ) : isScanningNow ? (
+                            <span className="w-1 h-1 rounded-full bg-[#145CFF] animate-ping" />
+                          ) : (
+                            <span className="w-1 h-1 rounded-full bg-slate-800" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold tracking-wide transition-colors ${
+                            isChecked
+                              ? "text-slate-350"
+                              : isScanningNow
+                              ? "text-[#F8FAFC] font-extrabold"
+                              : "text-slate-600"
+                          }`}
+                        >
+                          {item}
+                        </span>
+                      </div>
                     );
-                    if (filtered.length > 0) {
-                      setLeads([...leads, ...filtered]);
-                    }
-                  }}
-                  filters={filters}
-                />
+                  })}
+                </div>
+
+                {/* Status Output Bar */}
+                <div className="bg-[#050B16] border border-[#145CFF]/10 rounded-lg p-3 flex items-center justify-between text-[9px] font-bold text-slate-400 select-none">
+                  <span className="truncate flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${scanCompleted ? "bg-[#00A86B]" : "bg-[#145CFF] animate-ping"}`} />
+                    {scanCompleted
+                      ? "Storm activity found. Opportunity summary ready."
+                      : `Scanning within ${selectedRadius} miles of ${selectedCounty}...`}
+                  </span>
+                </div>
+              </div>
+            </DemoSlide>
+
+            {/* Step 4: Opportunity Summary & Floating Cards */}
+            {step === 4 && (
+              <div className="w-full h-full flex flex-col md:flex-row md:justify-end items-center relative pointer-events-none z-10 select-text">
+                {/* Walkthrough Tutorial Guide (Right Overlay) - Clickable */}
+                <div className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] rounded-[24px] bg-[#060D1E]/90 border border-slate-500/18 p-5 md:p-6 shadow-2xl flex flex-col justify-between gap-4 animate-in slide-in-from-right duration-300 pointer-events-auto">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#0E8F6E] bg-[#0E8F6E]/10 px-2 py-0.5 rounded border border-[#0E8F6E]/20 inline-block leading-none">
+                        STEP 3 OF 4: SCAN COMPLETED
+                      </span>
+                      <h2 className="text-base font-black text-[#F8FAFC] tracking-tight">
+                        {selectedCounty} Opportunity Zone
+                      </h2>
+                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                        StormTarget Live has centered the map, drawn your <strong>{selectedRadius} mi</strong> search radius, and highlighted the property targets as green pins.
+                      </p>
+                    </div>
+
+                    {/* KPI Metrics row */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
+                        <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
+                          Storm Impact
+                        </span>
+                        <span className="text-[10.5px] font-black text-red-400">HIGH (1.75" Hail)</span>
+                      </div>
+                      <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
+                        <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
+                          Target Radius
+                        </span>
+                        <span className="text-[10.5px] font-black text-[#145CFF]">{selectedRadius} mi</span>
+                      </div>
+                    </div>
+
+                    {/* Tutorial Action Guide */}
+                    <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/25 rounded-xl space-y-2 text-[10px] leading-relaxed">
+                      <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                        <Sparkles size={11} className="animate-spin-slow" />
+                        Interactive Walkthrough
+                      </span>
+                      <p className="text-slate-350">
+                        We detected severe storm activity in this market. Click any **green pin** on the live map to view homeowner contact data, roof metrics, and recommended outreach actions.
+                      </p>
+                      <button
+                        onClick={handleSimulatePropertyClick}
+                        className="w-full py-1.5 px-3 rounded-lg bg-indigo-500 hover:bg-indigo-650 text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer border-none shadow-md shadow-indigo-500/10"
+                      >
+                        Simulate Property Select
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Continue button */}
+                  <button
+                    onClick={() => setStep(5)}
+                    className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none"
+                  >
+                    <span>Choose Your Action Path</span>
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Walkthrough Tutorial Guide (Right Overlay) - Clickable */}
-            <div className="absolute top-4 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] rounded-[24px] bg-[#060D1E]/90 border border-slate-500/18 p-5 md:p-6 shadow-2xl flex flex-col justify-between gap-4 animate-in slide-in-from-right duration-300 pointer-events-auto">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#0E8F6E] bg-[#0E8F6E]/10 px-2 py-0.5 rounded border border-[#0E8F6E]/20 inline-block leading-none">
-                    STEP 3 OF 4: SCAN COMPLETED
+            {/* Step 5: Product Path Selection */}
+            <DemoSlide isActive={step === 5} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
+              <div className="space-y-5 flex flex-col h-full min-h-0">
+                {/* Header copy */}
+                <div className="text-center space-y-1 shrink-0">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2.5 py-1 rounded border border-[#145CFF]/20 inline-block leading-none">
+                    STEP 4 OF 4: CHOOSE ACTION PATH
                   </span>
-                  <h2 className="text-base font-black text-[#F8FAFC] tracking-tight">
-                    {selectedCounty} Opportunity Zone
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Choose How You Want to Turn Storm Data Into Revenue
                   </h2>
-                  <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                    StormTarget Live has centered the map, drawn your <strong>{selectedRadius} mi</strong> search radius, and highlighted the property targets as green pins.
+                  <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed max-w-xl mx-auto">
+                    Every contractor works differently. StormTarget Live gives you three ways to act on the same storm intelligence.
                   </p>
                 </div>
 
-                {/* KPI Metrics row */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
-                    <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
-                      Storm Impact
-                    </span>
-                    <span className="text-[10.5px] font-black text-red-400">HIGH (1.75" Hail)</span>
-                  </div>
-                  <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
-                    <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
-                      Target Radius
-                    </span>
-                    <span className="text-[10.5px] font-black text-[#145CFF]">{selectedRadius} mi</span>
-                  </div>
+                {/* Product option cards grid */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar py-2 min-h-0">
+                  <DemoProductCards selectedProductId={selectedProduct} onSelectProduct={setSelectedProduct} />
                 </div>
 
-                {/* Tutorial Action Guide */}
-                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/25 rounded-xl space-y-2 text-[10px] leading-relaxed">
-                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles size={11} className="animate-spin-slow" />
-                    Interactive Walkthrough
-                  </span>
-                  <p className="text-slate-350">
-                    We detected severe storm activity in this market. Click any **green pin** on the live map to view homeowner contact data, roof metrics, and recommended outreach actions.
-                  </p>
+                {/* Bottom Row: continues */}
+                <div className="flex items-center justify-between border-t border-slate-800 pt-4 shrink-0 px-1 select-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-slate-550 font-extrabold uppercase tracking-wide">Selected Path:</span>
+                    <span className="text-[10px] text-[#F8FAFC] font-black uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]" />
+                      {getProductTitle(selectedProduct)}
+                    </span>
+                  </div>
                   <button
-                    onClick={handleSimulatePropertyClick}
-                    className="w-full py-1.5 px-3 rounded-lg bg-indigo-500 hover:bg-indigo-650 text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer border-none shadow-md shadow-indigo-500/10"
+                    onClick={() => setStep(6)}
+                    className="px-6 py-2.5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-widest transition-all flex items-center gap-1 cursor-pointer border-none shadow-md shadow-[#145CFF]/10"
                   >
-                    Simulate Property Select
+                    <span>Continue</span>
+                    <ChevronRight size={11} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+            </DemoSlide>
+
+            {/* Step 6: Final CTA */}
+            <DemoSlide isActive={step === 6} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 md:p-8 shadow-2xl animate-in fade-in duration-200 md:grid md:grid-cols-12 gap-6 items-center select-text pointer-events-auto">
+              {/* Left final sales copy */}
+              <div className="md:col-span-7 flex flex-col gap-4 text-left">
+                <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#00A86B] bg-[#0E8F6E]/10 px-2.5 py-1 rounded border border-[#0E8F6E]/20 self-start leading-none">
+                  GET STARTED TODAY
+                </span>
+                
+                <h1 className="text-2xl font-black text-[#F8FAFC] leading-tight tracking-tight">
+                  Ready to Work This Storm?
+                </h1>
+                
+                <p className="text-[11.5px] text-slate-300 font-semibold leading-relaxed max-w-lg">
+                  Choose the option that fits your team and start turning storm activity into real roofing opportunities.
+                </p>
+
+                <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-4 flex gap-3 items-start max-w-lg">
+                  <Info className="text-[#145CFF] shrink-0 mt-0.5" size={16} />
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-[#F8FAFC] uppercase tracking-wider block">
+                      TIME-SENSITIVE CONVERSION
+                    </span>
+                    <p className="text-[10px] text-[#FBBF24] leading-normal font-semibold">
+                      The sooner you act after a hail or wind event, the better your chance of reaching homeowners before competitors are already at the door.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons row */}
+                <div className="flex flex-col gap-2 pt-2 max-w-md select-none">
+                  <a
+                    href="/storm-map"
+                    className="w-full py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer"
+                  >
+                    Use StormTarget Live (Full Platform)
+                  </a>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRequestModal("report")}
+                    className="w-full py-3 px-4 rounded-lg bg-[#0E8F6E] hover:bg-[#0EA781] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#0E8F6E]/10 cursor-pointer border-none"
+                  >
+                    Request Hail Strike Report (Leads Only)
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRequestModal("appointments")}
+                    className="w-full py-3 px-4 rounded-lg bg-[#FBBF24] hover:bg-[#FBBF24]/90 text-slate-955 font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#FBBF24]/10 cursor-pointer border-none"
+                  >
+                    Request Homeowner Appointments (DFY)
+                  </button>
+                </div>
+
+                {/* Bottom links */}
+                <div className="flex items-center gap-4 pt-1 select-none">
+                  <a
+                    href="/storm-map"
+                    className="text-[9.5px] text-slate-455 hover:text-slate-350 font-extrabold uppercase tracking-wider"
+                  >
+                    Back to Live Map
+                  </a>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={() => {
+                      setStep(1);
+                      setScanProgress(0);
+                      setScanCompleted(false);
+                      setCheckedProgressItems([]);
+                      setSelectedProperty(null);
+                      setLeads([]);
+                      setFilters((prev) => ({ ...prev, center: null, searchStatus: "empty" }));
+                    }}
+                    className="text-[9.5px] text-slate-455 hover:text-slate-350 font-extrabold uppercase tracking-wider flex items-center gap-1 cursor-pointer border-none bg-transparent"
+                  >
+                    <RotateCcw size={10} />
+                    Restart Walkthrough
                   </button>
                 </div>
               </div>
 
-              {/* Continue button */}
-              <button
-                onClick={() => setStep(5)}
-                className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none"
-              >
-                <span>Choose Your Action Path</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Product Path Selection */}
-        <DemoSlide isActive={step === 5} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
-          <div className="space-y-5 flex flex-col h-full min-h-0">
-            {/* Header copy */}
-            <div className="text-center space-y-1 shrink-0">
-              <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2.5 py-1 rounded border border-[#145CFF]/20 inline-block leading-none">
-                STEP 4 OF 4: CHOOSE ACTION PATH
-              </span>
-              <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
-                Choose How You Want to Turn Storm Data Into Revenue
-              </h2>
-              <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed max-w-xl mx-auto">
-                Every contractor works differently. StormTarget Live gives you three ways to act on the same storm intelligence.
-              </p>
-            </div>
-
-            {/* Product option cards grid */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar py-2 min-h-0">
-              <DemoProductCards selectedProductId={selectedProduct} onSelectProduct={setSelectedProduct} />
-            </div>
-
-            {/* Bottom Row: continues */}
-            <div className="flex items-center justify-between border-t border-slate-800 pt-4 shrink-0 px-1 select-none">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-slate-550 font-extrabold uppercase tracking-wide">Selected Path:</span>
-                <span className="text-[10px] text-[#F8FAFC] font-black uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]" />
-                  {getProductTitle(selectedProduct)}
-                </span>
-              </div>
-              <button
-                onClick={() => setStep(6)}
-                className="px-6 py-2.5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-widest transition-all flex items-center gap-1 cursor-pointer border-none shadow-md shadow-[#145CFF]/10"
-              >
-                <span>Continue</span>
-                <ChevronRight size={11} strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-        </DemoSlide>
-
-        {/* Step 6: Final CTA */}
-        <DemoSlide isActive={step === 6} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 md:p-8 shadow-2xl animate-in fade-in duration-200 md:grid md:grid-cols-12 gap-6 items-center select-text pointer-events-auto">
-          {/* Left final sales copy */}
-          <div className="md:col-span-7 flex flex-col gap-4 text-left">
-            <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#00A86B] bg-[#0E8F6E]/10 px-2.5 py-1 rounded border border-[#0E8F6E]/20 self-start leading-none">
-              GET STARTED TODAY
-            </span>
-            
-            <h1 className="text-2xl font-black text-[#F8FAFC] leading-tight tracking-tight">
-              Ready to Work This Storm?
-            </h1>
-            
-            <p className="text-[11.5px] text-slate-300 font-semibold leading-relaxed max-w-lg">
-              Choose the option that fits your team and start turning storm activity into real roofing opportunities.
-            </p>
-
-            <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-4 flex gap-3 items-start max-w-lg">
-              <Info className="text-[#145CFF] shrink-0 mt-0.5" size={16} />
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-[#F8FAFC] uppercase tracking-wider block">
-                  TIME-SENSITIVE CONVERSION
-                </span>
-                <p className="text-[10px] text-[#FBBF24] leading-normal font-semibold">
-                  The sooner you act after a hail or wind event, the better your chance of reaching homeowners before competitors are already at the door.
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons row */}
-            <div className="flex flex-col gap-2 pt-2 max-w-md select-none">
-              <a
-                href="/storm-map"
-                className="w-full py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer"
-              >
-                Use StormTarget Live (Full Platform)
-              </a>
-              
-              <button
-                type="button"
-                onClick={() => handleOpenRequestModal("report")}
-                className="w-full py-3 px-4 rounded-lg bg-[#0E8F6E] hover:bg-[#0EA781] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#0E8F6E]/10 cursor-pointer border-none"
-              >
-                Request Hail Strike Report (Leads Only)
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => handleOpenRequestModal("appointments")}
-                className="w-full py-3 px-4 rounded-lg bg-[#FBBF24] hover:bg-[#FBBF24]/90 text-slate-955 font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#FBBF24]/10 cursor-pointer border-none"
-              >
-                Request Homeowner Appointments (DFY)
-              </button>
-            </div>
-
-            {/* Bottom links */}
-            <div className="flex items-center gap-4 pt-1 select-none">
-              <a
-                href="/storm-map"
-                className="text-[9.5px] text-slate-455 hover:text-slate-350 font-extrabold uppercase tracking-wider"
-              >
-                Back to Live Map
-              </a>
-              <span className="text-slate-700">|</span>
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setScanProgress(0);
-                  setScanCompleted(false);
-                  setCheckedProgressItems([]);
-                  setSelectedProperty(null);
-                  setLeads([]);
-                }}
-                className="text-[9.5px] text-slate-455 hover:text-slate-350 font-extrabold uppercase tracking-wider flex items-center gap-1 cursor-pointer border-none bg-transparent"
-              >
-                <RotateCcw size={10} />
-                Restart Walkthrough
-              </button>
-            </div>
-          </div>
-
-          {/* Right selected summary card column */}
-          <div className="md:col-span-5 w-full flex justify-center">
-            <div className="w-full max-w-sm bg-[#050B16]/50 border border-slate-800 rounded-2xl p-5 shadow-2xl relative">
-              <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-[#00A86B]" />
-              
-              <span className="text-[8px] font-extrabold text-[#00A86B] uppercase tracking-widest block mb-1">
-                CHOSEN MARKET SUMMARY
-              </span>
-              
-              <h4 className="text-sm font-black text-[#F8FAFC] tracking-tight leading-none mb-4">
-                {selectedCounty}, {selectedState} Market
-              </h4>
-
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
-                  <span className="font-semibold text-slate-500">Active Signals:</span>
-                  <span className="font-black text-[#F8FAFC]">3 Storm Hits</span>
-                </div>
-                
-                <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
-                  <span className="font-semibold text-slate-500">Target Radius:</span>
-                  <span className="font-black text-[#F8FAFC]">{selectedRadius} Miles</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
-                  <span className="font-semibold text-slate-500">Selected Product:</span>
-                  <span className="font-black text-[#145CFF] uppercase tracking-wider">
-                    {selectedProduct === "platform" ? "Full Access" : selectedProduct === "report" ? "Leads Only" : "Appointments"}
+              {/* Right selected summary card column */}
+              <div className="md:col-span-5 w-full flex justify-center">
+                <div className="w-full max-w-sm bg-[#050B16]/50 border border-slate-800 rounded-2xl p-5 shadow-2xl relative">
+                  <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-[#00A86B]" />
+                  
+                  <span className="text-[8px] font-extrabold text-[#00A86B] uppercase tracking-widest block mb-1">
+                    CHOSEN MARKET SUMMARY
                   </span>
-                </div>
+                  
+                  <h4 className="text-sm font-black text-[#F8FAFC] tracking-tight leading-none mb-4">
+                    {selectedCounty}, {selectedState} Market
+                  </h4>
 
-                <div className="pt-2 bg-[#050B16]/50 border border-slate-805 rounded-xl p-3 text-[9.5px] leading-relaxed text-slate-400 font-semibold">
-                  <span className="text-[#00A86B] font-extrabold block uppercase tracking-wider mb-0.5">
-                    Ready to Proceed?
-                  </span>
-                  Click one of the CTA paths on the left to activate your request or load the Live map console directly.
+                  <div className="space-y-3.5">
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
+                      <span className="font-semibold text-slate-500">Active Signals:</span>
+                      <span className="font-black text-[#F8FAFC]">3 Storm Hits</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
+                      <span className="font-semibold text-slate-500">Target Radius:</span>
+                      <span className="font-black text-[#F8FAFC]">{selectedRadius} Miles</span>
+                    </div>
+
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
+                      <span className="font-semibold text-slate-500">Selected Product:</span>
+                      <span className="font-black text-[#145CFF] uppercase tracking-wider">
+                        {selectedProduct === "platform" ? "Full Access" : selectedProduct === "report" ? "Leads Only" : "Appointments"}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 bg-[#050B16]/50 border border-slate-805 rounded-xl p-3 text-[9.5px] leading-relaxed text-slate-400 font-semibold">
+                      <span className="text-[#00A86B] font-extrabold block uppercase tracking-wider mb-0.5">
+                        Ready to Proceed?
+                      </span>
+                      Click one of the CTA paths on the left to activate your request or load the Live map console directly.
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </DemoSlide>
           </div>
-        </DemoSlide>
 
-      </div>
+          {/* Floating Bottom Nav Controls */}
+          <div className="absolute bottom-0 left-0 right-0 px-6 py-3 bg-[#050B16]/95 border-t border-[#145CFF]/15 flex items-center justify-between shrink-0 select-none z-20 pointer-events-auto">
+            <button
+              onClick={() => setStep((s) => Math.max(1, s - 1))}
+              disabled={step === 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0B1930] hover:bg-[#145CFF]/10 border border-[#145CFF]/10 hover:border-[#145CFF]/30 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-slate-300 font-extrabold uppercase tracking-wider transition-all cursor-pointer"
+            >
+              <ChevronLeft size={13} />
+              Back
+            </button>
 
-      {/* Floating Bottom Nav Controls */}
-      <div className="px-6 py-3 bg-[#050B16]/95 border-t border-[#145CFF]/15 flex items-center justify-between shrink-0 select-none z-20 pointer-events-auto">
-        <button
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0B1930] hover:bg-[#145CFF]/10 border border-[#145CFF]/10 hover:border-[#145CFF]/30 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-slate-300 font-extrabold uppercase tracking-wider transition-all cursor-pointer"
-        >
-          <ChevronLeft size={13} />
-          Back
-        </button>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 6 }).map((_, idx) => {
+                const stepNum = idx + 1;
+                const isActive = stepNum === step;
 
-        <div className="flex items-center gap-1.5">
-          {Array.from({ length: 6 }).map((_, idx) => {
-            const stepNum = idx + 1;
-            const isActive = stepNum === step;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setStep(stepNum)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      isActive ? "bg-[#145CFF] w-4" : "bg-slate-700 hover:bg-slate-500"
+                    }`}
+                    title={`Go to step ${stepNum}`}
+                  />
+                );
+              })}
+            </div>
 
-            return (
-              <button
-                key={idx}
-                onClick={() => setStep(stepNum)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  isActive ? "bg-[#145CFF] w-4" : "bg-slate-700 hover:bg-slate-500"
-                }`}
-                title={`Go to step ${stepNum}`}
-              />
-            );
-          })}
+            <button
+              onClick={() => {
+                if (step < 6) {
+                  if (step === 2) {
+                    handleSelectorSubmit(selectedState, selectedCounty, selectedRadius);
+                  } else if (step === 3 && !scanCompleted) {
+                    triggerScanCompletion();
+                  } else {
+                    setStep((s) => s + 1);
+                  }
+                }
+              }}
+              disabled={step === 6}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#145CFF] hover:bg-[#2570FF] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-[#F8FAFC] font-extrabold uppercase tracking-wider transition-all cursor-pointer border-none"
+            >
+              Next
+              <ChevronRight size={13} />
+            </button>
+          </div>
         </div>
-
-        <button
-          onClick={() => {
-            if (step < 6) {
-              if (step === 2) {
-                handleSelectorSubmit(selectedState, selectedCounty, selectedRadius);
-              } else if (step === 3 && !scanCompleted) {
-                triggerScanCompletion();
-              } else {
-                setStep((s) => s + 1);
-              }
-            }
-          }}
-          disabled={step === 6}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#145CFF] hover:bg-[#2570FF] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-[#F8FAFC] font-extrabold uppercase tracking-wider transition-all cursor-pointer border-none"
-        >
-          Next
-          <ChevronRight size={13} />
-        </button>
       </div>
+
+      {/* Redesigned Floating Lead Target Info Panel */}
+      {selectedProperty && (
+        <div className="fixed bottom-0 left-0 right-0 md:absolute md:top-20 md:left-4 md:bottom-auto md:right-auto z-[999] w-full md:w-[410px] max-h-[75vh] md:max-h-[calc(100vh-96px)] overflow-hidden rounded-t-[24px] md:rounded-[24px] bg-[#060D1E]/90 backdrop-blur-md border-t md:border border-slate-500/18 shadow-2xl flex flex-col animate-in slide-in-from-bottom md:slide-in-from-left duration-300">
+          <LeadIntelligencePanel
+            selectedProperty={selectedProperty}
+            onUpdateLead={handleUpdateLead}
+            onClearProperty={() => setSelectedProperty(null)}
+            leads={leads}
+            onRemoveLead={handleRemoveLead}
+            onAddLeads={handleAddLeads}
+            filters={filters}
+          />
+        </div>
+      )}
 
       {/* Polished Request Modal / Drawer */}
       {modalOpen && (
@@ -828,7 +945,7 @@ export default function StormMapDemo() {
               <h3 className="text-base font-black text-[#F8FAFC] tracking-tight">
                 Request {modalProduct === "report" ? "Hail Strike Report" : "Homeowner Appointments"}
               </h3>
-              <p className="text-[10px] text-slate-450 font-semibold leading-normal mt-1">
+              <p className="text-[10px] text-slate-455 font-semibold leading-normal mt-1">
                 Enter your details below and our team will build your custom report or set up your appointment campaign.
               </p>
             </div>
@@ -850,7 +967,7 @@ export default function StormMapDemo() {
             ) : (
               <form onSubmit={handleFormSubmit} className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-extrabold text-slate-550 uppercase tracking-widest block font-sans">
+                  <label className="text-[9px] font-extrabold text-slate-555 uppercase tracking-widest block font-sans">
                     Full Name
                   </label>
                   <div className="relative">
