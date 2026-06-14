@@ -1028,6 +1028,8 @@ export function StormSidebar({
               </div>
             </>
           )}
+        </>
+      )}
 
           {activeTab === "targets" && (
             <div className="space-y-4">
