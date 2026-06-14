@@ -310,8 +310,9 @@ export default function StormMapPage() {
                 </p>
               </div>
             </div>
+          ) : (
             <>
-              /* Client-side Hydrated Mapbox Canvas */
+              {/* Client-side Hydrated Mapbox Canvas */}
               <StormMap
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
