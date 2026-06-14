@@ -365,7 +365,7 @@ export function StormSidebar({
               <span className="h-1.5 w-1.5 rounded-full bg-slate-700 shrink-0"></span>
               No Active Market
             </div>
-          )}>
+          )}
 
           {/* Control Actions */}
           <div className="flex items-center gap-1 shrink-0">
