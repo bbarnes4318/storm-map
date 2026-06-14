@@ -548,7 +548,7 @@ export default function StormMapDemo() {
                     3. Choose a **15 miles** search radius.
                   </p>
                   <p>
-                    4. Click the blue **Search Storm Activity** button to run the scanner.
+                    4. Click the blue **search button** (with the triangle navigation icon) to run the scanner.
                   </p>
                 </div>
 
