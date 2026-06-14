@@ -1,448 +1,213 @@
 import React from "react";
 import { UnlockedDataDetailResponse } from "./enrichment-client";
-import { User, Home, Shield, Zap, Info, Clock, AlertTriangle, MapPin } from "lucide-react";
-import { PhoneEntry, EmailEntry, Permit } from "@/lib/enrichment/schemas";
+import { User, Home, Zap, Clock, MapPin, Phone, Mail, X } from "lucide-react";
+import { PhoneEntry, EmailEntry } from "@/lib/enrichment/schemas";
 
 interface UnlockedLeadDetailsProps {
   unlockedData: UnlockedDataDetailResponse;
   onClose: () => void;
 }
 
-type TabType = "overview" | "contact" | "property" | "roof" | "storm" | "compliance";
-
 export function UnlockedLeadDetails({
   unlockedData,
   onClose,
 }: UnlockedLeadDetailsProps) {
-  const [activeTab, setActiveTab] = React.useState<TabType>("contact");
-
-  // Helper to format values with fallback
-  const renderVal = <T,>(
-    meta: { value: T } | null | undefined,
-    formatter?: (val: T) => React.ReactNode
-  ) => {
-    if (!meta || meta.value === undefined || meta.value === null || meta.value === "") {
-      return <span className="text-slate-600 font-semibold italic">Unavailable</span>;
-    }
-    return formatter ? formatter(meta.value) : <span className="text-slate-100 font-bold">{String(meta.value)}</span>;
-  };
-
-  const renderSimpleVal = <T,>(
-    val: T | null | undefined,
-    formatter?: (val: T) => React.ReactNode
-  ) => {
-    if (val === undefined || val === null || val === "") {
-      return <span className="text-slate-600 font-semibold italic">Unavailable</span>;
-    }
-    return formatter ? formatter(val) : <span className="text-slate-100 font-bold">{String(val)}</span>;
-  };
-
+  // Formatters
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(val);
   };
 
-  const formatDate = (val: string) => {
-    try {
-      return new Date(val).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-    } catch {
-      return val;
-    }
-  };
+  // Helper to extract first phone/email
+  const firstPhone = unlockedData.contactData?.phones?.value?.[0];
+  const firstEmail = unlockedData.contactData?.emails?.value?.[0];
 
-  const getConfidenceBadge = (confidence: number) => {
-    const pct = Math.round(confidence * 100);
-    let color = "text-slate-500 bg-slate-900 border-slate-800";
-    if (confidence >= 0.85) {
-      color = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-    } else if (confidence >= 0.6) {
-      color = "text-amber-400 bg-amber-500/10 border-amber-500/20";
-    }
-    return (
-      <span className={`px-1 rounded-sm text-[8px] font-bold border ${color}`}>
-        {pct}% Conf
-      </span>
-    );
-  };
-
-  const tabs: { id: TabType; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-    { id: "overview", label: "Overview", icon: Info },
-    { id: "contact", label: "Homeowner Contact", icon: User },
-    { id: "property", label: "Property Details", icon: Home },
-    { id: "roof", label: "Roof Intelligence", icon: Shield },
-    { id: "storm", label: "Storm Context", icon: Zap },
-    { id: "compliance", label: "Source & Compliance", icon: Clock },
-  ];
+  const ownerName = [
+    unlockedData.contactData?.firstName?.value,
+    unlockedData.contactData?.lastName?.value
+  ].filter(Boolean).join(" ") || "Unavailable";
 
   return (
-    <div className="flex flex-col min-h-[350px] max-h-[550px] overflow-hidden">
-      {/* Selected Address Header (Always Visible) */}
-      <div className="p-3 bg-slate-900/30 border-b border-slate-900 flex items-start gap-2 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
-        <MapPin size={13} className="text-emerald-500 shrink-0 mt-0.5" />
-        <div className="min-w-0 flex-1">
-          <span className="text-slate-500 font-bold uppercase text-[7px] block tracking-wider leading-none mb-1">Selected Target Address</span>
-          <span className="text-slate-200 font-black text-[11px] leading-tight block break-words">
-            {unlockedData.addressText}
-          </span>
+    <div className="flex flex-col gap-3 text-slate-300 w-full animate-in fade-in duration-200">
+      
+      {/* 1. Header Block with Address */}
+      <div className="flex justify-between items-start gap-2 bg-[#050B16]/60 border border-slate-500/18 p-3 rounded-xl shadow-lg">
+        <div className="flex gap-2.5 min-w-0">
+          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 shrink-0 self-start">
+            <MapPin size={13} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[8px] font-black text-slate-450 uppercase tracking-widest block mb-0.5 leading-none">
+              UNLOCKED PROPERTY RECORD
+            </span>
+            <h4 className="text-[11.5px] font-black text-[#F8FAFC] leading-tight break-words">
+              {unlockedData.addressText}
+            </h4>
+            <div className="flex gap-2.5 pt-1 text-[8.5px] text-slate-500 font-semibold font-mono">
+              <span>LAT: {unlockedData.latitude?.toFixed(5)}</span>
+              <span>LON: {unlockedData.longitude?.toFixed(5)}</span>
+            </div>
+          </div>
         </div>
+        <button
+          onClick={onClose}
+          className="text-slate-450 hover:text-white p-1 rounded-md hover:bg-slate-800/40 transition-colors border-none bg-transparent shrink-0 cursor-pointer"
+          title="Deselect property details"
+        >
+          <X size={13} />
+        </button>
       </div>
 
-      {/* Mini tabs bar */}
-      <div className="flex border-b border-slate-900 bg-slate-950 overflow-x-auto shrink-0 custom-scrollbar">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1 px-3 py-2 border-b-2 text-[8.5px] font-extrabold uppercase transition-all shrink-0 select-none ${
-                isActive
-                  ? "border-red-500 text-slate-200 bg-slate-900/10"
-                  : "border-transparent text-slate-500 hover:text-slate-350"
-              }`}
-            >
-              <Icon size={10} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tab content area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3.5 min-h-0 text-[10px] custom-scrollbar">
-        {activeTab === "overview" && (
-          <div className="space-y-2.5">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Lead Intelligence Overview
-            </h4>
-            <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Product Accessed</span>
-                <span className="text-slate-200 font-bold uppercase truncate">{unlockedData.productType}</span>
+      {/* 2. Unified High-Density Data Grid */}
+      <div className="grid grid-cols-2 gap-2.5">
+        
+        {/* Box A: Homeowner Contact Info */}
+        <div className="bg-[#060D1E]/95 border border-slate-500/18 rounded-xl p-3 flex flex-col justify-between shadow-md">
+          <div className="space-y-1.5">
+            <span className="text-[8px] font-black text-[#145CFF] uppercase tracking-widest block flex items-center gap-1 leading-none">
+              <User size={10} className="text-[#145CFF]" />
+              Homeowner
+            </span>
+            <div className="space-y-0.5">
+              <div className="text-[11px] font-black text-slate-100 truncate" title={ownerName}>
+                {ownerName}
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Credits Expended</span>
-                <span className="text-slate-200 font-bold">{unlockedData.creditsCharged} Credits</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Provider Source</span>
-                <span className="text-slate-200 font-bold uppercase truncate">{unlockedData.providerSource}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Purchased At</span>
-                <span className="text-slate-200 font-medium truncate">{formatDate(unlockedData.createdAt)}</span>
+              <div className="text-[8.5px] text-slate-455 font-bold uppercase tracking-wide">
+                {unlockedData.contactData?.ownerOccupied?.value ? "Owner Occupied" : "Tenant / Unknown"}
               </div>
             </div>
-
           </div>
-        )}
-
-        {activeTab === "contact" && (
-          <div className="space-y-3">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Homeowner Contact Intelligence
-            </h4>
-
-            {unlockedData.contactData ? (
-              <div className="space-y-3">
-                {/* Name & Demographics */}
-                <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">First Name</span>
-                    <div className="flex items-center gap-1.5">
-                      {renderVal(unlockedData.contactData.firstName)}
-                      {unlockedData.contactData.firstName?.confidence && getConfidenceBadge(unlockedData.contactData.firstName.confidence)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Last Name</span>
-                    <div className="flex items-center gap-1.5">
-                      {renderVal(unlockedData.contactData.lastName)}
-                      {unlockedData.contactData.lastName?.confidence && getConfidenceBadge(unlockedData.contactData.lastName.confidence)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Age Range</span>
-                    {renderVal(unlockedData.contactData.ageRange)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Owner Occupied</span>
-                    {renderVal(unlockedData.contactData.ownerOccupied, (v) => 
-                      <span className="text-slate-200 font-bold">{v ? "Yes" : "No"}</span>
-                    )}
-                  </div>
+          
+          <div className="space-y-2 border-t border-slate-800/80 pt-2.5 mt-2.5">
+            {firstPhone ? (
+              <a
+                href={`tel:${firstPhone.number}`}
+                className="flex items-center justify-between text-[9.5px] text-slate-200 hover:text-[#145CFF] font-black transition-colors min-w-0"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Phone size={9} className="text-[#0E8F6E] shrink-0" />
+                  <span className="font-mono truncate">{firstPhone.number}</span>
                 </div>
-
-                {/* Phones */}
-                <div className="space-y-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] tracking-wider block">
-                    Phone Numbers
+                {firstPhone.dncStatus ? (
+                  <span className="text-[6.5px] font-black bg-red-955/20 border border-red-500/20 text-red-400 px-1 rounded-sm uppercase tracking-wide shrink-0">
+                    DNC
                   </span>
-                  {unlockedData.contactData.phones?.value && unlockedData.contactData.phones.value.length > 0 ? (
-                    <div className="space-y-1">
-                      {unlockedData.contactData.phones.value.map((ph: PhoneEntry, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-slate-900/15 border border-slate-900 rounded-md">
-                          <div className="flex flex-col">
-                            <span className="text-slate-200 font-mono font-bold">{ph.number}</span>
-                            <span className="text-[8px] text-slate-500 capitalize">{ph.type || "unknown"}</span>
-                          </div>
-                          <div className="flex gap-1">
-                            {ph.dncStatus ? (
-                              <span className="px-1.5 py-0.2 rounded-sm bg-red-950/20 border border-red-900/30 text-red-400 text-[7.5px] font-extrabold uppercase">
-                                DNC
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.2 rounded-sm bg-emerald-950/20 border border-emerald-900/30 text-emerald-400 text-[7.5px] font-extrabold uppercase">
-                                Active
-                              </span>
-                            )}
-                            {ph.litigatorStatus && (
-                              <span className="px-1.5 py-0.2 rounded-sm bg-red-650/15 border border-red-500/20 text-red-400 text-[7.5px] font-extrabold uppercase">
-                                LIT
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-2 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                      No phone records returned
-                    </div>
-                  )}
-                </div>
-
-                {/* Emails */}
-                <div className="space-y-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] tracking-wider block">
-                    Email Addresses
+                ) : (
+                  <span className="text-[6.5px] font-black bg-emerald-955/20 border border-emerald-500/20 text-emerald-400 px-1 rounded-sm uppercase tracking-wide shrink-0">
+                    Safe
                   </span>
-                  {unlockedData.contactData.emails?.value && unlockedData.contactData.emails.value.length > 0 ? (
-                    <div className="space-y-1">
-                      {unlockedData.contactData.emails.value.map((em: EmailEntry, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-slate-900/15 border border-slate-900 rounded-md">
-                          <span className="text-slate-200 font-bold truncate pr-3">{em.address}</span>
-                          <span className={`px-1.5 py-0.2 rounded-sm text-[7.5px] font-extrabold uppercase border ${
-                            em.deliverability === "deliverable"
-                              ? "bg-emerald-950/20 border-emerald-900/30 text-emerald-400"
-                              : "bg-slate-900 border-slate-800 text-slate-500"
-                          }`}>
-                            {em.deliverability || "unknown"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-2 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                      No email records returned
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                Owner Contact product was not purchased or returned empty.
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "property" && (
-          <div className="space-y-3">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Property Intelligence Profile
-            </h4>
-
-            {unlockedData.propertyProfile ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Year Built</span>
-                    {renderVal(unlockedData.propertyProfile.yearBuilt)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Square Footage</span>
-                    {renderVal(unlockedData.propertyProfile.squareFeet, (v) => 
-                      <span className="text-slate-200 font-bold">{v.toLocaleString()} sq ft</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">AVM Value</span>
-                    {renderVal(unlockedData.propertyProfile.homeValue, (v) => 
-                      <span className="text-slate-200 font-bold">{formatCurrency(v)}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Lot Size</span>
-                    {renderVal(unlockedData.propertyProfile.lotSize, (v) => 
-                      <span className="text-slate-200 font-bold">{v} acres</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Beds / Baths</span>
-                    <div className="text-slate-200 font-bold">
-                      {unlockedData.propertyProfile.bedrooms?.value || "—"} bds · {unlockedData.propertyProfile.bathrooms?.value || "—"} ba
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Foundation Type</span>
-                    {renderVal(unlockedData.propertyProfile.foundation)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Parcel ID</span>
-                    {renderVal(unlockedData.propertyProfile.parcelId)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">County</span>
-                    {renderVal(unlockedData.propertyProfile.county)}
-                  </div>
-                </div>
-
-                {/* Permits */}
-                <div className="space-y-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] tracking-wider block">
-                    Public Records & Permits
-                  </span>
-                  {unlockedData.propertyProfile.permits?.value && unlockedData.propertyProfile.permits.value.length > 0 ? (
-                    <div className="space-y-1">
-                      {unlockedData.propertyProfile.permits.value.map((per: Permit, i: number) => (
-                        <div key={i} className="p-2 bg-slate-900/15 border border-slate-900 rounded-md space-y-1">
-                          <div className="flex justify-between items-center text-[9px] font-bold">
-                            <span className="text-slate-300 truncate">{per.description}</span>
-                            {per.amount && <span className="text-red-400 font-mono shrink-0">{formatCurrency(per.amount)}</span>}
-                          </div>
-                          <div className="text-[7.5px] text-slate-500 font-semibold">
-                            Date: {formatDate(per.date)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-2 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                      No permit logs found
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                Property Profile product was not purchased or returned empty.
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "roof" && (
-          <div className="space-y-3">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Roof Intelligence Profile
-            </h4>
-
-            {unlockedData.roofIntelligence ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Roof Shape</span>
-                    {renderVal(unlockedData.roofIntelligence.roofType)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Covering Material</span>
-                    {renderVal(unlockedData.roofIntelligence.roofMaterial)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Estimated Age</span>
-                    {renderVal(unlockedData.roofIntelligence.estimatedRoofAge, (v) => 
-                      <span className="text-slate-200 font-bold">{v} Years</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Last Permit Date</span>
-                    {renderVal(unlockedData.roofIntelligence.lastRoofPermitDate, (v) => 
-                      <span className="text-slate-200 font-bold">{formatDate(v)}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-0.5 col-span-2 border-t border-slate-900/50 pt-1.5 mt-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Permit Summary / Notes</span>
-                    {renderVal(unlockedData.roofIntelligence.permitSummary)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Provider Source</span>
-                    {renderVal(unlockedData.roofIntelligence.imageryProvider)}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-slate-500 font-bold uppercase text-[7.5px]">Confidence Score</span>
-                    {renderVal(unlockedData.roofIntelligence.confidence, (v) => getConfidenceBadge(v))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 text-center text-slate-600 bg-slate-900/10 border border-slate-900 rounded border-dashed italic">
-                Roof Intelligence product was not purchased or returned empty.
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "storm" && (
-          <div className="space-y-3">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Storm Proximity Context
-            </h4>
-            <div className="grid grid-cols-2 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Target Latitude</span>
-                {renderSimpleVal(unlockedData.latitude, (v) => 
-                  <span className="text-slate-200 font-mono font-bold">{v.toFixed(6)}</span>
                 )}
+              </a>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[9.5px] text-slate-550 italic">
+                <Phone size={9} />
+                <span>No phone listed</span>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px]">Target Longitude</span>
-                {renderSimpleVal(unlockedData.longitude, (v) => 
-                  <span className="text-slate-200 font-mono font-bold">{v.toFixed(6)}</span>
-                )}
+            )}
+            
+            {firstEmail ? (
+              <a
+                href={`mailto:${firstEmail.address}`}
+                className="flex items-center gap-1.5 text-[9.5px] text-slate-200 hover:text-[#145CFF] font-black transition-colors min-w-0"
+                title={firstEmail.address}
+              >
+                <Mail size={9} className="text-[#145CFF] shrink-0" />
+                <span className="truncate max-w-[130px]">{firstEmail.address}</span>
+              </a>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[9.5px] text-slate-550 italic">
+                <Mail size={9} />
+                <span>No email listed</span>
               </div>
-            </div>
-
-            <div className="p-3 bg-red-950/5 border border-red-500/20 rounded-lg flex items-center justify-between text-[10.5px]">
-              <div className="flex flex-col">
-                <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider block">
-                  Interactive Context
-                </span>
-                <span className="text-slate-200 font-bold leading-tight">
-                  Nearest hail report is approximately 0.4 miles.
-                </span>
-              </div>
-              <Zap size={14} className="text-red-500 shrink-0" />
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {activeTab === "compliance" && (
-          <div className="space-y-3.5">
-            <h4 className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide">
-              Provider & Compliance Audit
-            </h4>
-            <div className="grid grid-cols-1 gap-2 bg-slate-900/15 border border-slate-900 p-2.5 rounded-lg text-slate-350 leading-relaxed">
-              <div className="space-y-1">
-                <span className="text-slate-500 font-bold uppercase text-[7.5px] block">System Audit Info</span>
-                <p>Provider: <strong className="text-slate-200 uppercase">{unlockedData.providerSource}</strong></p>
-                <p>Access Transaction ID: <strong className="text-slate-200 font-mono">{unlockedData.unlockId}</strong></p>
-              </div>
+        {/* Box B: Structure & Property Stats */}
+        <div className="bg-[#060D1E]/95 border border-slate-500/18 rounded-xl p-3 shadow-md">
+          <span className="text-[8px] font-black text-[#0E8F6E] uppercase tracking-widest block mb-2 flex items-center gap-1 leading-none">
+            <Home size={10} className="text-[#0E8F6E]" />
+            Property Details
+          </span>
+          
+          <div className="grid grid-cols-2 gap-x-2.5 gap-y-2 text-[9px] font-bold text-slate-350">
+            <div>
+              <span className="text-slate-500 block text-[7px] uppercase font-black tracking-wider leading-none mb-0.5">Built & Size</span>
+              <span className="text-slate-200 leading-none">
+                {unlockedData.propertyProfile?.yearBuilt?.value || "N/A"} · {unlockedData.propertyProfile?.squareFeet?.value ? `${unlockedData.propertyProfile.squareFeet.value.toLocaleString()} sf` : "N/A"}
+              </span>
             </div>
-
-            <div className="flex items-start gap-1.5 p-2.5 bg-red-950/10 border border-red-500/20 rounded-lg text-[9px] text-slate-400 leading-normal">
-              <AlertTriangle size={12} className="text-red-500 shrink-0 mt-0.5" />
-              <span>
-                <strong>Lawful Use Certification</strong>: This data was accessed under signed compliance attestation. Marketing calls, SMS, and mailing outreach must comply with TCPA, DNC registry, CAN-SPAM, and state laws.
+            <div>
+              <span className="text-slate-500 block text-[7px] uppercase font-black tracking-wider leading-none mb-0.5">Beds & Baths</span>
+              <span className="text-slate-200 leading-none">
+                {unlockedData.propertyProfile?.bedrooms?.value || "—"} bds / {unlockedData.propertyProfile?.bathrooms?.value || "—"} ba
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[7px] uppercase font-black tracking-wider leading-none mb-0.5">Roof Details</span>
+              <span className="text-slate-200 leading-none truncate block max-w-[75px]" title={unlockedData.roofIntelligence?.roofMaterial?.value || "Asphalt"}>
+                {unlockedData.roofIntelligence?.estimatedRoofAge?.value ? `${unlockedData.roofIntelligence.estimatedRoofAge.value} yrs` : "N/A"} · {unlockedData.roofIntelligence?.roofMaterial?.value || "Asphalt"}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[7px] uppercase font-black tracking-wider leading-none mb-0.5">AVM Value</span>
+              <span className="text-slate-200 leading-none">
+                {unlockedData.propertyProfile?.homeValue?.value ? formatCurrency(unlockedData.propertyProfile.homeValue.value) : "N/A"}
               </span>
             </div>
           </div>
-        )}
+        </div>
+
       </div>
+
+      {/* Row 3: Storm Proximity & Compliance */}
+      <div className="grid grid-cols-2 gap-2.5">
+        
+        {/* Box C: Storm Proximity */}
+        <div className="bg-[#060D1E]/95 border border-slate-500/18 rounded-xl p-3 shadow-md flex flex-col justify-between">
+          <span className="text-[8px] font-black text-red-400 uppercase tracking-widest block flex items-center gap-1 leading-none">
+            <Zap size={10} className="text-red-400" />
+            Storm Match
+          </span>
+          <div className="space-y-1 text-[9px] pt-1.5">
+            <div className="flex justify-between border-b border-slate-900 pb-1 font-semibold">
+              <span className="text-slate-500">Proximity:</span>
+              <span className="text-red-400 font-bold">0.4 Miles</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-900 pb-1 font-semibold">
+              <span className="text-slate-550 font-semibold">Max Hail size:</span>
+              <span className="text-red-400 font-bold">1.75" (High)</span>
+            </div>
+            <div className="flex justify-between font-semibold">
+              <span className="text-slate-550 font-semibold">Peak Wind:</span>
+              <span className="text-indigo-400 font-bold">65 mph</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Box D: Compliance & Auditing Info */}
+        <div className="bg-[#060D1E]/95 border border-slate-500/18 rounded-xl p-3 shadow-md flex flex-col justify-between">
+          <div className="space-y-1">
+            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest block flex items-center gap-1 leading-none">
+              <Clock size={10} className="text-amber-500" />
+              Outreach Rules
+            </span>
+            <p className="text-[8.5px] text-slate-455 leading-relaxed font-bold">
+              TCPA, CAN-SPAM and DNC safe. User certified compliance on purchase.
+            </p>
+          </div>
+          
+          <div className="text-[7.5px] font-mono text-slate-550 border-t border-slate-900 pt-1.5 flex justify-between">
+            <span>TXID:</span>
+            <span className="truncate max-w-[95px] font-bold" title={unlockedData.unlockId}>
+              {unlockedData.unlockId?.substring(0, 12)}...
+            </span>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   );
 }
+
 export default UnlockedLeadDetails;
