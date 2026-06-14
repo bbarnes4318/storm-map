@@ -110,15 +110,41 @@ export function StormTargetDashboard({
           }
         }
       });
-    } else if (selectedMarket) {
-      // 2. County/Market Selected: Filter reports within selected counties bounding boxes/centroids
-      const countyNames = selectedMarket.counties.map(c => c.countyName.toLowerCase());
+    } else if (selectedMarket && selectedMarket.counties.length > 0) {
+      // 2. County/Market Selected: Filter reports within selected county centroid + radius / expanded bbox
+      const firstCounty = selectedMarket.counties[0];
       const state = selectedMarket.stateCode.toLowerCase();
+      const radius = selectedMarket.radiusMiles;
 
-      filteredReports = reports.filter(r => 
-        r.state.toLowerCase() === state && 
-        countyNames.includes(r.county.toLowerCase())
-      );
+      filteredReports = reports.filter(r => {
+        // State boundary check
+        if (r.state.toLowerCase() !== state) return false;
+
+        if (firstCounty.centroid) {
+          // Centroid distance check
+          const dist = getDistanceMiles(firstCounty.centroid.lat, firstCounty.centroid.lon, r.lat, r.lon);
+          let inBounds = dist <= radius;
+
+          // Expanded bbox check
+          if (!inBounds && firstCounty.bbox) {
+            const deltaLat = radius / 69.0;
+            const latRad = (firstCounty.centroid.lat * Math.PI) / 180.0;
+            const cosLat = Math.cos(latRad);
+            const safeCosLat = cosLat < 0.01 ? 0.01 : cosLat;
+            const deltaLon = radius / (69.0 * safeCosLat);
+            const west = firstCounty.bbox.west - deltaLon;
+            const south = firstCounty.bbox.south - deltaLat;
+            const east = firstCounty.bbox.east + deltaLon;
+            const north = firstCounty.bbox.north + deltaLat;
+
+            inBounds = r.lon >= west && r.lon <= east && r.lat >= south && r.lat <= north;
+          }
+
+          return inBounds;
+        }
+
+        return r.county.toLowerCase() === firstCounty.countyName.toLowerCase();
+      });
 
       nearbyReportsCount = filteredReports.length;
 

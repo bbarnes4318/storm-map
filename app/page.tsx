@@ -29,7 +29,7 @@ export default function StormMapPage() {
   const [filters, setFilters] = React.useState<StormFilterState>({
     searchQuery: "",
     state: "",
-    radius: 0,
+    radius: 15,
     center: null,
     targetZoom: undefined,
     showHail: true,
@@ -43,6 +43,11 @@ export default function StormMapPage() {
     showNeighborhoodLabels: true,
     showHouseNumbers: true,
     showBuildings: true,
+    selectedCounty: undefined,
+    selectedCountyFull: undefined,
+    selectedCountyFips: undefined,
+    countyBbox: undefined,
+    searchStatus: "empty",
   });
 
   const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
@@ -201,7 +206,7 @@ export default function StormMapPage() {
     setFilters({
       searchQuery: "",
       state: "",
-      radius: 0,
+      radius: 15,
       center: null,
       targetZoom: undefined,
       showHail: true,
@@ -215,6 +220,11 @@ export default function StormMapPage() {
       showNeighborhoodLabels: true,
       showHouseNumbers: true,
       showBuildings: true,
+      selectedCounty: undefined,
+      selectedCountyFull: undefined,
+      selectedCountyFips: undefined,
+      countyBbox: undefined,
+      searchStatus: "empty",
     });
   };
 

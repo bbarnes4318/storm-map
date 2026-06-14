@@ -271,3 +271,25 @@ export function formatSPCDescriptor(location: string): string {
   }
   return `Approx. storm report area: ${location}`;
 }
+
+/**
+ * Expands an estimated bounding box by a given radius in miles.
+ */
+export function expandBbox(
+  bbox: { west: number; south: number; east: number; north: number },
+  radiusMiles: number,
+  centroidLat: number
+): [number, number, number, number] {
+  const deltaLat = radiusMiles / 69.0;
+  const latRad = (centroidLat * Math.PI) / 180.0;
+  const cosLat = Math.cos(latRad);
+  const safeCosLat = cosLat < 0.01 ? 0.01 : cosLat;
+  const deltaLon = radiusMiles / (69.0 * safeCosLat);
+  return [
+    bbox.west - deltaLon,
+    bbox.south - deltaLat,
+    bbox.east + deltaLon,
+    bbox.north + deltaLat
+  ];
+}
+

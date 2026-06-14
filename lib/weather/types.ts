@@ -66,6 +66,13 @@ export type StormFilterState = {
   showNeighborhoodLabels: boolean;
   showHouseNumbers: boolean;
   showBuildings: boolean;
+  
+  // Guided Selector Search State
+  selectedCounty?: string;
+  selectedCountyFull?: string;
+  selectedCountyFips?: string;
+  countyBbox?: { west: number; south: number; east: number; north: number };
+  searchStatus?: "empty" | "loading" | "complete";
 };
 
 export type TargetCluster = {

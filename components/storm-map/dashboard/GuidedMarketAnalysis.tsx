@@ -6,7 +6,6 @@ import {
   Search, 
   ChevronDown, 
   Check, 
-  X, 
   Loader2, 
   Zap, 
   Sliders, 
@@ -30,8 +29,8 @@ export function GuidedMarketAnalysis({
   setIsAnalyzing
 }: GuidedMarketAnalysisProps) {
   const [selectedState, setSelectedState] = React.useState("");
-  const [selectedCounties, setSelectedCounties] = React.useState<USCounty[]>([]);
-  const [radius, setRadius] = React.useState(10);
+  const [selectedCounty, setSelectedCounty] = React.useState<USCounty | null>(null);
+  const [radius, setRadius] = React.useState(15);
   const [countySearch, setCountySearch] = React.useState("");
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [loadingStep, setLoadingStep] = React.useState(0);
@@ -52,9 +51,9 @@ export function GuidedMarketAnalysis({
     );
   }, [countiesInState, countySearch]);
 
-  // Reset selected counties if state changes
+  // Reset selected county if state changes
   React.useEffect(() => {
-    setSelectedCounties([]);
+    setSelectedCounty(null);
     setCountySearch("");
   }, [selectedState]);
 
@@ -80,7 +79,7 @@ export function GuidedMarketAnalysis({
           // Complete analysis
           onAnalyze({
             stateCode: selectedState,
-            counties: selectedCounties,
+            counties: selectedCounty ? [selectedCounty] : [],
             radiusMiles: radius
           });
           return prev;
@@ -90,24 +89,11 @@ export function GuidedMarketAnalysis({
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isAnalyzing, selectedState, selectedCounties, radius, onAnalyze]);
-
-  const toggleCounty = (county: USCounty) => {
-    const exists = selectedCounties.some(c => c.countyName === county.countyName);
-    if (exists) {
-      setSelectedCounties(selectedCounties.filter(c => c.countyName !== county.countyName));
-    } else {
-      setSelectedCounties([...selectedCounties, county]);
-    }
-  };
-
-  const handleClearAllCounties = () => {
-    setSelectedCounties([]);
-  };
+  }, [isAnalyzing, selectedState, selectedCounty, radius, onAnalyze]);
 
   const handleStartAnalysis = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedState || selectedCounties.length === 0) return;
+    if (!selectedState || !selectedCounty) return;
     setIsAnalyzing(true);
   };
 
@@ -131,7 +117,7 @@ export function GuidedMarketAnalysis({
             Analyzing Storm Opportunity
           </h3>
           <p className="text-xs text-[#475569] max-w-sm">
-            Please wait while we retrieve NOAA weather data and cross-reference county boundary databases.
+            Scanning storm activity around {selectedCounty?.countyName}, {selectedState}...
           </p>
         </div>
 
@@ -193,7 +179,7 @@ export function GuidedMarketAnalysis({
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-xs text-[#0F172A] focus:outline-none focus:border-[#145CFF] appearance-none font-bold"
+              className="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-xs text-[#0F172A] focus:outline-none focus:border-[#145CFF] appearance-none font-bold cursor-pointer"
             >
               <option value="">Select a state</option>
               {states.map((st) => (
@@ -206,22 +192,22 @@ export function GuidedMarketAnalysis({
           </div>
         </div>
 
-        {/* Step 2: Select Counties */}
+        {/* Step 2: Select County */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black text-[#475569] uppercase tracking-wider block">
-            2. Search or Select Counties
+            2. Search and Select County
           </label>
           <div className="relative">
             <button
               type="button"
               disabled={!selectedState}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-xs text-left text-[#0F172A] font-bold focus:outline-none focus:border-[#145CFF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+              className="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-xs text-left text-[#0F172A] font-bold focus:outline-none focus:border-[#145CFF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between cursor-pointer"
             >
               <span className="truncate">
-                {selectedCounties.length === 0 
-                  ? "Search or select counties" 
-                  : `${selectedCounties.length} county selected`}
+                {selectedCounty 
+                  ? selectedCounty.countyFullName 
+                  : "Search and select a county"}
               </span>
               <ChevronDown size={14} className="text-[#64748B]" />
             </button>
@@ -236,6 +222,7 @@ export function GuidedMarketAnalysis({
                     onChange={(e) => setCountySearch(e.target.value)}
                     placeholder="Filter counties..."
                     className="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-md pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-[#145CFF]"
+                    autoFocus
                   />
                   <Search className="absolute left-2.5 top-2.5 text-[#64748B]" size={12} />
                 </div>
@@ -248,20 +235,22 @@ export function GuidedMarketAnalysis({
                     </div>
                   ) : (
                     filteredCounties.map((c) => {
-                      const isChecked = selectedCounties.some(sc => sc.countyName === c.countyName);
+                      const isSelected = selectedCounty?.countyName === c.countyName;
                       return (
                         <button
                           key={c.countyName}
                           type="button"
-                          onClick={() => toggleCounty(c)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-[#0F172A] rounded hover:bg-[#F8FAFC] font-semibold text-left transition-all"
+                          onClick={() => {
+                            setSelectedCounty(c);
+                            setIsDropdownOpen(false);
+                            setCountySearch("");
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
+                            isSelected ? "bg-[#145CFF]/10 text-[#145CFF]" : "text-[#0F172A] hover:bg-[#F8FAFC]"
+                          }`}
                         >
                           <span>{c.countyFullName}</span>
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                            isChecked ? "bg-[#145CFF] border-[#145CFF] text-white" : "border-slate-350 bg-white"
-                          }`}>
-                            {isChecked && <Check size={10} className="stroke-[3]" />}
-                          </div>
+                          {isSelected && <Check size={12} className="text-[#145CFF] stroke-[3]" />}
                         </button>
                       );
                     })
@@ -270,59 +259,26 @@ export function GuidedMarketAnalysis({
               </div>
             )}
           </div>
-
-          {/* Selected County Chips */}
-          {selectedCounties.length > 0 && (
-            <div className="space-y-1.5 pt-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Selected Counties ({selectedCounties.length})</span>
-                <button
-                  type="button"
-                  onClick={handleClearAllCounties}
-                  className="text-[9px] font-black text-red-500 hover:text-red-650 uppercase"
-                >
-                  Clear all
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 py-1 custom-scrollbar">
-                {selectedCounties.map((c) => (
-                  <div 
-                    key={c.countyName}
-                    className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0F172A] px-2 py-0.5 rounded-md text-[10px] font-bold"
-                  >
-                    <span>{c.countyName}</span>
-                    <button 
-                      type="button"
-                      onClick={() => toggleCounty(c)}
-                      className="text-slate-400 hover:text-red-500 font-bold"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Step 3: Select Radius */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black text-[#475569] uppercase tracking-wider block">
-            3. Target Radius Around Selected County
+            3. Search Radius Around Centroid
           </label>
-          <div className="grid grid-cols-5 gap-2">
-            {[5, 10, 15, 25, 50].map((r) => (
+          <div className="grid grid-cols-7 gap-1">
+            {[5, 10, 15, 25, 50, 75, 100].map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setRadius(r)}
-                className={`py-2 rounded-lg text-xs font-black transition-all ${
+                className={`py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
                   radius === r 
                     ? "bg-[#145CFF] border-[#145CFF] text-white shadow-md shadow-[#145CFF]/15" 
                     : "bg-[#F8FAFC] border border-[#E5E7EB] text-[#475569] hover:bg-slate-50"
                 }`}
               >
-                {r} mi
+                {r}
               </button>
             ))}
           </div>
@@ -331,14 +287,15 @@ export function GuidedMarketAnalysis({
         {/* CTA Analyze Button */}
         <button
           type="submit"
-          disabled={!selectedState || selectedCounties.length === 0}
-          className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-black uppercase text-xs tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer mt-6"
+          disabled={!selectedState || !selectedCounty}
+          className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8] disabled:border-[#E5E7EB] disabled:cursor-not-allowed border-none text-[#F8FAFC] font-black uppercase text-xs tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer mt-6"
         >
           <Navigation size={14} className="rotate-45 shrink-0" />
-          <span>Analyze Storm Opportunity</span>
+          <span>Search Storm Activity</span>
         </button>
       </form>
     </div>
   );
 }
+
 export default GuidedMarketAnalysis;

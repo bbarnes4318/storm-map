@@ -11,13 +11,14 @@ import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, Target
 import { STORM_TYPE_COLORS, stormFillColorExpression, stormStrokeColorExpression } from "@/lib/weather/stormStyles";
 import { AlertPolygonLayer } from "./AlertPolygonLayer";
 import { MapDetailOverlay } from "./MapDetailOverlay";
-import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCDescriptor } from "@/lib/weather/geo";
+import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCDescriptor, expandBbox } from "@/lib/weather/geo";
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { parseAlertCounties, resolveCountyBounds } from "@/lib/weather/county-resolver";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle, ArrowLeft } from "lucide-react";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
 import { StormProductActionPanel } from "./enrichment/StormProductActionPanel";
 import { ProductRequestModal } from "./enrichment/ProductRequestModal";
+import { getCountyByStateAndName } from "@/lib/geo/us-counties";
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -113,6 +114,16 @@ function maskStreetAddress(address: string): string {
   return parts.join(" ");
 }
 
+function getZoomForRadius(radius: number): number {
+  if (radius <= 5) return 11.5;
+  if (radius <= 10) return 10.5;
+  if (radius <= 15) return 9.8;
+  if (radius <= 25) return 9.0;
+  if (radius <= 50) return 8.0;
+  if (radius <= 75) return 7.3;
+  return 6.8; // 100 miles
+}
+
 interface StormMapProps {
   filters: StormFilterState;
   onFiltersChange: (newFilters: Partial<StormFilterState>) => void;
@@ -154,6 +165,22 @@ export function StormMap({
   const [selectedCounty, setSelectedCounty] = React.useState<AlertTargetCounty | null>(null);
   const [resolvingCountyId, setResolvingCountyId] = React.useState<string | null>(null);
 
+  const marketCounty = React.useMemo(() => {
+    if (filters.selectedCounty && filters.state) {
+      const county = getCountyByStateAndName(filters.state, filters.selectedCounty);
+      if (county) {
+        return {
+          countyName: county.countyName,
+          stateCode: county.stateCode,
+          label: `${county.countyName}, ${county.stateCode}`,
+          centroid: [county.centroid.lat, county.centroid.lon] as [number, number],
+          bbox: [county.bbox.west, county.bbox.south, county.bbox.east, county.bbox.north] as [number, number, number, number],
+        };
+      }
+    }
+    return null;
+  }, [filters.selectedCounty, filters.state]);
+
   const [mapModalOpen, setMapModalOpen] = React.useState(false);
   const [mapModalProduct, setMapModalProduct] = React.useState<any>(null);
   const [mapModalContextType, setMapModalContextType] = React.useState<any>(null);
@@ -171,31 +198,52 @@ export function StormMap({
   // Synchronize filters.center changes with Mapbox camera
   React.useEffect(() => {
     if (filters.center) {
-      const targetZoom = filters.targetZoom ?? (viewState.zoom < 7 ? 8.5 : viewState.zoom);
-      
-      // Prevent redundant camera flights if we are already focused on the target coordinates & zoom
-      const isAlreadyAtTarget =
-        Math.abs(viewState.latitude - filters.center[0]) < 0.001 &&
-        Math.abs(viewState.longitude - filters.center[1]) < 0.001 &&
-        Math.abs(viewState.zoom - targetZoom) < 0.1;
+      if (filters.countyBbox) {
+        // Fit to expanded estimated bbox
+        const [west, south, east, north] = expandBbox(
+          filters.countyBbox,
+          filters.radius,
+          filters.center[0]
+        );
+        if (mapRef.current) {
+          mapRef.current.fitBounds(
+            [
+              [west, south],
+              [east, north]
+            ],
+            {
+              padding: 50,
+              duration: 1200,
+            }
+          );
+        }
+      } else {
+        const targetZoom = filters.targetZoom ?? (filters.radius > 0 ? getZoomForRadius(filters.radius) : (viewState.zoom < 7 ? 8.5 : viewState.zoom));
+        
+        // Prevent redundant camera flights if we are already focused on the target coordinates & zoom
+        const isAlreadyAtTarget =
+          Math.abs(viewState.latitude - filters.center[0]) < 0.001 &&
+          Math.abs(viewState.longitude - filters.center[1]) < 0.001 &&
+          Math.abs(viewState.zoom - targetZoom) < 0.1;
 
-      if (isAlreadyAtTarget) {
-        return;
-      }
+        if (isAlreadyAtTarget) {
+          return;
+        }
 
-      setViewState((prev) => ({
-        ...prev,
-        latitude: filters.center![0],
-        longitude: filters.center![1],
-        zoom: targetZoom,
-      }));
-
-      if (mapRef.current) {
-        mapRef.current.flyTo({
-          center: [filters.center[1], filters.center[0]], // [longitude, latitude]
+        setViewState((prev) => ({
+          ...prev,
+          latitude: filters.center![0],
+          longitude: filters.center![1],
           zoom: targetZoom,
-          duration: 1200,
-        });
+        }));
+
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [filters.center[1], filters.center[0]], // [longitude, latitude]
+            zoom: targetZoom,
+            duration: 1200,
+          });
+        }
       }
     } else {
       // Revert map to default center and zoom when filters center is cleared
@@ -223,7 +271,7 @@ export function StormMap({
         });
       }
     }
-  }, [filters.center, filters.targetZoom]);
+  }, [filters.center, filters.targetZoom, filters.countyBbox, filters.radius]);
 
   React.useEffect(() => {
     setRadiusStatusMsg(null);
@@ -242,10 +290,21 @@ export function StormMap({
         return false;
       }
       
-      // Radius filter around geocoded center
+      // Radius filter around geocoded center / selected county
       if (filters.center && filters.radius > 0) {
         const dist = getDistanceMiles(filters.center[0], filters.center[1], r.lat, r.lon);
-        if (dist > filters.radius) return false;
+        let inBounds = dist <= filters.radius;
+
+        if (!inBounds && filters.countyBbox) {
+          const [west, south, east, north] = expandBbox(
+            filters.countyBbox,
+            filters.radius,
+            filters.center[0]
+          );
+          inBounds = r.lon >= west && r.lon <= east && r.lat >= south && r.lat <= north;
+        }
+
+        if (!inBounds) return false;
       }
 
       // Report types toggles
@@ -736,8 +795,9 @@ export function StormMap({
   }, [filters.center, filters.radius]);
 
   const countyPolygonGeoJSON = React.useMemo(() => {
-    if (!selectedCounty || !selectedCounty.bbox) return null;
-    const [west, south, east, north] = selectedCounty.bbox;
+    const activeCounty = selectedCounty || marketCounty;
+    if (!activeCounty || !activeCounty.bbox) return null;
+    const [west, south, east, north] = activeCounty.bbox;
     return {
       type: "Feature" as const,
       geometry: {
@@ -753,14 +813,23 @@ export function StormMap({
         ]
       },
       properties: {
-        name: selectedCounty.label
+        name: activeCounty.label
       }
     };
-  }, [selectedCounty]);
+  }, [selectedCounty, marketCounty]);
 
   const countyPointGeoJSON = React.useMemo(() => {
-    if (!selectedCounty || !selectedCounty.centroid) return null;
-    const [lat, lon] = selectedCounty.centroid;
+    const activeCounty = selectedCounty || marketCounty;
+    if (!activeCounty || !activeCounty.centroid) return null;
+    const [lat, lon] = activeCounty.centroid;
+
+    let displayName = activeCounty.countyName;
+    if (marketCounty && activeCounty === marketCounty) {
+      displayName = `${activeCounty.countyName}, ${activeCounty.stateCode}\n${filters.radius} mi radius`;
+    } else {
+      displayName = activeCounty.label || activeCounty.countyName;
+    }
+
     return {
       type: "Feature" as const,
       geometry: {
@@ -768,10 +837,10 @@ export function StormMap({
         coordinates: [lon, lat]
       },
       properties: {
-        name: selectedCounty.countyName
+        name: displayName
       }
     };
-  }, [selectedCounty]);
+  }, [selectedCounty, marketCounty, filters.radius]);
 
   // Generate cluster boundary concentric rings GeoJSON polygon FeatureCollection
   const clusterCirclesGeoJson = React.useMemo(() => {
@@ -1808,15 +1877,15 @@ export function StormMap({
               id="search-radius-fill"
               type="fill"
               paint={{
-                "fill-color": "#ef4444",
-                "fill-opacity": 0.04,
+                "fill-color": "#145CFF",
+                "fill-opacity": 0.05,
               }}
             />
             <Layer
               id="search-radius-outline"
               type="line"
               paint={{
-                "line-color": "#ef4444",
+                "line-color": "#145CFF",
                 "line-width": 1.5,
                 "line-dasharray": [4, 4],
               }}
@@ -1991,6 +2060,24 @@ export function StormMap({
             }
           }}
         />
+      )}
+
+      {filters.searchStatus === "empty" && (
+        <div className="absolute inset-0 z-[8] flex flex-col items-center justify-center p-6 text-center bg-[#050B16]/85 backdrop-blur-[4px] select-none pointer-events-auto">
+          <div className="max-w-md space-y-4">
+            <div className="w-16 h-16 rounded-full bg-[#145CFF]/10 border border-[#145CFF]/30 flex items-center justify-center mx-auto text-[#145CFF]">
+              <Target size={32} className="animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-extrabold text-base text-slate-100 uppercase tracking-wider">
+                Start With Your Storm Market
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                Choose a state and county to begin scanning live storm activity.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">

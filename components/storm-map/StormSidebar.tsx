@@ -2,7 +2,8 @@
 
 import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
-import { clusterStormReports, formatSPCDescriptor } from "@/lib/weather/geo";
+import { clusterStormReports, formatSPCDescriptor, getDistanceMiles, expandBbox } from "@/lib/weather/geo";
+import { allStates, getCountiesByState, USCounty } from "@/lib/geo/us-counties";
 import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
@@ -71,6 +72,35 @@ export function StormSidebar({
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
+
+  // Guided Selector local inputs state
+  const [tempState, setTempState] = React.useState(filters.state || "");
+  const [tempCounty, setTempCounty] = React.useState<USCounty | null>(null);
+  const [tempRadius, setTempRadius] = React.useState(filters.radius || 15);
+  const [countySearchQuery, setCountySearchQuery] = React.useState("");
+  const [countyDropdownOpen, setCountyDropdownOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!filters.center) {
+      setTempState("");
+      setTempCounty(null);
+      setTempRadius(15);
+      setCountySearchQuery("");
+      setCountyDropdownOpen(false);
+    }
+  }, [filters.center]);
+
+  const filteredCounties = React.useMemo(() => {
+    if (!tempState) return [];
+    const list = getCountiesByState(tempState);
+    if (!countySearchQuery.trim()) return list;
+    const q = countySearchQuery.toLowerCase().trim();
+    return list.filter(
+      (c) =>
+        c.countyName.toLowerCase().includes(q) ||
+        c.countyFullName.toLowerCase().includes(q)
+    );
+  }, [tempState, countySearchQuery]);
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
@@ -175,55 +205,41 @@ export function StormSidebar({
     }
   }, [selectedProperty]);
 
-  // Geocoding search using free Nominatim API
-  const handleSearchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  // Guided Search Submit
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!tempState || !tempCounty) return;
 
-    setIsSearching(true);
-    try {
-      const q = `${searchQuery.trim()}, USA`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=us&limit=1`;
-      
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "StormTargetMap/1.0 (contact: info@stormtargetmap.com)",
-        }
+    onFiltersChange({ searchStatus: "loading" });
+    
+    // Simulate B2B scan latency
+    setTimeout(() => {
+      onFiltersChange({
+        center: [tempCounty.latitude, tempCounty.longitude],
+        state: tempState,
+        radius: tempRadius,
+        selectedCounty: tempCounty.countyName,
+        selectedCountyFull: tempCounty.countyFullName,
+        selectedCountyFips: tempCounty.fips,
+        countyBbox: tempCounty.bbox,
+        searchStatus: "complete",
+        searchQuery: `${tempCounty.countyFullName}, ${tempState}`
       });
-      
-      if (!res.ok) throw new Error("Geocoding failed");
-      
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const item = data[0];
-        const lat = parseFloat(item.lat);
-        const lon = parseFloat(item.lon);
-
-        // Determine target zoom based on Nominatim place classification
-        // Address, building, highway, amenity usually indicate specific street-level locations
-        const addressTypes = ["house", "building", "residential", "service", "point_of_interest", "postcode", "street", "address"];
-        const isStreetLevel = addressTypes.includes(item.type) || 
-                              item.class === "building" || 
-                              item.class === "highway" ||
-                              item.class === "amenity" ||
-                              /\d+/.test(searchQuery);
-
-        const targetZoom = isStreetLevel ? 16.5 : 9.5;
-        onSelectCoords([lat, lon], item.display_name, targetZoom);
-      } else {
-        alert("Location not found. Try searching for a City & State (e.g. 'Norman, OK') or a 5-digit ZIP code.");
-      }
-    } catch (err) {
-      console.error("Search failed:", err);
-      alert("Error finding location. Please try again.");
-    } finally {
-      setIsSearching(false);
-    }
+    }, 1200);
   };
 
   const handleClearSearch = () => {
     setSearchQuery("");
-    onFiltersChange({ center: null, searchQuery: "" });
+    onFiltersChange({
+      center: null,
+      searchQuery: "",
+      state: "",
+      selectedCounty: undefined,
+      selectedCountyFull: undefined,
+      selectedCountyFips: undefined,
+      countyBbox: undefined,
+      searchStatus: "empty"
+    });
   };
 
   const handleExportCSV = () => {
@@ -270,6 +286,20 @@ export function StormSidebar({
       if (filters.state && r.state.toUpperCase() !== filters.state.toUpperCase()) {
         return false;
       }
+      
+      // Radius and County Bounding Box filter
+      if (filters.center && filters.radius > 0) {
+        const dist = getDistanceMiles(filters.center[0], filters.center[1], r.lat, r.lon);
+        let inBbox = false;
+        if (filters.countyBbox) {
+          const exp = expandBbox(filters.countyBbox, filters.radius, filters.center[0]);
+          inBbox = r.lon >= exp[0] && r.lon <= exp[2] && r.lat >= exp[1] && r.lat <= exp[3];
+        }
+        if (dist > filters.radius && !inBbox) {
+          return false;
+        }
+      }
+
       // Report type toggles
       if (r.type === "hail" && !filters.showHail) return false;
       if (r.type === "wind" && !filters.showWind) return false;
@@ -307,28 +337,35 @@ export function StormSidebar({
           borderRight: sidebarOpen ? "1px solid rgba(20, 92, 255, 0.20)" : "none"
         }}
       >
-        {/* Brand Header & Search Inline */}
-        <div className="py-2.5 px-3 border-b border-[#145CFF]/15 flex items-center gap-2 bg-transparent">
-
-          {/* Search Box Inline */}
-          <form onSubmit={handleSearchSubmit} className="flex-1 relative">
-            <input
-              type="text"
-              placeholder="Search City or ZIP..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0B1930]/60 border border-[#145CFF]/20 rounded px-2 py-1.5 text-[10px] text-[#F8FAFC] placeholder:text-slate-550 focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all"
-            />
-            {filters.center && (
+        {/* Brand Header & Market Info Summary */}
+        <div className="py-2.5 px-3 border-b border-[#145CFF]/15 flex items-center gap-2 bg-transparent justify-between select-none min-h-[50px]">
+          {filters.selectedCounty ? (
+            <>
+              <div className="flex-1 min-w-0">
+                <span className="text-slate-500 font-extrabold uppercase text-[7.5px] block tracking-wider leading-none mb-1">
+                  Current Market
+                </span>
+                <h4 className="font-extrabold text-[#F8FAFC] text-[10.5px] leading-tight truncate" title={filters.selectedCountyFull}>
+                  {filters.selectedCountyFull}, {filters.state}
+                </h4>
+                <span className="text-[#145CFF] text-[8.5px] block font-bold mt-0.5">
+                  {filters.radius} mi radius
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-1.5 top-1.5 text-[9px] text-[#145CFF] hover:text-[#2570FF] font-extrabold"
+                className="text-[8.5px] font-bold text-[#145CFF] hover:text-[#2570FF] uppercase tracking-wider bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] border border-[rgba(20,92,255,0.20)] px-2 py-1 rounded transition-all cursor-pointer shrink-0 ml-2"
               >
-                ×
+                Change Market
               </button>
-            )}
-          </form>
+            </>
+          ) : (
+            <div className="flex-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-700 shrink-0"></span>
+              No Active Market
+            </div>
+          )}>
 
           {/* Control Actions */}
           <div className="flex items-center gap-1 shrink-0">
@@ -580,50 +617,210 @@ export function StormSidebar({
         <div className="flex-1 overflow-y-auto p-2 space-y-2.5">
           {activeTab === "filters" && (
             <>
-              {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
-              <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-2.5 space-y-2 shadow-lg shadow-black/20">
-                <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
-                  <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
-                  <div className="flex gap-0.5 bg-[#050B16]/60 p-0.5 rounded border border-[rgba(20,92,255,0.14)]">
-                    {(["24h", "today", "yesterday"] as const).map((win) => (
-                      <button
-                        key={win}
-                        type="button"
-                        onClick={() => onFiltersChange({ timeWindow: win })}
-                        className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold capitalize transition-all cursor-pointer ${
-                          filters.timeWindow === win
-                            ? "bg-[#145CFF]/20 text-[#F8FAFC] border border-[#145CFF]/45 shadow-sm"
-                            : "text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-                        }`}
-                      >
-                        {win === "24h" ? "24h" : win}
-                      </button>
-                    ))}
+              {filters.searchStatus === "empty" ? (
+                <div className="bg-[#0B1930]/72 border border-[#145CFF]/20 rounded-xl p-4.5 space-y-4 shadow-xl select-none animate-in fade-in duration-200">
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-[#F8FAFC] text-[11px] uppercase tracking-wide flex items-center gap-1.5">
+                      <Zap size={13} className="text-[#145CFF] shrink-0" />
+                      Start With Your Storm Market
+                    </h3>
+                    <p className="text-[10px] text-slate-450 leading-normal font-semibold">
+                      Select a state, county, and search radius. StormTarget Live will scan recent hail, wind, tornado, and severe weather activity around that market so you can identify the neighborhoods most likely to need roof inspections.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    {/* State Selection */}
+                    <div className="space-y-1">
+                      <label className="text-[8.5px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                        1. Select State
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={tempState}
+                          onChange={(e) => {
+                            setTempState(e.target.value);
+                            setTempCounty(null);
+                            setCountySearchQuery("");
+                          }}
+                          className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1.5 text-xs text-[#F8FAFC] font-semibold focus:outline-none focus:border-[#145CFF] appearance-none cursor-pointer"
+                        >
+                          <option value="">Choose State</option>
+                          {allStates.map((st) => (
+                            <option key={st.code} value={st.code}>
+                              {st.name} ({st.code})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronRight className="absolute right-2 top-2.5 text-slate-500 rotate-90 pointer-events-none" size={12} />
+                      </div>
+                    </div>
+
+                    {/* County Selection */}
+                    <div className="space-y-1">
+                      <label className="text-[8.5px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                        2. Choose County
+                      </label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          disabled={!tempState}
+                          onClick={() => setCountyDropdownOpen(!countyDropdownOpen)}
+                          className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-semibold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between"
+                        >
+                          <span className="truncate">
+                            {tempCounty ? tempCounty.countyFullName : "Choose County"}
+                          </span>
+                          <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={12} />
+                        </button>
+
+                        {countyDropdownOpen && tempState && (
+                          <div className="absolute top-9 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-md shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col">
+                            <div className="relative shrink-0">
+                              <input
+                                type="text"
+                                value={countySearchQuery}
+                                onChange={(e) => setCountySearchQuery(e.target.value)}
+                                placeholder="Filter counties..."
+                                className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2 py-1 text-[10px] text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
+                              />
+                              <Search className="absolute right-2 top-1.5 text-slate-500" size={10} />
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                              {filteredCounties.length === 0 ? (
+                                <div className="text-center text-[9px] text-slate-500 py-2 italic">
+                                  No counties found
+                                </div>
+                              ) : (
+                                filteredCounties.map((c) => (
+                                  <button
+                                    key={c.fips}
+                                    type="button"
+                                    onClick={() => {
+                                      setTempCounty(c);
+                                      setCountyDropdownOpen(false);
+                                    }}
+                                    className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] text-slate-300 hover:text-[#F8FAFC] rounded hover:bg-[#145CFF]/10 font-bold text-left transition-all cursor-pointer"
+                                  >
+                                    <span>{c.countyFullName}</span>
+                                    {tempCounty?.fips === c.fips && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Radius Selection */}
+                    <div className="space-y-1">
+                      <label className="text-[8.5px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                        3. Search Radius
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={tempRadius}
+                          onChange={(e) => setTempRadius(parseInt(e.target.value))}
+                          className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1.5 text-xs text-[#F8FAFC] font-semibold focus:outline-none focus:border-[#145CFF] appearance-none cursor-pointer"
+                        >
+                          <option value="5">5 miles</option>
+                          <option value="10">10 miles</option>
+                          <option value="15">15 miles</option>
+                          <option value="25">25 miles</option>
+                          <option value="50">50 miles</option>
+                          <option value="75">75 miles</option>
+                          <option value="100">100 miles</option>
+                        </select>
+                        <ChevronRight className="absolute right-2 top-2.5 text-slate-500 rotate-90 pointer-events-none" size={12} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      disabled={!tempState || !tempCounty}
+                      onClick={() => handleSearchSubmit()}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[#145CFF]/15 disabled:text-[#145CFF]/40 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer"
+                    >
+                      <Navigation size={11} className="rotate-45 shrink-0" />
+                      <span>Search Storm Activity</span>
+                    </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-1 text-center">
-                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                    <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
-                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
-                  </div>
-                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                    <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
-                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
-                  </div>
-                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                    <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
-                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
-                  </div>
-                  <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                    <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
-                    <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
+              ) : filters.searchStatus === "loading" ? (
+                <div className="bg-[#0B1930]/72 border border-[#145CFF]/20 rounded-xl p-6 text-center space-y-3.5 shadow-xl animate-pulse select-none">
+                  <div className="w-8 h-8 rounded-full border-2 border-[#145CFF]/20 border-t-[#145CFF] animate-spin mx-auto"></div>
+                  <div className="space-y-1">
+                    <h4 className="font-extrabold text-[#F8FAFC] text-[10px] uppercase tracking-wider">
+                      Analyzing Market Opportunity
+                    </h4>
+                    <p className="text-[9.5px] text-slate-400 font-medium">
+                      Scanning storm activity around {tempCounty?.countyName}, {tempState}...
+                    </p>
                   </div>
                 </div>
-                <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1 font-medium px-0.5">
-                  <span>Total Reports: {hailCount + windCount + tornadoCount}</span>
-                  <span>Active Watches: {watchCount}</span>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Results Header Status */}
+                  <div className="bg-[#0E8F6E]/8 border border-[#0E8F6E]/20 rounded-lg p-2.5 flex items-center justify-between text-[9.5px] text-[#0E8F6E] font-extrabold uppercase tracking-wide shrink-0 select-none">
+                    <span className="truncate">
+                      Showing recent storm activity within {filters.radius} miles of {filters.selectedCounty}, {filters.state}.
+                    </span>
+                    <span className="flex h-1.5 w-1.5 relative shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0E8F6E] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0E8F6E]"></span>
+                    </span>
+                  </div>
+
+                  {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
+                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-2.5 space-y-2 shadow-lg shadow-black/20">
+                    <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
+                      <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
+                      <div className="flex gap-0.5 bg-[#050B16]/60 p-0.5 rounded border border-[rgba(20,92,255,0.14)]">
+                        {(["24h", "today", "yesterday"] as const).map((win) => (
+                          <button
+                            key={win}
+                            type="button"
+                            onClick={() => onFiltersChange({ timeWindow: win })}
+                            className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold capitalize transition-all cursor-pointer ${
+                              filters.timeWindow === win
+                                ? "bg-[#145CFF]/20 text-[#F8FAFC] border border-[#145CFF]/45 shadow-sm"
+                                : "text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+                            }`}
+                          >
+                            {win === "24h" ? "24h" : win}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 text-center">
+                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                        <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
+                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
+                      </div>
+                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                        <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
+                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
+                      </div>
+                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                        <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
+                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
+                      </div>
+                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                        <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
+                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
+                      </div>
+                    </div>
+                    <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1 font-medium px-0.5">
+                      <span>Total Reports: {hailCount + windCount + tornadoCount}</span>
+                      <span>Active Watches: {watchCount}</span>
+                    </div>
+                  </div>
 
               {/* 2. SPC Reports & Legend (Side-by-Side Grid) */}
               <div className="grid grid-cols-2 gap-2">

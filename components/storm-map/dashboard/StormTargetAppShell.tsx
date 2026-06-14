@@ -395,6 +395,7 @@ export function StormTargetAppShell({
       <div className="flex-1 h-full flex flex-col overflow-hidden">
         {/* Topbar */}
         <DashboardTopbar
+          selectedMarket={selectedMarket}
           selectedMarketLabel={getActiveMarketLabel()}
           onSearchAddress={handleSearchAddress}
           onClearMarket={handleClearAll}
