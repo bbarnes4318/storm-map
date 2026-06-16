@@ -35,6 +35,8 @@ interface LeadIntelligencePanelProps {
   onRemoveLead?: (leadId: string) => void;
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
   filters?: StormFilterState;
+  isDemo?: boolean;
+  demoStep?: number;
 }
 
 export function LeadIntelligencePanel({
@@ -45,6 +47,8 @@ export function LeadIntelligencePanel({
   onRemoveLead,
   onAddLeads,
   filters,
+  isDemo = false,
+  demoStep = 0,
 }: LeadIntelligencePanelProps) {
   const { isSignedIn } = useUser();
 
@@ -64,13 +68,17 @@ export function LeadIntelligencePanel({
 
   // Check for Demo Mode on mount/url changes
   React.useEffect(() => {
+    if (isDemo) {
+      setIsDemoMode(true);
+      return;
+    }
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const isDemoUrl = urlParams.get("demo") === "true";
       const isDemoStorage = localStorage.getItem("demoMode") === "true";
       setIsDemoMode(isDemoUrl || isDemoStorage);
     }
-  }, []);
+  }, [isDemo]);
 
   // Fetch unlocked data if unlockId is present in property UI state
   React.useEffect(() => {
@@ -388,7 +396,12 @@ export function LeadIntelligencePanel({
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 relative">
+                {isDemo && demoStep === 8 && !isAlreadySaved && (
+                  <div className="absolute -top-7 right-2 bg-indigo-650 text-white text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-lg animate-bounce z-[1002] whitespace-nowrap border border-indigo-400">
+                    Click Save Lead! 👇
+                  </div>
+                )}
                 {/* Primary Action Button */}
                 <button
                   type="button"
@@ -405,7 +418,11 @@ export function LeadIntelligencePanel({
                 <button
                   type="button"
                   onClick={handleToggleLead}
-                  className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className={`px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                    isDemo && demoStep === 8 && !isAlreadySaved
+                      ? "ring-2 ring-indigo-500 bg-indigo-500/20 animate-pulse"
+                      : ""
+                  }`}
                 >
                   {isAlreadySaved ? "Remove" : "Save Lead"}
                 </button>

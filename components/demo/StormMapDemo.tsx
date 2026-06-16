@@ -93,9 +93,9 @@ export default function StormMapDemo() {
   const [selectedProduct, setSelectedProduct] = React.useState("platform");
   
   // Selection states from Selector (Step 2)
-  const [selectedState, setSelectedState] = React.useState("TN");
-  const [selectedCounty, setSelectedCounty] = React.useState("Knox County");
-  const [selectedRadius, setSelectedRadius] = React.useState(15);
+  const [selectedState, setSelectedState] = React.useState("");
+  const [selectedCounty, setSelectedCounty] = React.useState("");
+  const [selectedRadius, setSelectedRadius] = React.useState(10);
   
   // Scanning progress state (Step 3)
   const [scanProgress, setScanProgress] = React.useState(0);
@@ -164,6 +164,8 @@ export default function StormMapDemo() {
       showRadar: true,
       radarOpacity: 1.0,
       timeWindow: "24h",
+      startDate: undefined,
+      endDate: undefined,
       mapStyle: "dark",
       showNeighborhoodLabels: true,
       showHouseNumbers: true,
@@ -202,21 +204,53 @@ export default function StormMapDemo() {
     }
   };
 
-  // Synchronize sidebar search clicks with walkthrough steps
+  // Auto-advance logic for selector steps
   React.useEffect(() => {
-    if (filters.searchStatus === "loading" && step === 2) {
-      if (filters.state) setSelectedState(filters.state);
-      if (filters.selectedCounty) setSelectedCounty(filters.selectedCounty + " County");
-      if (filters.radius) setSelectedRadius(filters.radius);
-      setStep(3);
+    if (step === 2 && selectedState === "TN") {
+      const t = setTimeout(() => setStep(3), 800);
+      return () => clearTimeout(t);
     }
-  }, [filters.searchStatus, step, filters.state, filters.selectedCounty, filters.radius]);
+  }, [selectedState, step]);
 
   React.useEffect(() => {
-    if (filters.searchStatus === "empty" && step > 2 && step < 5) {
-      setStep(2);
+    if (step === 3 && (selectedCounty === "Knox" || selectedCounty === "Knox County")) {
+      const t = setTimeout(() => setStep(4), 800);
+      return () => clearTimeout(t);
+    }
+  }, [selectedCounty, step]);
+
+  React.useEffect(() => {
+    if (step === 4 && selectedRadius === 15) {
+      const t = setTimeout(() => setStep(5), 800);
+      return () => clearTimeout(t);
+    }
+  }, [selectedRadius, step]);
+
+  // Synchronize search click to transition from step 5 to 6
+  React.useEffect(() => {
+    if (step === 5 && filters.searchStatus === "loading") {
+      setStep(6);
     }
   }, [filters.searchStatus, step]);
+
+  // Transition from step 7 (click pin) to step 8 (save lead)
+  React.useEffect(() => {
+    if (step === 7 && selectedProperty) {
+      const t = setTimeout(() => setStep(8), 800);
+      return () => clearTimeout(t);
+    }
+  }, [selectedProperty, step]);
+
+  // Transition from step 8 (save lead) to step 9 (choose path)
+  React.useEffect(() => {
+    const isAlreadySaved = selectedProperty && leads.some(
+      (l) => l.latitude === selectedProperty.latitude && l.longitude === selectedProperty.longitude
+    );
+    if (step === 8 && isAlreadySaved) {
+      const t = setTimeout(() => setStep(9), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [leads, selectedProperty, step]);
 
   // Request modal form state
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -230,39 +264,67 @@ export default function StormMapDemo() {
     market: "Knox County, TN",
   });
 
-  // Fetch weather and storm reports on mount so map is live
-  React.useEffect(() => {
-    const fetchWeatherData = async () => {
-      try {
-        const [alertsRes, reportsRes] = await Promise.all([
-          fetch("/storm-map/api/weather/alerts"),
-          fetch("/storm-map/api/weather/spc-reports")
-        ]);
-        if (alertsRes.ok) {
-          const alertsData = await alertsRes.json();
-          setAlerts(alertsData);
-        }
-        if (reportsRes.ok) {
-          const reportsData = await reportsRes.json();
-          setReports(reportsData);
-        }
-        setLastUpdated(new Date());
-      } catch (e) {
-        console.error("Failed to load weather data in walkthrough demo", e);
+  // Fetch weather and storm reports on filter change so map is live
+  const fetchWeatherData = React.useCallback(async () => {
+    try {
+      let url = "/storm-map/api/weather/spc-reports";
+      const params = new URLSearchParams();
+      if (filters.timeWindow) {
+        params.append("timeWindow", filters.timeWindow);
       }
-    };
+      if (filters.timeWindow === "custom") {
+        if (filters.startDate) params.append("startDate", filters.startDate);
+        if (filters.endDate) params.append("endDate", filters.endDate);
+      }
+      const queryString = params.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+
+      const [alertsRes, reportsRes] = await Promise.all([
+        fetch("/storm-map/api/weather/alerts"),
+        fetch(url)
+      ]);
+      if (alertsRes.ok) {
+        const alertsData = await alertsRes.json();
+        setAlerts(alertsData);
+      }
+      if (reportsRes.ok) {
+        const reportsData = await reportsRes.json();
+        setReports(reportsData);
+      }
+      setLastUpdated(new Date());
+    } catch (e) {
+      console.error("Failed to load weather data in walkthrough demo", e);
+    }
+  }, [filters.timeWindow, filters.startDate, filters.endDate]);
+
+  React.useEffect(() => {
     fetchWeatherData();
-  }, []);
+  }, [fetchWeatherData]);
 
   // Handle slide changes via keyboard arrow keys
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") {
-        if (step < 6) {
+        if (step < 10) {
           if (step === 2) {
-            handleSelectorSubmit(selectedState, selectedCounty, selectedRadius);
-          } else if (step === 3 && !scanCompleted) {
+            setSelectedState("TN");
+          } else if (step === 3) {
+            setSelectedCounty("Knox County");
+          } else if (step === 4) {
+            setSelectedRadius(15);
+          } else if (step === 5) {
+            handleSelectorSubmit(selectedState || "TN", selectedCounty || "Knox County", selectedRadius || 15);
+          } else if (step === 6 && !scanCompleted) {
             triggerScanCompletion();
+          } else if (step === 7) {
+            handleSimulatePropertyClick();
+          } else if (step === 8) {
+            if (selectedProperty) {
+              handleAddLeads([{ ...selectedProperty, locked: true }]);
+            }
+            setStep(9);
           } else {
             setStep((s) => s + 1);
           }
@@ -278,11 +340,11 @@ export default function StormMapDemo() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [step, scanCompleted, selectedState, selectedCounty, selectedRadius]);
+  }, [step, scanCompleted, selectedState, selectedCounty, selectedRadius, selectedProperty]);
 
-  // Simulated Scanning Animation Sequence (Step 3)
+  // Simulated Scanning Animation Sequence (Step 6)
   React.useEffect(() => {
-    if (step !== 3) {
+    if (step !== 6) {
       setScanProgress(0);
       setScanCompleted(false);
       setCheckedProgressItems([]);
@@ -306,7 +368,7 @@ export default function StormMapDemo() {
 
   // Synchronize checkmarks with progress percentage
   React.useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 6) return;
     
     const items = [];
     if (scanProgress >= 20) items.push(0);
@@ -327,15 +389,17 @@ export default function StormMapDemo() {
     setFilters((f) => ({ ...f, searchStatus: "complete" }));
     
     // Seed mock leads in the selected county centroid
-    const resolved = getCountyByStateAndName(selectedState, selectedCounty);
+    const stateVal = selectedState || "TN";
+    const countyVal = selectedCounty || "Knox County";
+    const resolved = getCountyByStateAndName(stateVal, countyVal);
     if (resolved) {
       const mockLeads = generateMockLeads(resolved.latitude, resolved.longitude, resolved.countyFullName, resolved.stateAbbreviation);
       setLeads(mockLeads);
     }
-    setStep(4);
+    setStep(7);
   };
 
-  // Handle selector submission from Step 2
+  // Handle selector submission from Step 5
   const handleSelectorSubmit = (state: string, county: string, radius: number) => {
     setSelectedState(state);
     setSelectedCounty(county);
@@ -358,7 +422,7 @@ export default function StormMapDemo() {
       }));
     }
 
-    setStep(3);
+    setStep(6);
   };
 
   const handleOpenRequestModal = (productType: string) => {
@@ -400,11 +464,38 @@ export default function StormMapDemo() {
     return "";
   };
 
-  // Simulate property click (Step 4 guide helper)
+  // Simulate property click (Step 7 guide helper)
   const handleSimulatePropertyClick = () => {
-    if (leads.length > 0) {
-      setSelectedProperty(leads[0]);
+    let currentLeads = leads;
+    if (currentLeads.length === 0) {
+      const stateVal = selectedState || "TN";
+      const countyVal = selectedCounty || "Knox County";
+      const resolved = getCountyByStateAndName(stateVal, countyVal);
+      if (resolved) {
+        currentLeads = generateMockLeads(resolved.latitude, resolved.longitude, resolved.countyFullName, resolved.stateAbbreviation);
+        setLeads(currentLeads);
+      }
     }
+    if (currentLeads.length > 0) {
+      setSelectedProperty(currentLeads[0]);
+    }
+  };
+
+  const autoFillSaveLead = () => {
+    if (selectedProperty) {
+      handleAddLeads([{ ...selectedProperty, locked: true }]);
+    } else {
+      const stateVal = selectedState || "TN";
+      const countyVal = selectedCounty || "Knox County";
+      const resolved = getCountyByStateAndName(stateVal, countyVal);
+      if (resolved) {
+        const mockLeads = generateMockLeads(resolved.latitude, resolved.longitude, resolved.countyFullName, resolved.stateAbbreviation);
+        setLeads(mockLeads);
+        setSelectedProperty(mockLeads[0]);
+        handleAddLeads([{ ...mockLeads[0], locked: true }]);
+      }
+    }
+    setStep(9);
   };
 
   return (
@@ -437,6 +528,21 @@ export default function StormMapDemo() {
             setSelectedProperty(prop);
           }}
           onAddLeads={handleAddLeads}
+          isDemo={true}
+          demoStep={step}
+          tempState={selectedState}
+          setTempState={setSelectedState}
+          tempCounty={selectedCounty ? getCountyByStateAndName(selectedState || "TN", selectedCounty) : null}
+          setTempCounty={(county) => {
+            if (county) {
+              setSelectedCounty(county.countyName);
+              setSelectedState(county.stateAbbreviation);
+            } else {
+              setSelectedCounty("");
+            }
+          }}
+          tempRadius={selectedRadius}
+          setTempRadius={setSelectedRadius}
         />
 
         {/* Main Map Viewer Panel */}
@@ -458,10 +564,12 @@ export default function StormMapDemo() {
             activeDetail={activeDetail}
             setActiveDetail={setActiveDetail}
             onAddLeads={handleAddLeads}
+            isDemo={true}
+            demoStep={step}
           />
 
           {/* Dim backdrop overlay for static slides to keep content highly readable with background blur */}
-          {(step === 1 || step === 5 || step === 6) && (
+          {(step === 1 || step === 6 || step === 8 || step === 9 || step === 10) && (
             <div className="absolute inset-0 bg-[#020617]/65 backdrop-blur-[5px] z-10 pointer-events-none" />
           )}
 
@@ -471,7 +579,7 @@ export default function StormMapDemo() {
           </div>
 
           {/* Main Slide Workspace Container */}
-          <div className="flex-1 relative w-full h-full overflow-hidden flex items-center justify-center p-4 md:p-6 lg:p-8 z-20 pointer-events-none">
+          <div className="absolute inset-0 overflow-hidden flex items-center justify-center p-4 md:p-6 lg:p-8 z-20 pointer-events-none">
             
             {/* Step 1: Hero Intro */}
             <DemoSlide isActive={step === 1} className="max-w-4xl flex flex-col gap-5 text-left p-6 md:p-8 bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] shadow-2xl animate-in fade-in duration-200 select-text pointer-events-auto">
@@ -495,7 +603,7 @@ export default function StormMapDemo() {
               <div className="flex items-center gap-3 pt-2 select-none">
                 <button
                   onClick={() => setStep(2)}
-                  className="px-5 py-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[11px] tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-[#145CFF]/15 cursor-pointer border-none"
+                  className="px-5 py-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[11px] tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/50 animate-pulse hover:scale-105"
                 >
                   <Play size={11} className="fill-[#F8FAFC]" />
                   Start Walkthrough
@@ -517,13 +625,12 @@ export default function StormMapDemo() {
                 </button>
               </div>
             </DemoSlide>
-             
-            {/* Step 2: Market Selection */}
+                      {/* Step 2: Select State */}
             <DemoSlide isActive={step === 2} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
               <div className="space-y-4">
                 <div className="space-y-1">
                   <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded border border-[#145CFF]/20 inline-block leading-none">
-                    STEP 1 OF 4: DEFINE AREA
+                    STEP 2 OF 10: CHOOSE YOUR MARKET
                   </span>
                   <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
                     Choose Your Market
@@ -531,50 +638,162 @@ export default function StormMapDemo() {
                   <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
                     Use the **Storm Intelligence Panel** on the left to select your target territory.
                   </p>
+                  <p className="text-[11.5px] text-slate-200 font-extrabold leading-relaxed mt-1.5 flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-indigo-650 text-white flex items-center justify-center text-[9px] font-bold">1</span>
+                    Select **Tennessee (TN)** as the state.
+                  </p>
                 </div>
 
-                <div className="p-3.5 bg-indigo-500/5 border border-dashed border-indigo-500/25 rounded-xl space-y-2.5 text-[10.5px] leading-relaxed text-slate-300">
+                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-350">
                   <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
                     <Sparkles size={12} className="animate-pulse" />
-                    Quick-Start Market Instructions
+                    State Selector Guide
                   </span>
                   <p>
-                    1. Select **Tennessee (TN)** as the state.
-                  </p>
-                  <p>
-                    2. Choose **Knox County** from the county selector.
-                  </p>
-                  <p>
-                    3. Choose a **15 miles** search radius.
-                  </p>
-                  <p>
-                    4. Click the blue **search button** (with the triangle navigation icon) to run the scanner.
+                    The State selector has been expanded for you on the left panel. Click the flashing **TN** option in the list.
                   </p>
                 </div>
 
                 <button
-                  onClick={() => handleSelectorSubmit("TN", "Knox County", 15)}
-                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none"
+                  onClick={() => setSelectedState("TN")}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/40 animate-pulse"
                 >
-                  <span>Auto-Fill Knox County (Skip)</span>
+                  <span>Auto-Select TN</span>
                   <ArrowRight size={12} />
                 </button>
               </div>
             </DemoSlide>
 
-            {/* Step 3: Scanning / Analysis Animation overlay */}
-            <DemoSlide isActive={step === 3} className="max-w-sm bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
+            {/* Step 3: Choose County */}
+            <DemoSlide isActive={step === 3} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded border border-[#145CFF]/20 inline-block leading-none">
+                    STEP 3 OF 10: CHOOSE YOUR MARKET
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Choose Your Market
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Use the **Storm Intelligence Panel** on the left to select your target territory.
+                  </p>
+                  <p className="text-[11.5px] text-slate-200 font-extrabold leading-relaxed mt-1.5 flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-indigo-650 text-white flex items-center justify-center text-[9px] font-bold">2</span>
+                    Choose **Knox County** from the county selector.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-355">
+                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    County Selector Guide
+                  </span>
+                  <p>
+                    The County selector is now open. Find and click **Knox County** in the scrollable list.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedCounty("Knox County")}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/40 animate-pulse"
+                >
+                  <span>Auto-Select Knox County</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 4: Select Radius */}
+            <DemoSlide isActive={step === 4} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded border border-[#145CFF]/20 inline-block leading-none">
+                    STEP 4 OF 10: CHOOSE YOUR MARKET
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Choose Your Market
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Use the **Storm Intelligence Panel** on the left to select your target territory.
+                  </p>
+                  <p className="text-[11.5px] text-slate-200 font-extrabold leading-relaxed mt-1.5 flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-indigo-650 text-white flex items-center justify-center text-[9px] font-bold">3</span>
+                    Choose a **15 miles** search radius.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-355">
+                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    Radius Selector Guide
+                  </span>
+                  <p>
+                    The Radius dropdown is open. Select the **15 mi** option to set the weather scan boundary.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedRadius(15)}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/40 animate-pulse"
+                >
+                  <span>Auto-Select 15 Miles</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 5: Click Scan */}
+            <DemoSlide isActive={step === 5} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded border border-[#145CFF]/20 inline-block leading-none">
+                    STEP 5 OF 10: RUN WEATHER SCANNER
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Choose Your Market
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Use the **Storm Intelligence Panel** on the left to select your target territory.
+                  </p>
+                  <p className="text-[11.5px] text-slate-200 font-extrabold leading-relaxed mt-1.5 flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-indigo-650 text-white flex items-center justify-center text-[9px] font-bold">4</span>
+                    Click the blue **search button** (with the triangle navigation icon) to run the scanner.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-355">
+                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    Scan Execution Guide
+                  </span>
+                  <p>
+                    Click the pulsing blue **Scan Selected Territory** button (marked with badge <span className="px-1.5 py-0.5 rounded bg-indigo-650 text-white font-bold">4</span>) to fetch weather alerts and storm cells.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleSelectorSubmit("TN", "Knox County", 15)}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/40 animate-pulse"
+                >
+                  <span>Simulate Scan Execution</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 6: Scanning Checklist Overlay */}
+            <DemoSlide isActive={step === 6} className="max-w-sm bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
               <div className="space-y-4 text-left">
                 <div className="space-y-1">
                   <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] animate-pulse">
-                    STEP 2 OF 4: SCANNING LIVE WEATHER
+                    STEP 6 OF 10: SCANNING LIVE WEATHER
                   </span>
                   <h2 className="text-lg font-black text-[#F8FAFC] tracking-tight">
                     Scanning Storm Activity <br />
-                    in {selectedCounty}, {selectedState}
+                    in {selectedCounty || "Knox County"}, {selectedState || "TN"}
                   </h2>
                   <p className="text-[10px] text-slate-400 font-semibold leading-normal">
-                    StormTarget Live is checking recent hail, wind, tornado, and severe weather reports inside your selected radius.
+                    StormTarget Live is checking recent NOAA alerts and SPC storm reports inside your selected radius.
                   </p>
                 </div>
 
@@ -631,83 +850,89 @@ export default function StormMapDemo() {
                     <span className={`w-1.5 h-1.5 rounded-full ${scanCompleted ? "bg-[#00A86B]" : "bg-[#145CFF] animate-ping"}`} />
                     {scanCompleted
                       ? "Storm activity found. Opportunity summary ready."
-                      : `Scanning within ${selectedRadius} miles of ${selectedCounty}...`}
+                      : `Scanning within ${selectedRadius || 15} miles...`}
                   </span>
                 </div>
               </div>
             </DemoSlide>
 
-            {/* Step 4: Opportunity Summary & Floating Cards */}
-            {step === 4 && (
-              <div className="w-full h-full flex flex-col md:flex-row md:justify-end items-center relative pointer-events-none z-10 select-text">
-                {/* Walkthrough Tutorial Guide (Right Overlay) - Clickable */}
-                <div className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] rounded-[24px] bg-[#060D1E]/90 border border-slate-500/18 p-5 md:p-6 shadow-2xl flex flex-col justify-between gap-4 animate-in slide-in-from-right duration-300 pointer-events-auto">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#0E8F6E] bg-[#0E8F6E]/10 px-2 py-0.5 rounded border border-[#0E8F6E]/20 inline-block leading-none">
-                        STEP 3 OF 4: SCAN COMPLETED
-                      </span>
-                      <h2 className="text-base font-black text-[#F8FAFC] tracking-tight">
-                        {selectedCounty} Opportunity Zone
-                      </h2>
-                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                        StormTarget Live has centered the map, drawn your <strong>{selectedRadius} mi</strong> search radius, and highlighted the property targets as green pins.
-                      </p>
-                    </div>
-
-                    {/* KPI Metrics row */}
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
-                        <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
-                          Storm Impact
-                        </span>
-                        <span className="text-[10.5px] font-black text-red-400">HIGH (1.75" Hail)</span>
-                      </div>
-                      <div className="bg-[#050B16]/50 border border-slate-800 rounded-xl p-2 text-center shadow-lg">
-                        <span className="text-[7.5px] font-extrabold text-[#64748B] uppercase tracking-wider block">
-                          Target Radius
-                        </span>
-                        <span className="text-[10.5px] font-black text-[#145CFF]">{selectedRadius} mi</span>
-                      </div>
-                    </div>
-
-                    {/* Tutorial Action Guide */}
-                    <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/25 rounded-xl space-y-2 text-[10px] leading-relaxed">
-                      <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                        <Sparkles size={11} className="animate-spin-slow" />
-                        Interactive Walkthrough
-                      </span>
-                      <p className="text-slate-350">
-                        We detected severe storm activity in this market. Click any **green pin** on the live map to view homeowner contact data, roof metrics, and recommended outreach actions.
-                      </p>
-                      <button
-                        onClick={handleSimulatePropertyClick}
-                        className="w-full py-1.5 px-3 rounded-lg bg-indigo-500 hover:bg-indigo-650 text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer border-none shadow-md shadow-indigo-500/10"
-                      >
-                        Simulate Property Select
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Continue button */}
-                  <button
-                    onClick={() => setStep(5)}
-                    className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none"
-                  >
-                    <span>Choose Your Action Path</span>
-                    <ArrowRight size={12} />
-                  </button>
+            {/* Step 7: Click green map pin */}
+            <DemoSlide isActive={step === 7} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#0E8F6E] bg-[#0E8F6E]/10 px-2 py-0.5 rounded border border-[#0E8F6E]/20 inline-block leading-none">
+                    STEP 7 OF 10: EXPLORE PROPERTY
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Select a Storm-Hit Property
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Click the flashing **green pin** on the live map to open its B2B contact details and roof dimensions preview.
+                  </p>
                 </div>
-              </div>
-            )}
 
-            {/* Step 5: Product Path Selection */}
-            <DemoSlide isActive={step === 5} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
+                <div className="p-3 bg-emerald-500/5 border border-dashed border-emerald-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-350">
+                  <span className="text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    Map Interaction Guide
+                  </span>
+                  <p>
+                    Severe hail was detected! Click the bouncing map marker with the tooltip "Click Pin to View Target 👇" to inspect the homeowner record.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleSimulatePropertyClick}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#0E8F6E] hover:bg-[#0EA781] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#0E8F6E]/15 cursor-pointer border-none ring-2 ring-emerald-450/40 animate-pulse"
+                >
+                  <span>Simulate Pin Click</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 8: Save Lead */}
+            <DemoSlide isActive={step === 8} className="absolute top-16 right-4 z-[999] w-full max-w-[390px] md:max-w-[400px] bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in slide-in-from-right duration-300 pointer-events-auto">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#0E8F6E] bg-[#0E8F6E]/10 px-2 py-0.5 rounded border border-[#0E8F6E]/20 inline-block leading-none">
+                    STEP 8 OF 10: SAVE OPPORTUNITY
+                  </span>
+                  <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
+                    Add Target to Your Leads List
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Click the glowing **Save Lead** button in the property details panel on the left to save this target.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-indigo-500/5 border border-dashed border-indigo-500/20 rounded-xl space-y-2 text-[10.5px] leading-relaxed text-slate-350">
+                  <span className="text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles size={12} className="animate-pulse" />
+                    Lead Panel Guide
+                  </span>
+                  <p>
+                    Saving adds this record to your local database, allowing you to export the contact details, download the roof structure report, or request appointments.
+                  </p>
+                </div>
+
+                <button
+                  onClick={autoFillSaveLead}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all shadow-md shadow-[#145CFF]/15 cursor-pointer border-none ring-2 ring-indigo-400/40 animate-pulse"
+                >
+                  <span>Simulate Save Lead</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </DemoSlide>
+
+            {/* Step 9: Product Path Selection */}
+            <DemoSlide isActive={step === 9} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 shadow-2xl animate-in fade-in duration-200 pointer-events-auto">
               <div className="space-y-5 flex flex-col h-full min-h-0">
                 {/* Header copy */}
                 <div className="text-center space-y-1 shrink-0">
                   <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#145CFF] bg-[#145CFF]/10 px-2.5 py-1 rounded border border-[#145CFF]/20 inline-block leading-none">
-                    STEP 4 OF 4: CHOOSE ACTION PATH
+                    STEP 9 OF 10: CHOOSE ACTION PATH
                   </span>
                   <h2 className="text-xl font-black text-[#F8FAFC] tracking-tight">
                     Choose How You Want to Turn Storm Data Into Revenue
@@ -725,15 +950,15 @@ export default function StormMapDemo() {
                 {/* Bottom Row: continues */}
                 <div className="flex items-center justify-between border-t border-slate-800 pt-4 shrink-0 px-1 select-none">
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-slate-550 font-extrabold uppercase tracking-wide">Selected Path:</span>
+                    <span className="text-[9px] text-slate-555 font-extrabold uppercase tracking-wide">Selected Path:</span>
                     <span className="text-[10px] text-[#F8FAFC] font-black uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]" />
                       {getProductTitle(selectedProduct)}
                     </span>
                   </div>
                   <button
-                    onClick={() => setStep(6)}
-                    className="px-6 py-2.5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-widest transition-all flex items-center gap-1 cursor-pointer border-none shadow-md shadow-[#145CFF]/10"
+                    onClick={() => setStep(10)}
+                    className="px-6 py-2.5 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-widest transition-all flex items-center gap-1 cursor-pointer border-none shadow-md shadow-[#145CFF]/10 ring-2 ring-indigo-400 animate-pulse"
                   >
                     <span>Continue</span>
                     <ChevronRight size={11} strokeWidth={2} />
@@ -742,12 +967,12 @@ export default function StormMapDemo() {
               </div>
             </DemoSlide>
 
-            {/* Step 6: Final CTA */}
-            <DemoSlide isActive={step === 6} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 md:p-8 shadow-2xl animate-in fade-in duration-200 md:grid md:grid-cols-12 gap-6 items-center select-text pointer-events-auto">
+            {/* Step 10: Final CTA */}
+            <DemoSlide isActive={step === 10} className="max-w-4xl bg-[#060D1E]/95 border border-slate-500/18 rounded-[24px] p-6 md:p-8 shadow-2xl animate-in fade-in duration-200 md:grid md:grid-cols-12 gap-6 items-center select-text pointer-events-auto">
               {/* Left final sales copy */}
               <div className="md:col-span-7 flex flex-col gap-4 text-left">
                 <span className="text-[8.5px] font-extrabold uppercase tracking-widest text-[#00A86B] bg-[#0E8F6E]/10 px-2.5 py-1 rounded border border-[#0E8F6E]/20 self-start leading-none">
-                  GET STARTED TODAY
+                  STEP 10 OF 10: GET STARTED
                 </span>
                 
                 <h1 className="text-2xl font-black text-[#F8FAFC] leading-tight tracking-tight">
@@ -774,7 +999,7 @@ export default function StormMapDemo() {
                 <div className="flex flex-col gap-2 pt-2 max-w-md select-none">
                   <a
                     href="/storm-map"
-                    className="w-full py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer ring-1 ring-indigo-400/30 hover:scale-[1.02]"
                   >
                     Use StormTarget Live (Full Platform)
                   </a>
@@ -782,7 +1007,7 @@ export default function StormMapDemo() {
                   <button
                     type="button"
                     onClick={() => handleOpenRequestModal("report")}
-                    className="w-full py-3 px-4 rounded-lg bg-[#0E8F6E] hover:bg-[#0EA781] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#0E8F6E]/10 cursor-pointer border-none"
+                    className="w-full py-3 px-4 rounded-lg bg-[#0E8F6E] hover:bg-[#0EA781] text-[#F8FAFC] font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#0E8F6E]/10 cursor-pointer border-none ring-1 ring-emerald-400/30 hover:scale-[1.02]"
                   >
                     Request Hail Strike Report (Leads Only)
                   </button>
@@ -790,7 +1015,7 @@ export default function StormMapDemo() {
                   <button
                     type="button"
                     onClick={() => handleOpenRequestModal("appointments")}
-                    className="w-full py-3 px-4 rounded-lg bg-[#FBBF24] hover:bg-[#FBBF24]/90 text-slate-955 font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#FBBF24]/10 cursor-pointer border-none"
+                    className="w-full py-3 px-4 rounded-lg bg-[#FBBF24] hover:bg-[#FBBF24]/90 text-slate-955 font-extrabold uppercase text-[10.5px] tracking-wider text-center transition-all shadow-md shadow-[#FBBF24]/10 cursor-pointer border-none ring-1 ring-amber-400/30 hover:scale-[1.02]"
                   >
                     Request Homeowner Appointments (DFY)
                   </button>
@@ -813,7 +1038,7 @@ export default function StormMapDemo() {
                       setCheckedProgressItems([]);
                       setSelectedProperty(null);
                       setLeads([]);
-                      setFilters((prev) => ({ ...prev, center: null, searchStatus: "empty" }));
+                      setFilters((prev) => ({ ...prev, center: null, searchQuery: "", state: "", selectedCounty: undefined, searchStatus: "empty" }));
                     }}
                     className="text-[9.5px] text-slate-455 hover:text-slate-350 font-extrabold uppercase tracking-wider flex items-center gap-1 cursor-pointer border-none bg-transparent"
                   >
@@ -833,7 +1058,7 @@ export default function StormMapDemo() {
                   </span>
                   
                   <h4 className="text-sm font-black text-[#F8FAFC] tracking-tight leading-none mb-4">
-                    {selectedCounty}, {selectedState} Market
+                    {selectedCounty || "Knox County"}, {selectedState || "TN"} Market
                   </h4>
 
                   <div className="space-y-3.5">
@@ -844,7 +1069,7 @@ export default function StormMapDemo() {
                     
                     <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
                       <span className="font-semibold text-slate-500">Target Radius:</span>
-                      <span className="font-black text-[#F8FAFC]">{selectedRadius} Miles</span>
+                      <span className="font-black text-[#F8FAFC]">{selectedRadius || 15} Miles</span>
                     </div>
 
                     <div className="flex items-center justify-between border-b border-slate-900 pb-2 text-[10px]">
@@ -878,7 +1103,7 @@ export default function StormMapDemo() {
             </button>
 
             <div className="flex items-center gap-1.5">
-              {Array.from({ length: 6 }).map((_, idx) => {
+              {Array.from({ length: 10 }).map((_, idx) => {
                 const stepNum = idx + 1;
                 const isActive = stepNum === step;
 
@@ -897,17 +1122,30 @@ export default function StormMapDemo() {
 
             <button
               onClick={() => {
-                if (step < 6) {
+                if (step < 10) {
                   if (step === 2) {
-                    handleSelectorSubmit(selectedState, selectedCounty, selectedRadius);
-                  } else if (step === 3 && !scanCompleted) {
+                    setSelectedState("TN");
+                  } else if (step === 3) {
+                    setSelectedCounty("Knox County");
+                  } else if (step === 4) {
+                    setSelectedRadius(15);
+                  } else if (step === 5) {
+                    handleSelectorSubmit(selectedState || "TN", selectedCounty || "Knox County", selectedRadius || 15);
+                  } else if (step === 6 && !scanCompleted) {
                     triggerScanCompletion();
+                  } else if (step === 7) {
+                    handleSimulatePropertyClick();
+                  } else if (step === 8) {
+                    if (selectedProperty) {
+                      handleAddLeads([{ ...selectedProperty, locked: true }]);
+                    }
+                    setStep(9);
                   } else {
                     setStep((s) => s + 1);
                   }
                 }
               }}
-              disabled={step === 6}
+              disabled={step === 10}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#145CFF] hover:bg-[#2570FF] disabled:opacity-30 disabled:cursor-not-allowed text-xs text-[#F8FAFC] font-extrabold uppercase tracking-wider transition-all cursor-pointer border-none"
             >
               Next
@@ -928,6 +1166,8 @@ export default function StormMapDemo() {
             onRemoveLead={handleRemoveLead}
             onAddLeads={handleAddLeads}
             filters={filters}
+            isDemo={true}
+            demoStep={step}
           />
         </div>
       )}

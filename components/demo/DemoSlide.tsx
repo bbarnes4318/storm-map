@@ -13,7 +13,7 @@ export default function DemoSlide({ children, isActive, className = "" }: DemoSl
 
   return (
     <div
-      className={`w-full h-full flex flex-col justify-between overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 ${className}`}
+      className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${className}`}
     >
       {children}
     </div>

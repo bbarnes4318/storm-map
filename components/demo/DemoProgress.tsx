@@ -4,16 +4,20 @@ import React from "react";
 import { Check } from "lucide-react";
 
 interface DemoProgressProps {
-  currentStep: number; // 1 to 6
+  currentStep: number; // 1 to 10
   onStepClick: (step: number) => void;
 }
 
 const STEPS = [
   { label: "Intro", desc: "Hero Overview" },
-  { label: "Market", desc: "Target Selector" },
-  { label: "Scan", desc: "Storm Scan" },
-  { label: "Opportunity", desc: "Scan Results" },
-  { label: "Options", desc: "Action Paths" },
+  { label: "State", desc: "Select TN" },
+  { label: "County", desc: "Select Knox" },
+  { label: "Radius", desc: "Select Radius" },
+  { label: "Scan", desc: "Run Scanner" },
+  { label: "Weather", desc: "Check storm" },
+  { label: "Map", desc: "Click Pin" },
+  { label: "Save", desc: "Save Target" },
+  { label: "Action", desc: "Choose Path" },
   { label: "Start", desc: "Final CTA" },
 ];
 
@@ -83,7 +87,7 @@ export default function DemoProgress({ currentStep, onStepClick }: DemoProgressP
 
       {/* Mobile Step summary */}
       <div className="flex md:hidden items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-        <span>Step {currentStep} of 6</span>
+        <span>Step {currentStep} of 10</span>
         <span className="text-slate-600">|</span>
         <span className="text-slate-200">{STEPS[currentStep - 1].label}</span>
       </div>

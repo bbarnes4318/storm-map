@@ -4,9 +4,15 @@ import { weatherCache } from "@/lib/weather/cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const cacheKey = "spc-reports-cache";
-  // Cache SPC storm reports for 5 minutes (300 seconds)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const timeWindow = (searchParams.get("timeWindow") as any) || "24h";
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
+
+  const cacheKey = `spc-reports-cache-${timeWindow}-${startDate || "none"}-${endDate || "none"}`;
+  
+  // Cache SPC storm reports combined results for 5 minutes (300 seconds)
   const cached = weatherCache.get<any>(cacheKey, 300);
 
   if (cached) {
@@ -19,7 +25,7 @@ export async function GET() {
   }
 
   try {
-    const reports = await fetchSpcReports();
+    const reports = await fetchSpcReports({ timeWindow, startDate, endDate });
     weatherCache.set(cacheKey, reports);
 
     return NextResponse.json(reports, {

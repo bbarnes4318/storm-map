@@ -138,6 +138,8 @@ interface StormMapProps {
   activeDetail: ActivePopupDetail | null;
   setActiveDetail: (detail: ActivePopupDetail | null | ((prev: ActivePopupDetail | null) => ActivePopupDetail | null)) => void;
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
+  isDemo?: boolean;
+  demoStep?: number;
 }
 
 export function StormMap({
@@ -154,6 +156,8 @@ export function StormMap({
   activeDetail,
   setActiveDetail,
   onAddLeads,
+  isDemo = false,
+  demoStep = 0,
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
@@ -1977,8 +1981,9 @@ export function StormMap({
         )}
 
         {/* Layer 6.6: Persistent locked lead markers */}
-        {leads && leads.map((lead) => {
+        {leads && leads.map((lead, index) => {
           const isActive = selectedProperty?.latitude === lead.latitude && selectedProperty?.longitude === lead.longitude;
+          const isHighlightedPin = isDemo && demoStep === 7 && index === 0;
           return (
             <Marker
               key={lead.id}
@@ -1998,17 +2003,26 @@ export function StormMap({
                   onLockProperty(lead);
                 }}
               >
+                {isHighlightedPin && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded shadow-lg animate-bounce z-[1002] whitespace-nowrap flex items-center gap-1 border border-indigo-400">
+                    <span>Click Pin to View Target 👇</span>
+                  </div>
+                )}
                 <div className={`rounded-full absolute transition-all ${
-                  isActive 
+                  isHighlightedPin
+                    ? "w-10 h-10 bg-indigo-500/30 border-2 border-indigo-500/60 animate-target-pulse"
+                    : isActive 
                     ? "w-8 h-8 bg-[rgba(14,143,110,0.28)] border-2 border-[rgba(14,143,110,0.48)] animate-target-pulse" 
                     : "w-6 h-6 bg-[#0E8F6E]/16 border border-[#0E8F6E]/30 animate-ping duration-1000"
                 }`} />
                 <div className={`rounded-full border-2 shadow-glow-hail relative flex items-center justify-center transition-all ${
-                  isActive 
+                  isHighlightedPin
+                    ? "w-6 h-6 scale-125 bg-indigo-650 border-indigo-200"
+                    : isActive 
                     ? "w-5 h-5 scale-110 bg-[#0E8F6E] border-[#D1FAE5]" 
                     : "w-4 h-4 bg-[#0E8F6E] border-[#D1FAE5]/80 hover:scale-110"
                 }`}>
-                  <MapPin size={isActive ? 10 : 8} className="text-white" />
+                  <MapPin size={isHighlightedPin ? 12 : (isActive ? 10 : 8)} className="text-white" />
                 </div>
               </div>
             </Marker>

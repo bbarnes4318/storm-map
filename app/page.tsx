@@ -77,7 +77,8 @@ export default function StormMapPage() {
     }
   };
 
-  const handleLockProperty = (property: SelectedPropertyTarget) => {
+  const handleLockProperty = (property: SelectedPropertyTarget | null) => {
+    if (!property) return;
     const isAlreadyLead = leads.some(
       (l) => l.latitude === property.latitude && l.longitude === property.longitude
     );
@@ -157,7 +158,21 @@ export default function StormMapPage() {
 
     // 2. Fetch SPC Storm Reports (using basePath prefix)
     try {
-      const res = await fetch("/storm-map/api/weather/spc-reports");
+      let url = "/storm-map/api/weather/spc-reports";
+      const params = new URLSearchParams();
+      if (filters.timeWindow) {
+        params.append("timeWindow", filters.timeWindow);
+      }
+      if (filters.timeWindow === "custom") {
+        if (filters.startDate) params.append("startDate", filters.startDate);
+        if (filters.endDate) params.append("endDate", filters.endDate);
+      }
+      const queryString = params.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Reports API error");
       fetchedReports = await res.json();
       setErrors((prev) => ({ ...prev, reports: false }));
@@ -174,7 +189,7 @@ export default function StormMapPage() {
     setLastUpdated(new Date());
     setIsLoading(false);
     setIsRefreshing(false);
-  }, []);
+  }, [filters.timeWindow, filters.startDate, filters.endDate]);
 
   // Initial load on component mount
   React.useEffect(() => {
@@ -217,6 +232,8 @@ export default function StormMapPage() {
       showRadar: true,
       radarOpacity: 1.0,
       timeWindow: "24h",
+      startDate: undefined,
+      endDate: undefined,
       mapStyle: "dark",
       showNeighborhoodLabels: true,
       showHouseNumbers: true,

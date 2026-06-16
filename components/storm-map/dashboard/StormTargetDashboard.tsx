@@ -20,7 +20,8 @@ import {
   Shield,
   HelpCircle,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  MapPin
 } from "lucide-react";
 import { SelectedPropertyTarget, StormReport, NwsAlert } from "@/lib/weather/types";
 import { USCounty } from "@/lib/geo/us-counties";
@@ -63,7 +64,16 @@ export function StormTargetDashboard({
   const [isHistoryConnected, setIsHistoryConnected] = React.useState(false);
 
   // Compute stats based on selected target context
-  const targetMetrics = React.useMemo(() => {
+  const targetMetrics = React.useMemo<{
+    maxHail: string;
+    peakWind: string;
+    riskScore: number;
+    riskLevel: "Critical" | "High" | "Medium" | "Low";
+    primaryThreat: string;
+    representativeReport: StormReport | null;
+    reportsCount: number;
+    allLocalReports: StormReport[];
+  }>(() => {
     let maxHailVal = 0;
     let maxWindVal = 0;
     let maxRiskScore = 0;
@@ -577,7 +587,11 @@ export function StormTargetDashboard({
                   <div>
                     <span className="text-[8px] font-black uppercase tracking-widest text-[#64748B] block">Event Date</span>
                     <span className="font-semibold text-[#0F172A]">
-                      {targetMetrics.representativeReport?.eventDate === "today" ? "Today" : "Yesterday"}
+                      {targetMetrics.representativeReport?.eventDate === "today"
+                        ? "Today"
+                        : targetMetrics.representativeReport?.eventDate === "yesterday"
+                        ? "Yesterday"
+                        : targetMetrics.representativeReport?.eventDate}
                     </span>
                   </div>
                   <div>

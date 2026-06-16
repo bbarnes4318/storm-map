@@ -2,7 +2,7 @@ export type StormReport = {
   id: string;
   type: "hail" | "wind" | "tornado";
   timeRaw: string; // HHMM in UTC
-  eventDate: "today" | "yesterday";
+  eventDate: string; // "today", "yesterday", or "YYYY-MM-DD"
   location: string;
   county: string;
   state: string;
@@ -61,7 +61,9 @@ export type StormFilterState = {
   showAlerts: boolean;
   showRadar: boolean;
   radarOpacity: number;
-  timeWindow: "today" | "yesterday" | "24h";
+  timeWindow: "24h" | "today" | "yesterday" | "7d" | "30d" | "custom";
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
   mapStyle: StormMapStyle;
   showNeighborhoodLabels: boolean;
   showHouseNumbers: boolean;

@@ -32,6 +32,14 @@ interface StormSidebarProps {
   setActiveDetail: (detail: ActivePopupDetail | null | ((prev: ActivePopupDetail | null) => ActivePopupDetail | null)) => void;
   onSelectProperty?: (property: SelectedPropertyTarget | null) => void;
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
+  isDemo?: boolean;
+  demoStep?: number;
+  tempState?: string;
+  setTempState?: (state: string) => void;
+  tempCounty?: USCounty | null;
+  setTempCounty?: (county: USCounty | null) => void;
+  tempRadius?: number;
+  setTempRadius?: (radius: number) => void;
 }
 
 const US_STATES = [
@@ -68,44 +76,87 @@ export function StormSidebar({
   setActiveDetail,
   onSelectProperty,
   onAddLeads,
+  isDemo = false,
+  demoStep = 0,
+  tempState,
+  setTempState,
+  tempCounty,
+  setTempCounty,
+  tempRadius,
+  setTempRadius,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
 
   // Guided Selector local inputs state
-  const [tempState, setTempState] = React.useState(filters.state || "");
-  const [tempCounty, setTempCounty] = React.useState<USCounty | null>(null);
-  const [tempRadius, setTempRadius] = React.useState(filters.radius || 15);
+  const [localTempState, setLocalTempState] = React.useState(filters.state || "");
+  const [localTempCounty, setLocalTempCounty] = React.useState<USCounty | null>(null);
+  const [localTempRadius, setLocalTempRadius] = React.useState(filters.radius || 15);
+
+  const tState = tempState !== undefined ? tempState : localTempState;
+  const setTState = setTempState !== undefined ? setTempState : setLocalTempState;
+
+  const tCounty = tempCounty !== undefined ? tempCounty : localTempCounty;
+  const setTCounty = setTempCounty !== undefined ? setTempCounty : setLocalTempCounty;
+
+  const tRadius = tempRadius !== undefined ? tempRadius : localTempRadius;
+  const setTRadius = setTempRadius !== undefined ? setTempRadius : setLocalTempRadius;
+
   const [countySearchQuery, setCountySearchQuery] = React.useState("");
   const [countyDropdownOpen, setCountyDropdownOpen] = React.useState(false);
+  const [stateDropdownOpen, setStateDropdownOpen] = React.useState(false);
+  const [radiusDropdownOpen, setRadiusDropdownOpen] = React.useState(false);
+
+  // Auto-open dropdowns depending on demo step
+  React.useEffect(() => {
+    if (isDemo) {
+      if (demoStep === 2) {
+        setStateDropdownOpen(true);
+        setCountyDropdownOpen(false);
+        setRadiusDropdownOpen(false);
+      } else if (demoStep === 3) {
+        setStateDropdownOpen(false);
+        setCountyDropdownOpen(true);
+        setRadiusDropdownOpen(false);
+      } else if (demoStep === 4) {
+        setStateDropdownOpen(false);
+        setCountyDropdownOpen(false);
+        setRadiusDropdownOpen(true);
+      } else {
+        setStateDropdownOpen(false);
+        setCountyDropdownOpen(false);
+        setRadiusDropdownOpen(false);
+      }
+    }
+  }, [demoStep, isDemo]);
 
   React.useEffect(() => {
     if (!filters.center) {
-      setTempState("");
-      setTempCounty(null);
-      setTempRadius(15);
+      setTState("");
+      setTCounty(null);
+      setTRadius(15);
       setCountySearchQuery("");
       setCountyDropdownOpen(false);
     } else {
       if (filters.state) {
-        setTempState(filters.state);
+        setTState(filters.state);
       }
       if (filters.radius) {
-        setTempRadius(filters.radius);
+        setTRadius(filters.radius);
       }
       if (filters.selectedCounty && filters.state) {
         const county = getCountyByStateAndName(filters.state, filters.selectedCounty);
         if (county) {
-          setTempCounty(county);
+          setTCounty(county);
         }
       }
     }
   }, [filters.center, filters.state, filters.selectedCounty, filters.radius]);
 
   const filteredCounties = React.useMemo(() => {
-    if (!tempState) return [];
-    const list = getCountiesByState(tempState);
+    if (!tState) return [];
+    const list = getCountiesByState(tState);
     if (!countySearchQuery.trim()) return list;
     const q = countySearchQuery.toLowerCase().trim();
     return list.filter(
@@ -113,7 +164,7 @@ export function StormSidebar({
         c.countyName.toLowerCase().includes(q) ||
         c.countyFullName.toLowerCase().includes(q)
     );
-  }, [tempState, countySearchQuery]);
+  }, [tState, countySearchQuery]);
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
@@ -221,22 +272,22 @@ export function StormSidebar({
   // Guided Search Submit
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!tempState || !tempCounty) return;
+    if (!tState || !tCounty) return;
 
     onFiltersChange({ searchStatus: "loading" });
     
     // Simulate B2B scan latency
     setTimeout(() => {
       onFiltersChange({
-        center: [tempCounty.latitude, tempCounty.longitude],
-        state: tempState,
-        radius: tempRadius,
-        selectedCounty: tempCounty.countyName,
-        selectedCountyFull: tempCounty.countyFullName,
-        selectedCountyFips: tempCounty.fips,
-        countyBbox: tempCounty.bbox,
+        center: [tCounty.latitude, tCounty.longitude],
+        state: tState,
+        radius: tRadius,
+        selectedCounty: tCounty.countyName,
+        selectedCountyFull: tCounty.countyFullName,
+        selectedCountyFips: tCounty.fips,
+        countyBbox: tCounty.bbox,
         searchStatus: "complete",
-        searchQuery: `${tempCounty.countyFullName}, ${tempState}`
+        searchQuery: `${tCounty.countyFullName}, ${tState}`
       });
     }, 1200);
   };
@@ -350,171 +401,295 @@ export function StormSidebar({
           borderRight: sidebarOpen ? "1px solid rgba(20, 92, 255, 0.20)" : "none"
         }}
       >
-        {/* Brand Header */}
-        <div className="py-2 px-2.5 border-b border-[#145CFF]/15 flex items-center gap-2 bg-transparent justify-between select-none">
-          <div className="flex-1 text-[11px] font-extrabold uppercase tracking-widest text-[#F8FAFC] flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#145CFF] shrink-0 animate-pulse"></span>
-            StormTarget Live
+        {/* Market Selector & Controls Header */}
+        <div className={`p-3 border-b border-[#145CFF]/20 bg-[#071426]/50 flex flex-col gap-2.5 shrink-0 select-none relative transition-all duration-300 ${
+          isDemo && demoStep === 2 ? "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.5)] z-[100]" : ""
+        }`}>
+          {isDemo && demoStep === 2 && (
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-lg animate-bounce z-[1002] whitespace-nowrap flex items-center gap-1 border border-indigo-400">
+              <span>👈 Use Market Selector Here</span>
+            </div>
+          )}
+
+          {/* Header Row: Title & Action Controls */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-300">
+              Market Area Selector
+            </span>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <a
+                href="https://sms.leadzer.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
+                title="Open SMS App"
+              >
+                <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
+                <span>SMS</span>
+              </a>
+              <button
+                onClick={onResetView}
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
+                title="Reset Map Bounds"
+                type="button"
+              >
+                <Navigation size={10} />
+              </button>
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
+                title="Refresh Weather Data"
+                type="button"
+              >
+                <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} />
+              </button>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all md:hidden"
+                title="Close Sidebar"
+                type="button"
+              >
+                <ChevronLeft size={10} />
+              </button>
+            </div>
           </div>
 
-          {/* Control Actions */}
-          <div className="flex items-center gap-1 shrink-0">
-            <a
-              href="https://sms.leadzer.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1 rounded border border-[#145CFF]/15 text-slate-455 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
-              title="Open SMS App"
-            >
-              <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
-              <span>SMS</span>
-            </a>
-            <button
-              onClick={onResetView}
-              className="p-1 rounded border border-[#145CFF]/15 text-slate-455 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
-              title="Reset Map Bounds"
-              type="button"
-            >
-              <Navigation size={10} />
-            </button>
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="p-1 rounded border border-[#145CFF]/15 text-slate-455 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
-              title="Refresh Weather Data"
-              type="button"
-            >
-              <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} />
-            </button>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-1 rounded border border-[#145CFF]/15 text-slate-455 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all md:hidden"
-              title="Close Sidebar"
-              type="button"
-            >
-              <ChevronLeft size={10} />
-            </button>
-          </div>
-        </div>
+          {/* Selector Grid: State, County, Radius */}
+          <div className="grid grid-cols-12 gap-2 text-left">
+            {/* State (Col-span 3) */}
+            <div className={`col-span-3 flex flex-col gap-1 relative transition-all duration-300 ${
+              isDemo && demoStep === 2
+                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
+                : isDemo && demoStep !== 2 && demoStep >= 2 && demoStep <= 5
+                ? "opacity-35 pointer-events-none blur-[0.5px]"
+                : ""
+            }`}>
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                {isDemo && demoStep === 2 && (
+                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">1</span>
+                )}
+                State
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStateDropdownOpen(!stateDropdownOpen);
+                    setCountyDropdownOpen(false);
+                    setRadiusDropdownOpen(false);
+                  }}
+                  className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
+                >
+                  <span className="truncate">{tState || "ST"}</span>
+                  <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+                </button>
 
-        {/* State -> County -> Radius Market Selector (Ultra Compact Single-Row) */}
-        <div className="p-2 border-b border-[#145CFF]/15 bg-[#071426]/30 flex items-center gap-1.5 shrink-0 select-none">
-          {/* State */}
-          <div className="w-[48px] shrink-0 relative">
-            <select
-              value={tempState}
-              onChange={(e) => {
-                const val = e.target.value;
-                setTempState(val);
-                setTempCounty(null);
-                setCountySearchQuery("");
-                if (filters.center) {
-                  onFiltersChange({ state: val });
-                }
-              }}
-              className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-1.5 py-1 text-[10px] text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] appearance-none cursor-pointer text-center"
-            >
-              <option value="">ST</option>
-              {allStates.map((st) => (
-                <option key={st.code} value={st.code}>
-                  {st.code}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* County */}
-          <div className="flex-1 min-w-0 relative">
-            <button
-              type="button"
-              disabled={!tempState}
-              onClick={() => setCountyDropdownOpen(!countyDropdownOpen)}
-              className="w-full h-[25px] bg-[#050B16] border border-[#145CFF]/20 rounded px-2 py-0.5 text-[10px] text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between"
-            >
-              <span className="truncate">
-                {tempCounty ? tempCounty.countyName : "County"}
-              </span>
-              <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
-            </button>
-
-            {countyDropdownOpen && tempState && (
-              <div className="absolute top-7 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-md shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[200px]">
-                <div className="relative shrink-0">
-                  <input
-                    type="text"
-                    value={countySearchQuery}
-                    onChange={(e) => setCountySearchQuery(e.target.value)}
-                    placeholder="Filter counties..."
-                    className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2 py-1 text-[10px] text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
-                  />
-                  <Search className="absolute right-2 top-1.5 text-slate-555" size={10} />
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                  {filteredCounties.length === 0 ? (
-                    <div className="text-center text-[9px] text-slate-555 py-2 italic">
-                      No counties found
+                {stateDropdownOpen && (
+                  <div className="absolute top-12 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[120px]">
+                    <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                      {allStates.map((st) => (
+                        <button
+                          key={st.code}
+                          type="button"
+                          onClick={() => {
+                            setTState(st.code);
+                            setTCounty(null);
+                            setCountySearchQuery("");
+                            if (filters.center) {
+                              onFiltersChange({ state: st.code });
+                            }
+                            setStateDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
+                            isDemo && demoStep === 2 && st.code === "TN"
+                              ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
+                              : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                          }`}
+                        >
+                          <span>{st.code}</span>
+                          {isDemo && demoStep === 2 && st.code === "TN" && (
+                            <span className="text-[9px] animate-bounce">👈</span>
+                          )}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    filteredCounties.map((c) => (
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* County (Col-span 6) */}
+            <div className={`col-span-6 flex flex-col gap-1 relative transition-all duration-300 ${
+              isDemo && demoStep === 3
+                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
+                : isDemo && demoStep !== 3 && demoStep >= 2 && demoStep <= 5
+                ? "opacity-35 pointer-events-none blur-[0.5px]"
+                : ""
+            }`}>
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                {isDemo && demoStep === 3 && (
+                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">2</span>
+                )}
+                County
+              </label>
+              <button
+                type="button"
+                disabled={!tState}
+                onClick={() => {
+                  setCountyDropdownOpen(!countyDropdownOpen);
+                  setStateDropdownOpen(false);
+                  setRadiusDropdownOpen(false);
+                }}
+                className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between min-h-[32px] cursor-pointer"
+              >
+                <span className="truncate">
+                  {tCounty ? tCounty.countyName : "Select County"}
+                </span>
+                <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+              </button>
+
+              {countyDropdownOpen && tState && (
+                <div className="absolute top-12 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[220px]">
+                  <div className="relative shrink-0">
+                    <input
+                      type="text"
+                      value={countySearchQuery}
+                      onChange={(e) => setCountySearchQuery(e.target.value)}
+                      placeholder="Filter counties..."
+                      className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1 text-xs text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
+                    />
+                    <Search className="absolute right-2.5 top-2 text-slate-555" size={11} />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                    {filteredCounties.length === 0 ? (
+                      <div className="text-center text-[10px] text-slate-550 py-2 italic">
+                        No counties found
+                      </div>
+                    ) : (
+                      filteredCounties.map((c) => (
+                        <button
+                          key={c.fips}
+                          type="button"
+                          onClick={() => {
+                            setTCounty(c);
+                            setCountyDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
+                            isDemo && demoStep === 3 && (c.countyName === "Knox" || c.countyName === "Knox County")
+                              ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
+                              : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                          }`}
+                        >
+                          <span>{c.countyFullName}</span>
+                          {isDemo && demoStep === 3 && (c.countyName === "Knox" || c.countyName === "Knox County") && (
+                            <span className="text-[9px] animate-bounce">👈</span>
+                          )}
+                          {tCounty?.fips === c.fips && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Radius (Col-span 3) */}
+            <div className={`col-span-3 flex flex-col gap-1 relative transition-all duration-300 ${
+              isDemo && demoStep === 4
+                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
+                : isDemo && demoStep !== 4 && demoStep >= 2 && demoStep <= 5
+                ? "opacity-35 pointer-events-none blur-[0.5px]"
+                : ""
+            }`}>
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                {isDemo && demoStep === 4 && (
+                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">3</span>
+                )}
+                Radius
+              </label>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setRadiusDropdownOpen(!radiusDropdownOpen);
+                  setStateDropdownOpen(false);
+                  setCountyDropdownOpen(false);
+                }}
+                className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-1.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
+              >
+                <span>{tRadius ? `${tRadius} mi` : "Radius"}</span>
+                <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+              </button>
+
+              {radiusDropdownOpen && (
+                <div className="absolute top-12 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[100px]">
+                  <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                    {[5, 10, 15, 25, 50, 75, 100].map((r) => (
                       <button
-                        key={c.fips}
+                        key={r}
                         type="button"
                         onClick={() => {
-                          setTempCounty(c);
-                          setCountyDropdownOpen(false);
+                          setTRadius(r);
+                          if (filters.center) {
+                            onFiltersChange({ radius: r });
+                          }
+                          setRadiusDropdownOpen(false);
                         }}
-                        className="w-full flex items-center justify-between px-2 py-1 text-[10px] text-slate-300 hover:text-[#F8FAFC] rounded hover:bg-[#145CFF]/10 font-bold text-left transition-all cursor-pointer"
+                        className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
+                          isDemo && demoStep === 4 && r === 15
+                            ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
+                            : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                        }`}
                       >
-                        <span>{c.countyFullName}</span>
-                        {tempCounty?.fips === c.fips && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
+                        <span>{r} mi</span>
+                        {isDemo && demoStep === 4 && r === 15 && (
+                          <span className="text-[9px] animate-bounce">👈</span>
                         )}
                       </button>
-                    ))
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Radius */}
-          <div className="w-[56px] shrink-0">
-            <select
-              value={tempRadius}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                setTempRadius(val);
-                if (filters.center) {
-                  onFiltersChange({ radius: val });
-                }
-              }}
-              className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-1.5 py-1 text-[10px] text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] appearance-none cursor-pointer text-center"
+          {/* Full-width Prominent Scan Button */}
+          <div className={`relative transition-all duration-300 ${
+            isDemo && demoStep === 5
+              ? "z-[100]"
+              : isDemo && demoStep !== 5 && demoStep >= 2 && demoStep <= 5
+              ? "opacity-35 pointer-events-none blur-[0.5px]"
+              : ""
+          }`}>
+            {isDemo && demoStep === 5 && (
+              <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black animate-bounce z-[110]">4</span>
+            )}
+            <button
+              type="button"
+              disabled={!tState || !tCounty || filters.searchStatus === "loading"}
+              onClick={() => handleSearchSubmit()}
+              className={`w-full py-2 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[#145CFF]/15 disabled:text-[#145CFF]/40 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/10 cursor-pointer ${
+                isDemo && demoStep === 5 ? "ring-4 ring-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.7)] animate-pulse scale-[1.02]" : ""
+              }`}
             >
-              <option value="5">5 mi</option>
-              <option value="10">10 mi</option>
-              <option value="15">15 mi</option>
-              <option value="25">25 mi</option>
-              <option value="50">50 mi</option>
-              <option value="75">75 mi</option>
-              <option value="100">100 mi</option>
-            </select>
+              {filters.searchStatus === "loading" ? (
+                <>
+                  <RefreshCw size={12} className="animate-spin" />
+                  <span>Scanning Weather Data...</span>
+                </>
+              ) : (
+                <>
+                  <Navigation size={12} className="rotate-45" />
+                  <span>Scan Selected Territory</span>
+                </>
+              )}
+            </button>
           </div>
-
-          {/* Search Button */}
-          <button
-            type="button"
-            disabled={!tempState || !tempCounty || filters.searchStatus === "loading"}
-            onClick={() => handleSearchSubmit()}
-            className="h-[25px] w-[25px] shrink-0 flex items-center justify-center rounded bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[#145CFF]/15 disabled:text-[#145CFF]/40 disabled:cursor-not-allowed border-none text-[#F8FAFC] transition-all shadow-md shadow-[#145CFF]/10 cursor-pointer"
-            title="Search Storm Activity"
-          >
-            {filters.searchStatus === "loading" ? (
-              <RefreshCw size={11} className="animate-spin" />
-            ) : (
-              <Navigation size={11} className="rotate-45" />
-            )}
-          </button>
         </div>
 
         {/* Results Header Status banner (Only when search is complete) */}
@@ -625,7 +800,9 @@ export function StormSidebar({
         ) : null}
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md">
+        <div className={`flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300 ${
+          isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
+        }`}>
           <button
             onClick={() => setActiveTab("filters")}
             className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
@@ -669,7 +846,9 @@ export function StormSidebar({
         </div>
 
         {/* Tab Contents */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2.5">
+        <div className={`flex-1 overflow-y-auto p-2 space-y-2.5 transition-all duration-300 ${
+          isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
+        }`}>
           {activeTab === "filters" && (
             <div className="space-y-2.5">
               {filters.searchStatus === "loading" ? (
@@ -680,7 +859,7 @@ export function StormSidebar({
                       Analyzing Market Opportunity
                     </h4>
                     <p className="text-[9.5px] text-slate-400 font-medium">
-                      Scanning storm activity around {tempCounty?.countyName || filters.selectedCounty || "selected area"}, {tempState || filters.state}...
+                      Scanning storm activity around {tCounty?.countyName || filters.selectedCounty || "selected area"}, {tState || filters.state}...
                     </p>
                   </div>
                 </div>
@@ -691,23 +870,82 @@ export function StormSidebar({
                   <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-2.5 space-y-2 shadow-lg shadow-black/20">
                     <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
                       <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
-                      <div className="flex gap-0.5 bg-[#050B16]/60 p-0.5 rounded border border-[rgba(20,92,255,0.14)]">
-                        {(["24h", "today", "yesterday"] as const).map((win) => (
-                          <button
-                            key={win}
-                            type="button"
-                            onClick={() => onFiltersChange({ timeWindow: win })}
-                            className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold capitalize transition-all cursor-pointer ${
-                              filters.timeWindow === win
-                                ? "bg-[#145CFF]/20 text-[#F8FAFC] border border-[#145CFF]/45 shadow-sm"
-                                : "text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-                            }`}
-                          >
-                            {win === "24h" ? "24h" : win}
-                          </button>
-                        ))}
+                      <div className="relative">
+                        <select
+                          value={filters.timeWindow}
+                          onChange={(e) => {
+                            const val = e.target.value as any;
+                            if (val === "custom") {
+                              const todayStr = new Date().toISOString().slice(0, 10);
+                              onFiltersChange({
+                                timeWindow: val,
+                                startDate: filters.startDate || todayStr,
+                                endDate: filters.endDate || todayStr,
+                              });
+                            } else {
+                              onFiltersChange({ timeWindow: val });
+                            }
+                          }}
+                          className="bg-[#050B16]/80 border border-[#145CFF]/20 hover:border-[#145CFF]/40 rounded px-1.5 py-0.5 text-[8px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-4 select-none relative"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 3px center',
+                            backgroundSize: '8px',
+                          }}
+                        >
+                          <option value="24h" className="bg-[#050B16] text-[#F8FAFC]">24h</option>
+                          <option value="today" className="bg-[#050B16] text-[#F8FAFC]">Today</option>
+                          <option value="yesterday" className="bg-[#050B16] text-[#F8FAFC]">Yesterday</option>
+                          <option value="7d" className="bg-[#050B16] text-[#F8FAFC]">7 Days</option>
+                          <option value="30d" className="bg-[#050B16] text-[#F8FAFC]">30 Days</option>
+                          <option value="custom" className="bg-[#050B16] text-[#F8FAFC]">Custom</option>
+                        </select>
                       </div>
                     </div>
+                    {filters.timeWindow === "custom" && (
+                      <div className="flex items-center gap-1.5 bg-[#050B16]/50 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)] mt-0.5 mb-1 text-left">
+                        <div className="flex-1 flex flex-col gap-0.5">
+                          <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">From Date</span>
+                          <input
+                            type="date"
+                            value={filters.startDate || ""}
+                            max={new Date().toISOString().slice(0, 10)}
+                            onChange={(e) => onFiltersChange({ startDate: e.target.value })}
+                            className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
+                          />
+                        </div>
+                        <div className="flex-1 flex flex-col gap-0.5">
+                          <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">To Date</span>
+                          <input
+                            type="date"
+                            value={filters.endDate || ""}
+                            max={new Date().toISOString().slice(0, 10)}
+                            onChange={(e) => onFiltersChange({ endDate: e.target.value })}
+                            className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {filters.timeWindow === "custom" && filters.startDate && filters.endDate && filters.startDate > filters.endDate && (
+                      <div className="text-[7.5px] text-rose-400 font-semibold text-center my-0.5">
+                        Start date cannot be after end date
+                      </div>
+                    )}
+                    {filters.timeWindow === "custom" && (() => {
+                      const start = new Date(filters.startDate || "");
+                      const end = new Date(filters.endDate || "");
+                      const diffTime = Math.abs(end.getTime() - start.getTime());
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      if (diffDays > 30) {
+                        return (
+                          <div className="text-[7.5px] text-amber-400 font-semibold text-center my-0.5">
+                            Note: Capped at maximum 30 days range for performance
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     <div className="grid grid-cols-4 gap-1 text-center">
                       <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
                         <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
@@ -891,7 +1129,6 @@ export function StormSidebar({
 
               <div className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 text-[10.5px] text-slate-350 flex flex-col gap-1.5 shadow-sm">
                 <div className="flex items-center gap-1.5 font-bold text-slate-200">
-                  <Info size={13} className="text-red-500 shrink-0" />
                   <span>What Top Opportunities Shows</span>
                 </div>
                 <p className="leading-normal text-slate-400">
