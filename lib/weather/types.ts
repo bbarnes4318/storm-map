@@ -64,6 +64,7 @@ export type StormFilterState = {
   timeWindow: "24h" | "today" | "yesterday" | "7d" | "30d" | "custom";
   startDate?: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
+  minHailSize: number; // e.g. 0 for all, 1.0, 1.5, 2.0
   mapStyle: StormMapStyle;
   showNeighborhoodLabels: boolean;
   showHouseNumbers: boolean;

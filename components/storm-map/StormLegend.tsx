@@ -28,8 +28,50 @@ export function StormLegend({ className }: { className?: string }) {
         </div>
       </div>
 
+      {/* Storm Reports */}
+      <div className="mb-3 border-t border-[#145CFF]/15 pt-2.5">
+        <span className="text-[10px] font-extrabold text-[#F8FAFC] block mb-1.5 uppercase tracking-wider">Storm Reports</span>
+        <div className="space-y-1.5 text-[10px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] inline-block shadow-glow-tornado animate-pulse"></span>
+              <span>Tornado Report</span>
+            </div>
+            <span className="text-[8px] text-slate-500">EF0 - EF5</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] inline-block shadow-glow-wind"></span>
+              <span>Damaging Wind</span>
+            </div>
+            <span className="text-[8px] text-slate-500">Gusts / Damage</span>
+          </div>
+          <div className="space-y-1 pt-1 border-t border-slate-900/60">
+            <span className="font-semibold text-slate-350 block mb-1">Hail Severity Scale:</span>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] items-center">
+              <div className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#60A5FA] inline-block"></span>
+                <span>Sub-Severe (&lt;1.0")</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-[#2563EB] inline-block"></span>
+                <span>Severe (1.0"-1.5")</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3.5 h-3.5 rounded-full bg-[#4F46E5] inline-block"></span>
+                <span>Large (1.5"-2.0")</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 rounded-full bg-[#D946EF] inline-block"></span>
+                <span>Giant (&ge;2.0")</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Warning Polygons */}
-      <div className="mb-3">
+      <div className="mb-1 border-t border-[#145CFF]/15 pt-2.5">
         <span className="font-semibold text-slate-300 block mb-1.5">Active NWS Alerts</span>
         <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-350">
           <div className="flex items-center gap-1.5">

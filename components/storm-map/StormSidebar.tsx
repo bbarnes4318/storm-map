@@ -365,7 +365,12 @@ export function StormSidebar({
       }
 
       // Report type toggles
-      if (r.type === "hail" && !filters.showHail) return false;
+      if (r.type === "hail") {
+        if (!filters.showHail) return false;
+        const sizeFloat = parseFloat(r.magnitude || "");
+        const displaySize = !isNaN(sizeFloat) ? (sizeFloat > 10 ? sizeFloat / 100 : sizeFloat) : 0;
+        if (displaySize < filters.minHailSize) return false;
+      }
       if (r.type === "wind" && !filters.showWind) return false;
       if (r.type === "tornado" && !filters.showTornado) return false;
       // Time window filter
@@ -973,37 +978,61 @@ export function StormSidebar({
               {/* 2. Compact Storm Report Layer Toggles (Unified Row) */}
               <div className="space-y-1">
                 <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block px-0.5">Active Storm Layers</span>
-                <div className="bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2 flex items-center justify-between gap-2 select-none">
-                  <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                    <input
-                      type="checkbox"
-                      checked={filters.showHail}
-                      onChange={(e) => onFiltersChange({ showHail: e.target.checked })}
-                      className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                    />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-glow-hail shrink-0"></span>
-                    <span>Hail</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                    <input
-                      type="checkbox"
-                      checked={filters.showWind}
-                      onChange={(e) => onFiltersChange({ showWind: e.target.checked })}
-                      className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                    />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-glow-wind shrink-0"></span>
-                    <span>Wind</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                    <input
-                      type="checkbox"
-                      checked={filters.showTornado}
-                      onChange={(e) => onFiltersChange({ showTornado: e.target.checked })}
-                      className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                    />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-glow-tornado shrink-0 animate-pulse"></span>
-                    <span>Tornado</span>
-                  </label>
+                <div className="bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2 space-y-1.5 select-none">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
+                      <input
+                        type="checkbox"
+                        checked={filters.showHail}
+                        onChange={(e) => onFiltersChange({ showHail: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                      />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-glow-hail shrink-0"></span>
+                      <span>Hail</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
+                      <input
+                        type="checkbox"
+                        checked={filters.showWind}
+                        onChange={(e) => onFiltersChange({ showWind: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                      />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-glow-wind shrink-0"></span>
+                      <span>Wind</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
+                      <input
+                        type="checkbox"
+                        checked={filters.showTornado}
+                        onChange={(e) => onFiltersChange({ showTornado: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                      />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-glow-tornado shrink-0 animate-pulse"></span>
+                      <span>Tornado</span>
+                    </label>
+                  </div>
+
+                  {filters.showHail && (
+                    <div className="flex items-center justify-between border-t border-slate-900/60 pt-1.5 mt-0.5">
+                      <span className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider">Min Hail Size</span>
+                      <select
+                        value={filters.minHailSize}
+                        onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
+                        className="bg-[#050B16]/80 border border-[#145CFF]/20 hover:border-[#145CFF]/40 rounded px-1.5 py-0.5 text-[8px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-4 select-none relative"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 3px center',
+                          backgroundSize: '8px',
+                        }}
+                      >
+                        <option value="0" className="bg-[#050B16] text-[#F8FAFC]">All Sizes</option>
+                        <option value="1.0" className="bg-[#050B16] text-[#F8FAFC]">≥ 1.00" (Severe)</option>
+                        <option value="1.5" className="bg-[#050B16] text-[#F8FAFC]">≥ 1.50"</option>
+                        <option value="2.0" className="bg-[#050B16] text-[#F8FAFC]">≥ 2.00" (Significant)</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 

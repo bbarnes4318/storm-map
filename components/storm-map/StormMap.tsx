@@ -312,7 +312,12 @@ export function StormMap({
       }
 
       // Report types toggles
-      if (r.type === "hail" && !filters.showHail) return false;
+      if (r.type === "hail") {
+        if (!filters.showHail) return false;
+        const sizeFloat = parseFloat(r.magnitude || "");
+        const displaySize = !isNaN(sizeFloat) ? (sizeFloat > 10 ? sizeFloat / 100 : sizeFloat) : 0;
+        if (displaySize < filters.minHailSize) return false;
+      }
       if (r.type === "wind" && !filters.showWind) return false;
       if (r.type === "tornado" && !filters.showTornado) return false;
 
@@ -917,12 +922,14 @@ export function StormMap({
       type: "FeatureCollection" as const,
       features: filteredReports.map((report) => {
         let label = "";
+        let magnitudeNum = 0;
         if (report.type === "hail") {
           let sizeText = report.magnitude || "";
           const sizeFloat = parseFloat(sizeText);
           if (!isNaN(sizeFloat)) {
             const displaySize = sizeFloat > 10 ? sizeFloat / 100 : sizeFloat;
             sizeText = displaySize.toFixed(2);
+            magnitudeNum = displaySize;
           }
           label = sizeText;
         } else if (report.type === "wind") {
@@ -931,6 +938,10 @@ export function StormMap({
             speedText = "W";
           }
           label = speedText;
+          const speedFloat = parseFloat(speedText);
+          if (!isNaN(speedFloat)) {
+            magnitudeNum = speedFloat;
+          }
         } else if (report.type === "tornado") {
           label = report.magnitude || "T";
         }
@@ -955,6 +966,7 @@ export function StormMap({
             comments: report.comments || "",
             source: report.source || "SPC",
             label: label,
+            magnitudeNum: magnitudeNum,
           },
         };
       }),
@@ -1813,7 +1825,12 @@ export function StormMap({
             type="circle"
             minzoom={10}
             paint={{
-              "circle-radius": 10,
+              "circle-radius": [
+                "case",
+                ["==", ["downcase", ["get", "type"]], "hail"],
+                ["+", 10, ["*", ["coalesce", ["get", "magnitudeNum"], 0], 4.0]],
+                10
+              ],
               "circle-color": stormFillColorExpression,
               "circle-opacity": [
                 "case",
@@ -1835,9 +1852,24 @@ export function StormMap({
                 "interpolate",
                 ["linear"],
                 ["zoom"],
-                9, 3,
-                12, 4.5,
-                15, 6
+                9, [
+                  "case",
+                  ["==", ["downcase", ["get", "type"]], "hail"],
+                  ["+", 3.5, ["*", ["coalesce", ["get", "magnitudeNum"], 0], 1.25]],
+                  3.5
+                ],
+                12, [
+                  "case",
+                  ["==", ["downcase", ["get", "type"]], "hail"],
+                  ["+", 5.5, ["*", ["coalesce", ["get", "magnitudeNum"], 0], 2.0]],
+                  5.5
+                ],
+                15, [
+                  "case",
+                  ["==", ["downcase", ["get", "type"]], "hail"],
+                  ["+", 8.0, ["*", ["coalesce", ["get", "magnitudeNum"], 0], 3.0]],
+                  8.0
+                ]
               ],
               "circle-color": stormFillColorExpression,
               "circle-opacity": [
@@ -1857,7 +1889,7 @@ export function StormMap({
           <Layer
             id="storm-reports-labels"
             type="symbol"
-            minzoom={11}
+            minzoom={9.5}
             layout={{
               "text-field": ["get", "label"],
               "text-size": 8,

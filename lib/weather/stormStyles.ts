@@ -42,7 +42,16 @@ const FALLBACK_STROKE = "#E2E8F0";
 export const stormFillColorExpression: ExpressionSpecification = [
   "case",
   ["==", ["downcase", ["get", "type"]], "hail"],
-  STORM_TYPE_COLORS.hail.fill,
+  [
+    "case",
+    ["<", ["coalesce", ["get", "magnitudeNum"], 0], 1.0],
+    "#60A5FA", // Light Blue (< 1.00")
+    ["<", ["coalesce", ["get", "magnitudeNum"], 0], 1.5],
+    "#2563EB", // Royal Blue (1.00" - 1.49")
+    ["<", ["coalesce", ["get", "magnitudeNum"], 0], 2.0],
+    "#4F46E5", // Deep Indigo (1.50" - 1.99")
+    "#D946EF"  // Destructive Fuchsia (>= 2.00")
+  ],
   ["==", ["downcase", ["get", "type"]], "wind"],
   STORM_TYPE_COLORS.wind.fill,
   ["==", ["downcase", ["get", "type"]], "tornado"],
