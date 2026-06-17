@@ -92,6 +92,7 @@ export type TargetCluster = {
   maxScore: number;
   mainStormType: "hail" | "wind" | "tornado";
   highestMagnitude: string;
+  highestMagnitudeNum: number;
   suggestedRadius: number; // Suggested radius for appointment targeting
   reports: StormReport[];
 };

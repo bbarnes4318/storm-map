@@ -158,6 +158,7 @@ export function clusterStormReports(
 
     // Find highest magnitude
     let highestMagnitude = "N/A";
+    let highestMagnitudeNum = 0;
     if (mainStormType === "hail") {
       const sizes = clusterReports
         .filter((r) => r.type === "hail" && r.magnitude)
@@ -168,7 +169,8 @@ export function clusterStormReports(
         })
         .filter((v) => !isNaN(v) && isFinite(v));
       if (sizes.length > 0) {
-        highestMagnitude = `${Math.max(...sizes).toFixed(2)} in`;
+        highestMagnitudeNum = Math.max(...sizes);
+        highestMagnitude = `${highestMagnitudeNum.toFixed(2)} in`;
       }
     } else if (mainStormType === "wind") {
       const speeds = clusterReports
@@ -176,7 +178,8 @@ export function clusterStormReports(
         .map((r) => parseFloat(r.magnitude!))
         .filter((v) => !isNaN(v) && isFinite(v));
       if (speeds.length > 0) {
-        highestMagnitude = `${Math.max(...speeds)} mph`;
+        highestMagnitudeNum = Math.max(...speeds);
+        highestMagnitude = `${highestMagnitudeNum} mph`;
       }
     } else if (mainStormType === "tornado" && tornadoCount > 0) {
       const ratings = clusterReports
@@ -234,6 +237,7 @@ export function clusterStormReports(
       maxScore,
       mainStormType,
       highestMagnitude,
+      highestMagnitudeNum,
       suggestedRadius,
       reports: clusterReports,
     });

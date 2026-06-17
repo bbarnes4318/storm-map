@@ -70,6 +70,20 @@ export function StormLegend({ className }: { className?: string }) {
         </div>
       </div>
 
+      {/* Report Clusters (Zoomed Out) */}
+      <div className="mb-3 border-t border-[#145CFF]/15 pt-2.5">
+        <span className="text-[10px] font-extrabold text-[#F8FAFC] block mb-1.5 uppercase tracking-wider">Report Clusters (Zoomed Out)</span>
+        <div className="flex items-start gap-2 text-[10px] text-slate-350">
+          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[#1e293b] border border-slate-500/50 text-[#F8FAFC] text-[9px] font-black flex-shrink-0 shadow-sm mt-0.5">
+            5
+          </div>
+          <div>
+            <span className="font-semibold text-slate-200 block mb-0.5">Report Groupings</span>
+            Numbers show the count of severe storm reports in that area. Circle color represents the highest severity in the group (e.g., fuchsia for &ge;2.0" hail).
+          </div>
+        </div>
+      </div>
+
       {/* Warning Polygons */}
       <div className="mb-1 border-t border-[#145CFF]/15 pt-2.5">
         <span className="font-semibold text-slate-300 block mb-1.5">Active NWS Alerts</span>

@@ -869,6 +869,7 @@ export function StormMap({
           windCount: cluster.windCount,
           tornadoCount: cluster.tornadoCount,
           highestMagnitude: cluster.highestMagnitude,
+          magnitudeNum: cluster.highestMagnitudeNum || 0,
           suggestedRadius: cluster.suggestedRadius,
           lat: cluster.center[0],
           lon: cluster.center[1],
@@ -906,6 +907,7 @@ export function StormMap({
           county: cluster.county,
           state: cluster.state,
           highestMagnitude: cluster.highestMagnitude,
+          magnitudeNum: cluster.highestMagnitudeNum || 0,
           suggestedRadius: cluster.suggestedRadius,
         },
       };
@@ -1760,9 +1762,9 @@ export function StormMap({
                   "interpolate",
                   ["linear"],
                   ["zoom"],
-                  3.8, 5.5,
-                  7, 8,
-                  9, 10.5
+                  3.8, ["+", 8.0, ["*", ["coalesce", ["get", "reportsCount"], 1], 0.8]],
+                  7, ["+", 10.0, ["*", ["coalesce", ["get", "reportsCount"], 1], 1.2]],
+                  9, ["+", 12.0, ["*", ["coalesce", ["get", "reportsCount"], 1], 1.5]]
                 ],
                 "circle-color": stormFillColorExpression,
                 "circle-opacity": 0.82,
