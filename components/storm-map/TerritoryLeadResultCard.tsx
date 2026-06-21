@@ -44,8 +44,10 @@ export function TerritoryLeadResultCard({
 }: TerritoryLeadResultCardProps) {
   // Count specific reports within target area
   const stats = React.useMemo(() => {
-    const inAreaReports = reports.filter((r) => {
-      if (state && r.state.toUpperCase() !== state.toUpperCase()) return false;
+    const reportsArray = reports || [];
+    const inAreaReports = reportsArray.filter((r) => {
+      if (!r) return false;
+      if (state && r.state && r.state.toUpperCase() !== state.toUpperCase()) return false;
       if (center && radius > 0) {
         const dist = getDistanceMiles(center[0], center[1], r.lat, r.lon);
         if (dist > radius) return false;
@@ -66,11 +68,14 @@ export function TerritoryLeadResultCard({
     const tornado = inAreaReports.filter((r) => r.type === "tornado").length;
 
     // Count alerts inside the county
-    const activeAlerts = alerts.filter((a) => {
+    const alertsArray = alerts || [];
+    const activeAlerts = alertsArray.filter((a) => {
+      if (!a || !a.event || typeof a.event.includes !== 'function') return false;
       if (!a.event.includes("Warning")) return false;
-      const descMatch = a.areaDesc?.toLowerCase().includes(county.toLowerCase()) || 
-                        a.headline?.toLowerCase().includes(county.toLowerCase());
-      return descMatch;
+      const areaDescLower = (a.areaDesc || "").toLowerCase();
+      const headlineLower = (a.headline || "").toLowerCase();
+      const countyLower = (county || "").toLowerCase();
+      return areaDescLower.includes(countyLower) || headlineLower.includes(countyLower);
     }).length;
 
     return {
@@ -104,7 +109,7 @@ export function TerritoryLeadResultCard({
           <div className="flex items-center gap-2">
             <Award className="w-5 h-5 text-[#00A86B] shrink-0 animate-pulse" />
             <div>
-              <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block leading-none mb-0.5">
+              <span className="text-[7.5px] font-black text-slate-450 uppercase tracking-widest block leading-none mb-0.5">
                 SCAN COMPLETE {isDemo && "· DEMO"}
               </span>
               <span className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider block">
@@ -133,25 +138,25 @@ export function TerritoryLeadResultCard({
 
         {/* Grid: Storm report details */}
         <div className="space-y-1.5">
-          <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
+          <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">
             Storm Report Statistics
           </span>
           <div className="grid grid-cols-5 gap-1.5 text-center">
             <div className="bg-[#050B16]/50 border border-slate-900/60 rounded-lg py-1.5 px-0.5">
               <span className="text-xs font-black text-[#60A5FA] block leading-none">{stats.hail}</span>
-              <span className="text-[6.5px] text-slate-500 block font-black uppercase tracking-wide mt-1">HAIL</span>
+              <span className="text-[6.5px] text-slate-400 block font-black uppercase tracking-wide mt-1">HAIL</span>
             </div>
             <div className="bg-[#050B16]/50 border border-slate-900/60 rounded-lg py-1.5 px-0.5">
               <span className="text-xs font-black text-[#A78BFA] block leading-none">{stats.wind}</span>
-              <span className="text-[6.5px] text-slate-500 block font-black uppercase tracking-wide mt-1">WIND</span>
+              <span className="text-[6.5px] text-slate-400 block font-black uppercase tracking-wide mt-1">WIND</span>
             </div>
             <div className="bg-[#050B16]/50 border border-slate-900/60 rounded-lg py-1.5 px-0.5">
               <span className="text-xs font-black text-[#FB7185] block leading-none">{stats.tornado}</span>
-              <span className="text-[6.5px] text-slate-500 block font-black uppercase tracking-wide mt-1">TORN</span>
+              <span className="text-[6.5px] text-slate-400 block font-black uppercase tracking-wide mt-1">TORN</span>
             </div>
             <div className="bg-[#050B16]/50 border border-slate-900/60 rounded-lg py-1.5 px-0.5">
               <span className="text-xs font-black text-[#FBBF24] block leading-none">{stats.alerts}</span>
-              <span className="text-[6.5px] text-slate-500 block font-black uppercase tracking-wide mt-1">WARN</span>
+              <span className="text-[6.5px] text-slate-400 block font-black uppercase tracking-wide mt-1">WARN</span>
             </div>
             <div className="bg-[#050B16]/50 border border-[#0E8F6E]/20 rounded-lg py-1.5 px-0.5">
               <span className="text-xs font-black text-[#00A86B] block leading-none">{stats.total}</span>
@@ -163,18 +168,18 @@ export function TerritoryLeadResultCard({
         {/* Territory Info list */}
         <div className="bg-[#050B16]/30 border border-slate-900/50 rounded-xl p-3 text-[9.5px] space-y-1.5 font-semibold text-slate-400">
           <div className="flex justify-between items-center">
-            <span className="text-slate-500">Target Area</span>
+            <span className="text-slate-400">Target Area</span>
             <span className="text-slate-200 flex items-center gap-1">
               <MapPin size={9} className="text-[#145CFF]" />
               {county} County, {state}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-slate-500">Scan Radius</span>
+            <span className="text-slate-400">Scan Radius</span>
             <span className="text-slate-200">{radius} Miles</span>
           </div>
           <div className="flex justify-between items-start">
-            <span className="text-slate-500">Applied Signals</span>
+            <span className="text-slate-400">Applied Signals</span>
             <span className="text-slate-200 text-right max-w-[180px] truncate" title={activeLayers.join(", ")}>
               {activeLayers.join(" + ") || "None"}
             </span>

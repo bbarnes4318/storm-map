@@ -115,7 +115,7 @@ export function TerritoryScanOverlay({
       {/* Search HUD Console Text */}
       <div className="mt-8 space-y-4 max-w-sm w-full z-20">
         <div className="space-y-1">
-          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest block">
+          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block">
             MISSION STATUS
           </span>
           <h2 className="text-lg font-black text-[#F8FAFC] tracking-wider uppercase min-h-[28px] leading-tight">
@@ -127,7 +127,7 @@ export function TerritoryScanOverlay({
         <div className="bg-[#071426]/70 border border-[#145CFF]/20 rounded-xl p-3.5 space-y-2.5 backdrop-blur-md shadow-glass text-left">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[7.5px] font-black text-[#64748B] uppercase tracking-wider block leading-none mb-1">
+              <span className="text-[7.5px] font-black text-[#94A3B8] uppercase tracking-wider block leading-none mb-1">
                 TARGET TERRITORY
               </span>
               <h4 className="text-[13px] font-black text-[#F8FAFC] uppercase truncate">
@@ -135,7 +135,7 @@ export function TerritoryScanOverlay({
               </h4>
             </div>
             <div className="text-right">
-              <span className="text-[7.5px] font-black text-[#64748B] uppercase tracking-wider block leading-none mb-1">
+              <span className="text-[7.5px] font-black text-[#94A3B8] uppercase tracking-wider block leading-none mb-1">
                 SCAN RADIUS
               </span>
               <span className="text-[11px] font-extrabold text-[#F8FAFC] uppercase">
@@ -146,7 +146,7 @@ export function TerritoryScanOverlay({
 
           {/* Target Layers */}
           <div className="border-t border-[rgba(20,92,255,0.12)] pt-2.5 space-y-1.5">
-            <span className="text-[7.5px] font-black text-[#64748B] uppercase tracking-wider block">
+            <span className="text-[7.5px] font-black text-[#94A3B8] uppercase tracking-wider block">
               STORM SIGNALS
             </span>
             <div className="flex flex-wrap gap-1">

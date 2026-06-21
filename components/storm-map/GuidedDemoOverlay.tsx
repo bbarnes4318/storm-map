@@ -126,27 +126,23 @@ export function GuidedDemoOverlay({
       text: "Click 'View Sample Lead File' to inspect the detailed spreadsheet of homeowners and property data.",
     },
     {
-      title: "Inspect Sample Lead Sheet",
-      text: "This Excel-style preview displays names, property addresses, roof age, phone numbers, and storm details. All fields are marked as SAMPLE DATA.",
-    },
-    {
-      title: "Walkthrough Complete!",
-      text: "You are ready to find active storm damage leads. Click 'Restart Walkthrough' to run the demo again, or close this tour to explore.",
+      title: "Sample Lead File / Pricing CTA",
+      text: "This Excel-style preview displays names, property addresses, roof age, phone numbers, and storm details. Select 'Check Pricing' to unlock the full dataset for this county.",
     },
   ];
 
-  const currentContent = tourContent[step - 1];
+  const currentContent = tourContent[step - 1] || { title: "Walkthrough", text: "" };
 
   // Validation checks for tour progress
-  const isTerritoryValid = !!filters.state && !!filters.selectedCounty;
+  const isTerritoryValid = !!filters?.state && !!filters?.selectedCounty;
   
   const isDatesValid = React.useMemo(() => {
-    if (!filters.startDate || !filters.endDate) return false;
+    if (!filters?.startDate || !filters?.endDate) return false;
     if (filters.endDate < filters.startDate) return false;
     return isDateMoreThanOneYearOld(filters.startDate) && isDateMoreThanOneYearOld(filters.endDate);
-  }, [filters.startDate, filters.endDate]);
+  }, [filters?.startDate, filters?.endDate]);
 
-  const isSignalsValid = filters.showHail || filters.showWind || filters.showTornado || filters.showAlerts;
+  const isSignalsValid = !!(filters?.showHail || filters?.showWind || filters?.showTornado || filters?.showAlerts);
 
   const isNextDisabled = () => {
     if (step === 2 && !isTerritoryValid) return true;
@@ -241,8 +237,8 @@ export function GuidedDemoOverlay({
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
             Demo Walkthrough
           </span>
-          <span className="text-[10px] font-black text-[#145CFF] bg-[#145CFF]/10 px-2 py-0.5 rounded-full leading-none">
-            Step {step} of 10
+          <span className="text-[10px] font-black text-[#60A5FA] bg-[#145CFF]/20 px-2 py-0.5 rounded-full leading-none">
+            Step {step} of 9
           </span>
         </div>
 
@@ -255,39 +251,45 @@ export function GuidedDemoOverlay({
           </p>
 
           {/* Conditional helper hints */}
-          {step === 2 && !isTerritoryValid && (
-            <p className="text-[9px] text-[#2F7DFF] font-bold mt-2 animate-pulse">
-              * Select a State & County in the sidebar to continue.
+          {step === 2 && (
+            <p className="text-[9px] text-[#60A5FA] font-bold mt-2 animate-pulse">
+              {!isTerritoryValid 
+                ? "* Select a State & County in the sidebar to continue." 
+                : "* Use the highlighted 'Continue to Storm Dates' button in the sidebar to proceed."}
             </p>
           )}
-          {step === 3 && !isDatesValid && (
-            <p className="text-[9px] text-amber-500 font-bold mt-2 animate-pulse">
-              * Enter a From & To date more than 1 year old to continue.
+          {step === 3 && (
+            <p className="text-[9px] text-amber-400 font-bold mt-2 animate-pulse">
+              {!isDatesValid 
+                ? "* Enter a From & To date more than 1 year old to continue." 
+                : "* Use the highlighted 'Continue to Signals' button in the sidebar to proceed."}
             </p>
           )}
-          {step === 4 && !isSignalsValid && (
-            <p className="text-[9px] text-amber-500 font-bold mt-2 animate-pulse">
-              * Select at least one storm hazard in the sidebar.
+          {step === 4 && (
+            <p className="text-[9px] text-amber-400 font-bold mt-2 animate-pulse">
+              {!isSignalsValid 
+                ? "* Select at least one storm hazard in the sidebar." 
+                : "* Use the highlighted 'Continue to Scan' button in the sidebar to proceed."}
             </p>
           )}
           {step === 5 && (
             <p className="text-[9px] text-[#00E676] font-bold mt-2 animate-pulse">
-              * Click the 'SCAN TERRITORY' button to proceed.
+              * Use the highlighted 'SCAN TERRITORY' button in the sidebar to proceed.
             </p>
           )}
           {step === 8 && (
-            <p className="text-[9px] text-[#145CFF] font-bold mt-2 animate-pulse">
-              * Click the 'View Sample Lead File' button on the results card.
+            <p className="text-[9px] text-[#60A5FA] font-bold mt-2 animate-pulse">
+              * Use the highlighted 'View Sample Lead File' button on the results card to proceed.
             </p>
           )}
         </div>
 
         {/* Action button row */}
         <div className="flex items-center justify-between shrink-0 pt-2 border-t border-[rgba(20,92,255,0.1)] text-[10px]">
-          {step === 10 ? (
+          {step === 9 ? (
             <button
               onClick={onRestart}
-              className="py-1.5 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-white font-black uppercase flex items-center gap-1 cursor-pointer transition-colors shadow-md"
+              className="py-1.5 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-white font-black uppercase flex items-center gap-1 cursor-pointer transition-colors shadow-md hover:scale-[1.02]"
             >
               <RotateCcw size={10} />
               Restart Demo
@@ -295,29 +297,29 @@ export function GuidedDemoOverlay({
           ) : (
             <button
               onClick={handleSkip}
-              className="text-slate-500 hover:text-slate-300 font-bold uppercase transition-colors tracking-wider"
+              className="text-slate-400 hover:text-[#CBD5E1] font-bold uppercase transition-colors tracking-wider cursor-pointer"
             >
               Skip Tour
             </button>
           )}
 
           <div className="flex gap-2">
-            {step > 1 && step !== 6 && step !== 10 && (
+            {step > 1 && step !== 6 && step !== 9 && (
               <button
                 onClick={handleBack}
-                className="py-1.5 px-2.5 rounded-lg bg-[#050B16] border border-slate-800 text-slate-400 hover:text-[#F8FAFC] font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
+                className="py-1.5 px-2.5 rounded-lg bg-[#050B16] border border-slate-800 text-slate-350 hover:text-[#F8FAFC] font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <ChevronLeft size={12} />
                 Back
               </button>
             )}
-            {step < 10 && step !== 5 && step !== 6 && step !== 8 && (
+            {step < 9 && step !== 2 && step !== 3 && step !== 4 && step !== 5 && step !== 6 && step !== 8 && (
               <button
                 onClick={handleNext}
                 disabled={isNextDisabled()}
                 className={`py-1.5 px-3 rounded-lg font-black uppercase flex items-center gap-1 transition-all ${
                   isNextDisabled()
-                    ? "bg-[#091528] border border-slate-800 text-slate-600 cursor-not-allowed"
+                    ? "bg-[#091528] border border-slate-800 text-slate-500 cursor-not-allowed"
                     : "bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] cursor-pointer shadow-md hover:scale-[1.02]"
                 }`}
               >
@@ -325,10 +327,10 @@ export function GuidedDemoOverlay({
                 <ChevronRight size={12} />
               </button>
             )}
-            {step === 10 && (
+            {step === 9 && (
               <button
                 onClick={handleSkip}
-                className="py-1.5 px-3 rounded-lg bg-[#0E8F6E] hover:bg-[#00E676]/20 border border-[#00E676]/30 text-white font-black uppercase cursor-pointer transition-colors"
+                className="py-1.5 px-3 rounded-lg bg-[#10B981] hover:bg-[#10B981]/90 text-[#071426] font-black uppercase cursor-pointer transition-colors hover:scale-[1.02] shadow-md shadow-[#10B981]/15"
               >
                 Explore Map
               </button>

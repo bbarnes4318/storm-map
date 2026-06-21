@@ -9,6 +9,7 @@ import { LeadIntelligencePanel } from "@/components/storm-map/enrichment/LeadInt
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
 import { TerritoryScanOverlay } from "@/components/storm-map/TerritoryScanOverlay";
 import { TerritoryLeadResultCard } from "@/components/storm-map/TerritoryLeadResultCard";
+import { MapErrorBoundary } from "./MapErrorBoundary";
 import { SampleLeadFileModal } from "@/components/storm-map/SampleLeadFileModal";
 import { UpgradeCheckoutModal } from "@/components/storm-map/UpgradeCheckoutModal";
 import { GuidedDemoOverlay } from "@/components/storm-map/GuidedDemoOverlay";
@@ -102,6 +103,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
   const [sampleModalOpen, setSampleModalOpen] = React.useState<boolean>(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = React.useState<boolean>(false);
   const [resultLeadEstimate, setResultLeadEstimate] = React.useState<number | null>(null);
+  const [scanError, setScanError] = React.useState<string | null>(null);
 
   // Guided Walkthrough State (0 = disabled, 1..10 = steps)
   const [tourStep, setTourStep] = React.useState<number>(isDemo ? 1 : 0);
@@ -309,82 +311,149 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     setResultLeadEstimate(null);
   };
 
-  const handleScanStart = (selectedState: string, selectedCounty: string, selectedRadius: number) => {
-    const countyData = getCountyByStateAndName(selectedState, selectedCounty);
-    if (!countyData) {
-      alert("Error finding selected county bounds.");
-      return;
-    }
+  const resetDemoExperience = React.useCallback((tourStart: boolean = true) => {
+    setWizardStep(1);
+    setScanStatus("idle");
+    setScanNonce(0);
+    setResultLeadEstimate(null);
+    setScanError(null);
+    setSampleModalOpen(false);
+    setUpgradeModalOpen(false);
+    setSelectedProperty(null);
+    setActiveDetail(null);
+    setTourStep(tourStart ? 1 : 0);
 
-    const centerCoords: [number, number] = [countyData.centroid.lat, countyData.centroid.lon];
-
-    // Filter reports in radius to compute multiplier
-    const filteredInRadius = reports.filter((r) => {
-      if (r.state.toUpperCase() !== selectedState.toUpperCase()) return false;
-      const dist = getDistanceMiles(centerCoords[0], centerCoords[1], r.lat, r.lon);
-      if (dist > selectedRadius) return false;
-      
-      // Layer toggles
-      if (r.type === "hail" && !filters.showHail) return false;
-      if (r.type === "wind" && !filters.showWind) return false;
-      if (r.type === "tornado" && !filters.showTornado) return false;
-      
-      // Hail size filter
-      if (r.type === "hail" && filters.minHailSize > 0) {
-        const hSize = parseFloat(r.magnitude || "0");
-        if (!isNaN(hSize) && hSize < filters.minHailSize) return false;
-      }
-      return true;
+    const demoDates = getDemoDefaultDates();
+    setFilters({
+      searchQuery: "",
+      state: "",
+      radius: 15,
+      center: null,
+      targetZoom: undefined,
+      showHail: true,
+      showWind: true,
+      showTornado: true,
+      showAlerts: true,
+      showRadar: true,
+      radarOpacity: 1.0,
+      timeWindow: "custom",
+      startDate: demoDates.startDate,
+      endDate: demoDates.endDate,
+      minHailSize: 0,
+      mapStyle: "dark",
+      showNeighborhoodLabels: true,
+      showHouseNumbers: true,
+      showBuildings: true,
+      selectedCounty: undefined,
+      selectedCountyFull: undefined,
+      selectedCountyFips: undefined,
+      countyBbox: undefined,
+      searchStatus: "empty",
     });
+  }, []);
 
-    const hCount = filteredInRadius.filter((r) => r.type === "hail").length;
-    const wCount = filteredInRadius.filter((r) => r.type === "wind").length;
-    const tCount = filteredInRadius.filter((r) => r.type === "tornado").length;
-    
-    // Count warnings in county
-    const warnCount = alerts.filter((a) => {
-      if (!a.event.includes("Warning")) return false;
-      const mentionsCounty = a.areaDesc?.toLowerCase().includes(selectedCounty.toLowerCase()) || 
-                             a.headline?.toLowerCase().includes(selectedCounty.toLowerCase());
-      return mentionsCounty;
-    }).length;
+  const handleScanStart = (selectedState: string, selectedCounty: string, selectedRadius: number) => {
+    setScanError(null);
+    try {
+      if (!selectedState || !selectedCounty) {
+        throw new Error("State and County must be selected.");
+      }
 
-    // Calculate lead estimate
-    const base = selectedRadius * selectedRadius * 2.8;
-    const stormMultiplier = 1 + hCount * 0.12 + wCount * 0.08 + tCount * 0.18 + warnCount * 0.10;
-    
-    let hailSizeMultiplier = 1.0;
-    if (filters.minHailSize === 1.0) hailSizeMultiplier = 1.15;
-    else if (filters.minHailSize === 1.5) hailSizeMultiplier = 1.3;
-    else if (filters.minHailSize === 2.0) hailSizeMultiplier = 1.5;
+      const countyData = getCountyByStateAndName(selectedState, selectedCounty);
+      if (!countyData) {
+        throw new Error(`Unable to locate geographic boundary data for ${selectedCounty}, ${selectedState}.`);
+      }
 
-    const estimated = Math.round(base * stormMultiplier * hailSizeMultiplier);
-    const clampedEstimate = Math.max(47, Math.min(2500, estimated));
+      if (!countyData.centroid || typeof countyData.centroid.lat !== "number" || typeof countyData.centroid.lon !== "number") {
+        throw new Error(`Geographic coordinates for ${selectedCounty} are missing or invalid.`);
+      }
 
-    setResultLeadEstimate(clampedEstimate);
+      if (!countyData.bbox || typeof countyData.bbox.west !== "number") {
+        throw new Error(`Bounding box bounds for ${selectedCounty} are missing or invalid.`);
+      }
 
-    // Update filters
-    setFilters((prev) => ({
-      ...prev,
-      state: selectedState,
-      selectedCounty: countyData.countyName,
-      selectedCountyFull: countyData.countyFullName,
-      selectedCountyFips: countyData.fips,
-      countyBbox: {
-        west: countyData.bbox.west,
-        south: countyData.bbox.south,
-        east: countyData.bbox.east,
-        north: countyData.bbox.north,
-      },
-      center: centerCoords,
-      radius: selectedRadius,
-      searchQuery: `${countyData.countyFullName}, ${selectedState}`,
-      searchStatus: "complete",
-    }));
+      const centerCoords: [number, number] = [countyData.centroid.lat, countyData.centroid.lon];
 
-    // Trigger scanning
-    setScanStatus("scanning");
-    setScanNonce((prev) => prev + 1);
+      const reportsArray = reports || [];
+      // Filter reports in radius to compute multiplier
+      const filteredInRadius = reportsArray.filter((r) => {
+        if (!r) return false;
+        if (r.state.toUpperCase() !== selectedState.toUpperCase()) return false;
+        const dist = getDistanceMiles(centerCoords[0], centerCoords[1], r.lat, r.lon);
+        if (dist > selectedRadius) return false;
+        
+        // Layer toggles
+        if (r.type === "hail" && !filters.showHail) return false;
+        if (r.type === "wind" && !filters.showWind) return false;
+        if (r.type === "tornado" && !filters.showTornado) return false;
+        
+        // Hail size filter
+        if (r.type === "hail" && filters.minHailSize > 0) {
+          const hSize = parseFloat(r.magnitude || "0");
+          if (!isNaN(hSize) && hSize < filters.minHailSize) return false;
+        }
+        return true;
+      });
+
+      const hCount = filteredInRadius.filter((r) => r.type === "hail").length;
+      const wCount = filteredInRadius.filter((r) => r.type === "wind").length;
+      const tCount = filteredInRadius.filter((r) => r.type === "tornado").length;
+      
+      // Count warnings in county defensively
+      const alertsArray = alerts || [];
+      const warnCount = alertsArray.filter((a) => {
+        if (!a || !a.event || typeof a.event.includes !== "function") return false;
+        if (!a.event.includes("Warning")) return false;
+        
+        const areaDescLower = (a.areaDesc || "").toLowerCase();
+        const headlineLower = (a.headline || "").toLowerCase();
+        const countyLower = selectedCounty.toLowerCase();
+        
+        return areaDescLower.includes(countyLower) || headlineLower.includes(countyLower);
+      }).length;
+
+      // Calculate lead estimate
+      const base = selectedRadius * selectedRadius * 2.8;
+      const stormMultiplier = 1 + hCount * 0.12 + wCount * 0.08 + tCount * 0.18 + warnCount * 0.10;
+      
+      let hailSizeMultiplier = 1.0;
+      if (filters.minHailSize === 1.0) hailSizeMultiplier = 1.15;
+      else if (filters.minHailSize === 1.5) hailSizeMultiplier = 1.3;
+      else if (filters.minHailSize === 2.0) hailSizeMultiplier = 1.5;
+
+      const estimated = Math.round(base * stormMultiplier * hailSizeMultiplier);
+      const clampedEstimate = Math.max(47, Math.min(2500, estimated));
+
+      setResultLeadEstimate(clampedEstimate);
+
+      // Update filters
+      setFilters((prev) => ({
+        ...prev,
+        state: selectedState,
+        selectedCounty: countyData.countyName,
+        selectedCountyFull: countyData.countyFullName,
+        selectedCountyFips: countyData.fips,
+        countyBbox: {
+          west: countyData.bbox.west,
+          south: countyData.bbox.south,
+          east: countyData.bbox.east,
+          north: countyData.bbox.north,
+        },
+        center: centerCoords,
+        radius: selectedRadius,
+        searchQuery: `${countyData.countyFullName}, ${selectedState}`,
+        searchStatus: "complete",
+      }));
+
+      // Trigger scanning
+      setScanStatus("scanning");
+      setScanNonce((prev) => prev + 1);
+    } catch (err: any) {
+      console.error("Defensive Scan Start failed:", err);
+      setScanError(err.message || "An unexpected error occurred during scan orchestration.");
+      setScanStatus("idle");
+      setResultLeadEstimate(null);
+    }
   };
 
   const handleScanComplete = () => {
@@ -412,9 +481,9 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     if (sampleModalOpen && (tourStep === 7 || tourStep === 8)) {
       setTourStep(9);
     }
-    // Auto-advance Step 9 -> Step 10 when modal closes
+    // End tour when modal closes from Step 9
     if (!sampleModalOpen && tourStep === 9) {
-      setTourStep(10);
+      setTourStep(0);
     }
   }, [sampleModalOpen, tourStep, isDemo]);
 
@@ -450,7 +519,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
       <AppHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
-      <div className="flex-1 w-full flex overflow-hidden relative">
+      <div className="flex-1 w-full flex min-h-0 overflow-hidden relative">
         {/* Collapsible Sidebar */}
         <StormSidebar
           filters={filters}
@@ -483,6 +552,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
           demoStep={tourStep}
           wizardStep={wizardStep}
           onWizardStepChange={setWizardStep}
+          scanError={scanError}
         />
 
         {/* Main Map Viewer Panel */}
@@ -528,7 +598,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
             <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-400">
               <div className="w-12 h-12 border-4 border-red-650/10 border-t-red-650 rounded-full animate-spin"></div>
               <div className="flex flex-col items-center gap-1.5 text-center">
-                <span className="text-xs uppercase font-extrabold tracking-wider text-slate-300 flex items-center gap-1.5">
+                <span className="text-xs uppercase font-extrabold tracking-wider text-slate-305 flex items-center gap-1.5">
                   <Zap size={14} className="text-red-500 animate-pulse" />
                   Initializing StormTarget Live
                 </span>
@@ -540,61 +610,67 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
           ) : (
             <>
               {/* Client-side Hydrated Mapbox Canvas */}
-              <StormMap
-                filters={filters}
-                onFiltersChange={handleFiltersChange}
-                reports={reports}
-                alerts={alerts}
-                onRefresh={() => fetchWeatherData(true)}
-                isRefreshing={isRefreshing}
-                selectedProperty={selectedProperty}
-                onLockProperty={handleLockProperty}
-                onUnlockProperty={handleUnlockProperty}
-                leads={leads}
-                activeDetail={activeDetail}
-                setActiveDetail={setActiveDetail}
-                onAddLeads={handleAddLeads}
-                scanStatus={scanStatus}
-                scanNonce={scanNonce}
-                onScanComplete={handleScanComplete}
-              />
+              <MapErrorBoundary fallbackText="Something went wrong rendering the interactive map. Please reload.">
+                <StormMap
+                  filters={filters}
+                  onFiltersChange={handleFiltersChange}
+                  reports={reports}
+                  alerts={alerts}
+                  onRefresh={() => fetchWeatherData(true)}
+                  isRefreshing={isRefreshing}
+                  selectedProperty={selectedProperty}
+                  onLockProperty={handleLockProperty}
+                  onUnlockProperty={handleUnlockProperty}
+                  leads={leads}
+                  activeDetail={activeDetail}
+                  setActiveDetail={setActiveDetail}
+                  onAddLeads={handleAddLeads}
+                  scanStatus={scanStatus}
+                  scanNonce={scanNonce}
+                  onScanComplete={handleScanComplete}
+                />
+              </MapErrorBoundary>
 
               {/* Tactical Scanning HUD Overlay */}
               {scanStatus === "scanning" && filters.selectedCounty && filters.state && (
-                <TerritoryScanOverlay
-                  selectedCounty={filters.selectedCounty}
-                  stateCode={filters.state}
-                  radius={filters.radius}
-                  showHail={filters.showHail}
-                  showWind={filters.showWind}
-                  showTornado={filters.showTornado}
-                  showAlerts={filters.showAlerts}
-                />
+                <MapErrorBoundary fallbackText="Something went wrong displaying the scanning HUD. Please try again.">
+                  <TerritoryScanOverlay
+                    selectedCounty={filters.selectedCounty}
+                    stateCode={filters.state}
+                    radius={filters.radius}
+                    showHail={filters.showHail}
+                    showWind={filters.showWind}
+                    showTornado={filters.showTornado}
+                    showAlerts={filters.showAlerts}
+                  />
+                </MapErrorBoundary>
               )}
 
               {/* Floating Lead Target Scan Result Card */}
               {scanStatus === "complete" && filters.selectedCounty && filters.state && resultLeadEstimate !== null && (
-                <TerritoryLeadResultCard
-                  leadCount={resultLeadEstimate}
-                  county={filters.selectedCounty}
-                  state={filters.state}
-                  radius={filters.radius}
-                  center={filters.center}
-                  showHail={filters.showHail}
-                  showWind={filters.showWind}
-                  showTornado={filters.showTornado}
-                  showAlerts={filters.showAlerts}
-                  minHailSize={filters.minHailSize}
-                  reports={reports}
-                  alerts={alerts}
-                  onViewSample={() => setSampleModalOpen(true)}
-                  onUpgrade={() => setUpgradeModalOpen(true)}
-                  onClose={() => {
-                    setScanStatus("idle");
-                    setResultLeadEstimate(null);
-                  }}
-                  isDemo={isDemo}
-                />
+                <MapErrorBoundary fallbackText="Something went wrong displaying the scan result. Please try again.">
+                  <TerritoryLeadResultCard
+                    leadCount={resultLeadEstimate}
+                    county={filters.selectedCounty}
+                    state={filters.state}
+                    radius={filters.radius}
+                    center={filters.center}
+                    showHail={filters.showHail}
+                    showWind={filters.showWind}
+                    showTornado={filters.showTornado}
+                    showAlerts={filters.showAlerts}
+                    minHailSize={filters.minHailSize}
+                    reports={reports}
+                    alerts={alerts}
+                    onViewSample={() => setSampleModalOpen(true)}
+                    onUpgrade={() => setUpgradeModalOpen(true)}
+                    onClose={() => {
+                      setScanStatus("idle");
+                      setResultLeadEstimate(null);
+                    }}
+                    isDemo={isDemo}
+                  />
+                </MapErrorBoundary>
               )}
 
               {/* Redesigned Floating Lead Target Info Panel */}
@@ -628,6 +704,13 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
             setSampleModalOpen(false);
             setUpgradeModalOpen(true);
           }}
+          onContinueExploring={() => {
+            if (isDemo) {
+              resetDemoExperience(true);
+            } else {
+              setSampleModalOpen(false);
+            }
+          }}
           isDemo={isDemo}
         />
       )}
@@ -651,8 +734,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
           scanStatus={scanStatus}
           sampleModalOpen={sampleModalOpen}
           onRestart={() => {
-            handleResetView();
-            setTourStep(1);
+            resetDemoExperience(true);
           }}
         />
       )}

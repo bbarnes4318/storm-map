@@ -9,6 +9,7 @@ interface SampleLeadFileModalProps {
   county: string;
   state: string;
   onUpgrade: () => void;
+  onContinueExploring?: () => void;
   isDemo?: boolean;
 }
 
@@ -18,6 +19,7 @@ export function SampleLeadFileModal({
   county,
   state,
   onUpgrade,
+  onContinueExploring,
   isDemo = false,
 }: SampleLeadFileModalProps) {
   if (!isOpen) return null;
@@ -127,13 +129,23 @@ export function SampleLeadFileModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-[#F8FAFC] transition-colors cursor-pointer shrink-0"
-            title="Close Preview"
-          >
-            <X size={14} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onUpgrade}
+              className="px-3.5 py-1.5 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-[#071426] text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-[#F59E0B]/10 shrink-0 hover:scale-[1.02]"
+            >
+              <Lock size={10} className="text-[#071426]" />
+              <span>Check Pricing</span>
+            </button>
+            
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-[#F8FAFC] transition-colors cursor-pointer shrink-0"
+              title="Close Preview"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
 
         {/* Warning Badge / Notice */}
@@ -228,20 +240,25 @@ export function SampleLeadFileModal({
             <span>Download Sample CSV</span>
           </button>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-800 hover:border-slate-700 rounded-lg text-xs font-bold text-slate-400 hover:text-[#F8FAFC] transition-all cursor-pointer"
+              onClick={onContinueExploring || onClose}
+              className="px-4 py-2 border border-slate-800 hover:border-slate-705 rounded-lg text-xs font-bold text-slate-300 hover:text-[#F8FAFC] transition-all cursor-pointer hover:bg-slate-900/30"
             >
-              Close
+              Continue Exploring Map
             </button>
-            <button
-              onClick={onUpgrade}
-              className="px-5 py-2 bg-gradient-to-r from-[#145CFF] to-[#2F7DFF] hover:from-[#2570FF] hover:to-[#468DFF] border-none rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-[#145CFF]/20"
-            >
-              <Lock size={12} className="text-slate-100" />
-              <span>Upgrade to Unlock Full File</span>
-            </button>
+            <div className="flex flex-col items-end">
+              <button
+                onClick={onUpgrade}
+                className="px-5 py-2 bg-gradient-to-r from-[#F59E0B] to-[#F97316] hover:from-[#F59E0B]/90 hover:to-[#F97316]/90 border-none rounded-lg text-xs font-black text-[#071426] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-[#F59E0B]/20 hover:scale-[1.02]"
+              >
+                <Lock size={12} className="text-[#071426]" />
+                <span>Check Pricing</span>
+              </button>
+              <span className="text-[8.5px] text-slate-400 font-semibold mt-1 mr-1">
+                Unlock this market or request guaranteed appointments.
+              </span>
+            </div>
           </div>
         </div>
 

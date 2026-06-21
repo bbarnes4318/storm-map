@@ -50,20 +50,20 @@ export function StormLegend({ className }: { className?: string }) {
             <span className="font-semibold text-slate-350 block mb-1">Hail Severity Scale:</span>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] items-center">
               <div className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#60A5FA] inline-block"></span>
-                <span>Sub-Severe (&lt;1.0")</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] inline-block"></span>
+                <span>Sub-Severe (&lt;1.00")</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-[#2563EB] inline-block"></span>
-                <span>Severe (1.0"-1.5")</span>
+                <span>Large (1.00"-1.49")</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="w-3.5 h-3.5 rounded-full bg-[#4F46E5] inline-block"></span>
-                <span>Large (1.5"-2.0")</span>
+                <span className="w-3.5 h-3.5 rounded-full bg-[#F59E0B] inline-block"></span>
+                <span>Severe (1.50"-1.99")</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="w-4 h-4 rounded-full bg-[#C23BA0] inline-block"></span>
-                <span>Giant (&ge;2.0")</span>
+                <span className="w-4 h-4 rounded-full bg-[#EF4444] inline-block"></span>
+                <span>Giant (&ge;2.00")</span>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export function StormLegend({ className }: { className?: string }) {
           </div>
           <div>
             <span className="font-semibold text-slate-200 block mb-0.5">Report Groupings</span>
-            Numbers show the count of severe storm reports in that area. Circle color represents the highest severity in the group (e.g., fuchsia for &ge;2.0" hail).
+            Numbers show the count of severe storm reports in that area. Circle color represents the highest severity in the group (e.g., red for &ge;2.0" hail).
           </div>
         </div>
       </div>

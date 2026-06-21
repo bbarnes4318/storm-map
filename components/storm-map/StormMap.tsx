@@ -1678,8 +1678,8 @@ export function StormMap({
     switch (activeDetail.type) {
       case "cluster": {
         return (
-          <div className="flex items-center gap-2 py-2 px-3 rounded bg-[#145CFF]/10 border border-[#145CFF]/20 text-[#145CFF] text-[10px] font-black uppercase tracking-wider justify-center shadow-sm select-none">
-            <ArrowLeft size={12} className="shrink-0 animate-pulse text-[#145CFF]" />
+          <div className="flex items-center gap-2 py-2 px-3 rounded bg-[#145CFF]/20 border border-[#145CFF]/30 text-[#60A5FA] text-[10px] font-black uppercase tracking-wider justify-center shadow-sm select-none">
+            <ArrowLeft size={12} className="shrink-0 animate-pulse text-[#60A5FA]" />
             <span>Choose Outreach Product in Left Sidebar</span>
           </div>
         );
@@ -2235,7 +2235,7 @@ export function StormMap({
               boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 10px rgba(20, 92, 255, 0.1)",
             }}
           >
-            <span className="text-[7.5px] font-black text-[#145CFF] uppercase tracking-widest leading-none mb-0.5">
+            <span className="text-[7.5px] font-black text-[#60A5FA] uppercase tracking-widest leading-none mb-0.5">
               Target Territory
             </span>
             <span className="text-[11px] font-black text-[#F8FAFC] leading-tight">

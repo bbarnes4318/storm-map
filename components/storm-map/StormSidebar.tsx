@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
 import { clusterStormReports, formatSPCDescriptor, getDistanceMiles, expandBbox } from "@/lib/weather/geo";
 import { allStates, getCountiesByState, USCounty, getCountyByStateAndName } from "@/lib/geo/us-counties";
@@ -48,6 +49,7 @@ interface StormSidebarProps {
   onOpenSampleModal?: () => void;
   onOpenUpgradeModal?: () => void;
   resultLeadEstimate?: number | null;
+  scanError?: string | null;
 }
 
 const US_STATES = [
@@ -100,6 +102,7 @@ export function StormSidebar({
   onOpenSampleModal,
   onOpenUpgradeModal,
   resultLeadEstimate = null,
+  scanError = null,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -107,6 +110,12 @@ export function StormSidebar({
   const [localWizardStep, localSetWizardStep] = React.useState<1 | 2 | 3 | 4>(1);
   const wizardStep = externalWizardStep !== undefined ? externalWizardStep : localWizardStep;
   const setWizardStep = externalSetWizardStep !== undefined ? externalSetWizardStep : localSetWizardStep;
+
+  // Dropdown & Search states declared at the top to prevent ReferenceErrors during early useEffect initialization
+  const [countySearchQuery, setCountySearchQuery] = React.useState("");
+  const [countyDropdownOpen, setCountyDropdownOpen] = React.useState(false);
+  const [stateDropdownOpen, setStateDropdownOpen] = React.useState(false);
+  const [radiusDropdownOpen, setRadiusDropdownOpen] = React.useState(false);
 
   // Guided Selector local inputs state
   const [localTempState, setLocalTempState] = React.useState(filters.state || "");
@@ -121,6 +130,85 @@ export function StormSidebar({
 
   const tRadius = tempRadius !== undefined ? tempRadius : localTempRadius;
   const setTRadius = setTempRadius !== undefined ? setTempRadius : setLocalTempRadius;
+
+  // Portal mounting and positioning refs
+  const [isMounted, setIsMounted] = React.useState(false);
+  const [stateButtonRect, setStateButtonRect] = React.useState<DOMRect | null>(null);
+  const [countyButtonRect, setCountyButtonRect] = React.useState<DOMRect | null>(null);
+
+  const stateBtnRef = React.useRef<HTMLButtonElement>(null);
+  const countyBtnRef = React.useRef<HTMLButtonElement>(null);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (stateDropdownOpen && stateBtnRef.current) {
+      setStateButtonRect(stateBtnRef.current.getBoundingClientRect());
+    }
+  }, [stateDropdownOpen]);
+
+  React.useEffect(() => {
+    if (countyDropdownOpen && countyBtnRef.current) {
+      setCountyButtonRect(countyBtnRef.current.getBoundingClientRect());
+    }
+  }, [countyDropdownOpen]);
+
+  React.useEffect(() => {
+    if (!stateDropdownOpen && !countyDropdownOpen) return;
+    const handleScroll = () => {
+      if (stateDropdownOpen && stateBtnRef.current) {
+        setStateButtonRect(stateBtnRef.current.getBoundingClientRect());
+      }
+      if (countyDropdownOpen && countyBtnRef.current) {
+        setCountyButtonRect(countyBtnRef.current.getBoundingClientRect());
+      }
+    };
+    const scrollContainer = scrollContainerRef.current;
+    scrollContainer?.addEventListener("scroll", handleScroll, true);
+    return () => scrollContainer?.removeEventListener("scroll", handleScroll, true);
+  }, [stateDropdownOpen, countyDropdownOpen]);
+
+  React.useEffect(() => {
+    if (!stateDropdownOpen && !countyDropdownOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isInsideStateBtn = stateBtnRef.current?.contains(target);
+      const isInsideCountyBtn = countyBtnRef.current?.contains(target);
+      const isInsidePortal = target.closest('[data-dropdown-portal]');
+      
+      if (!isInsideStateBtn && !isInsideCountyBtn && !isInsidePortal) {
+        setStateDropdownOpen(false);
+        setCountyDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [stateDropdownOpen, countyDropdownOpen]);
+
+  const getDropdownStyle = (btnRect: DOMRect | null, width?: number) => {
+    if (!btnRect) return {};
+    const dropdownHeight = 220;
+    const gap = 4;
+    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const showAbove = spaceBelow < dropdownHeight && btnRect.top > dropdownHeight;
+    
+    const top = showAbove 
+      ? btnRect.top - dropdownHeight - gap 
+      : btnRect.bottom + gap;
+      
+    return {
+      position: "fixed" as const,
+      top: `${top}px`,
+      left: `${btnRect.left}px`,
+      width: width ? `${width}px` : `${btnRect.width}px`,
+      maxHeight: `${dropdownHeight}px`,
+    };
+  };
+
+  // Guided Selector states moved to top
 
   const [logs, setLogs] = React.useState<string[]>([]);
   React.useEffect(() => {
@@ -154,10 +242,7 @@ export function StormSidebar({
     }
   };
 
-  const [countySearchQuery, setCountySearchQuery] = React.useState("");
-  const [countyDropdownOpen, setCountyDropdownOpen] = React.useState(false);
-  const [stateDropdownOpen, setStateDropdownOpen] = React.useState(false);
-  const [radiusDropdownOpen, setRadiusDropdownOpen] = React.useState(false);
+  // Dropdown states moved to top
 
   // Auto-open dropdowns depending on demo step
   React.useEffect(() => {
@@ -204,6 +289,20 @@ export function StormSidebar({
       }
     }
   }, [filters.center, filters.state, filters.selectedCounty, filters.radius]);
+
+  // Scroll to bottom of sidebar when wizard step changes to expose the main actions
+  React.useEffect(() => {
+    if (scrollContainerRef.current) {
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: "smooth"
+          });
+        }
+      }, 100);
+    }
+  }, [wizardStep]);
 
   const filteredCounties = React.useMemo(() => {
     if (!tState) return [];
@@ -460,7 +559,7 @@ export function StormSidebar({
     <>
       {/* Sidebar container */}
       <div
-        className={`fixed md:relative top-[80px] md:top-0 h-[calc(100vh-80px)] md:h-full z-[1000] md:z-10 flex flex-col overflow-hidden transition-all duration-300 ${
+        className={`fixed md:relative top-[72px] md:top-0 h-[calc(100vh-72px)] md:h-[calc(100vh-72px)] z-[1000] md:z-10 flex flex-col overflow-hidden transition-all duration-300 ${
           sidebarOpen ? "w-[360px]" : "w-0 md:w-0 border-r-0"
         }`}
         style={{
@@ -535,7 +634,7 @@ export function StormSidebar({
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="text-[8.5px] font-black text-[#145CFF] hover:text-[#2570FF] uppercase shrink-0 transition-colors cursor-pointer"
+                className="text-[8.5px] font-black text-[#60A5FA] hover:text-[#82B1FF] uppercase shrink-0 transition-colors cursor-pointer"
               >
                 Clear
               </button>
@@ -623,7 +722,7 @@ export function StormSidebar({
 
         {/* Navigation Tabs */}
         {scanStatus !== "scanning" && (
-          <div className="flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300">
+          <div className="flex shrink-0 border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300">
             <button
               onClick={() => setActiveTab("filters")}
               className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 uppercase tracking-wider ${
@@ -687,7 +786,10 @@ export function StormSidebar({
           <div className="flex-1 flex flex-col overflow-hidden relative">
             
             {/* Scrollable Tab Body */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300">
+            <div 
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto p-2 pb-36 space-y-3.5 custom-scrollbar transition-all duration-300"
+            >
               
               {/* === WIZARD: Lead Finder === */}
               {activeTab === "filters" && scanStatus === "idle" && (() => {
@@ -732,14 +834,14 @@ export function StormSidebar({
 
                 const isTerritoryValid = !!tState && !!tCounty;
 
-                const isDatesValid = React.useMemo(() => {
+                const isDatesValid = (() => {
                   if (!filters.startDate || !filters.endDate) return false;
                   if (filters.endDate < filters.startDate) return false;
                   if (isDemo) {
                     return isDateMoreThanOneYearOld(filters.startDate) && isDateMoreThanOneYearOld(filters.endDate);
                   }
                   return true;
-                }, [filters.startDate, filters.endDate, isDemo]);
+                })();
 
                 const isSignalsValid = filters.showHail || filters.showWind || filters.showTornado || filters.showAlerts;
 
@@ -761,7 +863,7 @@ export function StormSidebar({
                     <div className="flex justify-between px-0.5">
                       {["Territory", "Dates", "Signals", "Scan"].map((label, i) => (
                         <span key={label} className={`text-[8px] font-bold uppercase tracking-wider transition-colors duration-300 ${
-                          i + 1 < wizardStep ? "text-[#00E676]" : i + 1 === wizardStep ? "text-[#60A5FA]" : "text-slate-600"
+                          i + 1 < wizardStep ? "text-[#00E676]" : i + 1 === wizardStep ? "text-[#60A5FA]" : "text-slate-500"
                         }`}>{label}</span>
                       ))}
                     </div>
@@ -826,6 +928,7 @@ export function StormSidebar({
                         <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">State</label>
                         <div className="relative">
                           <button
+                            ref={stateBtnRef}
                             type="button"
                             onClick={() => {
                               setStateDropdownOpen(!stateDropdownOpen);
@@ -838,8 +941,12 @@ export function StormSidebar({
                             <ChevronRight className="text-slate-505 rotate-90 shrink-0" size={10} />
                           </button>
 
-                          {stateDropdownOpen && (
-                            <div className="absolute top-10 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[130px]">
+                          {stateDropdownOpen && isMounted && stateButtonRect && createPortal(
+                            <div 
+                              data-dropdown-portal="state"
+                              className="bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[10500] p-2 flex flex-col w-[130px] overflow-hidden"
+                              style={getDropdownStyle(stateButtonRect, 130)}
+                            >
                               <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
                                 {allStates.map((st) => (
                                   <button
@@ -857,7 +964,8 @@ export function StormSidebar({
                                   </button>
                                 ))}
                               </div>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </div>
@@ -866,6 +974,7 @@ export function StormSidebar({
                       <div className="col-span-8 flex flex-col gap-1 relative">
                         <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">County</label>
                         <button
+                          ref={countyBtnRef}
                           type="button"
                           disabled={!tState}
                           onClick={() => {
@@ -881,8 +990,12 @@ export function StormSidebar({
                           <ChevronRight className="text-slate-550 rotate-90 shrink-0" size={10} />
                         </button>
 
-                        {countyDropdownOpen && tState && (
-                          <div className="absolute top-10 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[200px]">
+                        {countyDropdownOpen && tState && isMounted && countyButtonRect && createPortal(
+                          <div 
+                            data-dropdown-portal="county"
+                            className="bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[10500] p-2 space-y-1.5 flex flex-col w-[200px] overflow-hidden"
+                            style={getDropdownStyle(countyButtonRect, 200)}
+                          >
                             <div className="relative shrink-0">
                               <input
                                 type="text"
@@ -918,7 +1031,8 @@ export function StormSidebar({
                                 ))
                               )}
                             </div>
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </div>
@@ -1072,93 +1186,93 @@ export function StormSidebar({
                         </p>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {/* Hail Signal Card */}
                         <button
                           type="button"
                           onClick={() => onFiltersChange({ showHail: !filters.showHail })}
-                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          className={`w-full p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between h-[68px] ${
                             filters.showHail
-                              ? "bg-[#2F7DFF]/10 border-[#2F7DFF] shadow-[0_0_12px_rgba(47,125,255,0.2)] ring-1 ring-[#2F7DFF]/25"
+                              ? "bg-[#2F7DFF]/10 border-[#2F7DFF] shadow-[0_0_10px_rgba(47,125,255,0.15)] ring-1 ring-[#2F7DFF]/20"
                               : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Zap size={15} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
-                              <span className={`text-[11px] font-black uppercase ${filters.showHail ? "text-[#F8FAFC]" : "text-slate-450"}`}>Hail</span>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Zap size={13} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
+                              <span className={`text-[10px] font-black uppercase truncate ${filters.showHail ? "text-[#F8FAFC]" : "text-slate-450"}`}>Hail</span>
                             </div>
-                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showHail ? "bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]" : "bg-slate-800 border border-slate-700"}`} />
+                            <span className={`w-2 h-2 rounded-full transition-all shrink-0 ${filters.showHail ? "bg-[#2F7DFF] shadow-[0_0_6px_#2f7dff]" : "bg-slate-800 border border-slate-700"}`} />
                           </div>
-                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showHail ? "text-slate-350" : "text-slate-550"}`}>Roof-impact events and hail-size reports</p>
+                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showHail ? "text-slate-350" : "text-slate-550"}`}>Roof-impact & size reports</p>
                         </button>
 
                         {/* Wind Signal Card */}
                         <button
                           type="button"
                           onClick={() => onFiltersChange({ showWind: !filters.showWind })}
-                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          className={`w-full p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between h-[68px] ${
                             filters.showWind
-                              ? "bg-[#8B5CF6]/10 border-[#8B5CF6] shadow-[0_0_12px_rgba(139,92,246,0.2)] ring-1 ring-[#8B5CF6]/25"
+                              ? "bg-[#8B5CF6]/10 border-[#8B5CF6] shadow-[0_0_10px_rgba(139,92,246,0.15)] ring-1 ring-[#8B5CF6]/20"
                               : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Wind size={15} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-600"} />
-                              <span className={`text-[11px] font-black uppercase ${filters.showWind ? "text-[#F8FAFC]" : "text-slate-450"}`}>Wind</span>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Wind size={13} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-600"} />
+                              <span className={`text-[10px] font-black uppercase truncate ${filters.showWind ? "text-[#F8FAFC]" : "text-slate-450"}`}>Wind</span>
                             </div>
-                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showWind ? "bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]" : "bg-slate-800 border border-slate-700"}`} />
+                            <span className={`w-2 h-2 rounded-full transition-all shrink-0 ${filters.showWind ? "bg-[#8B5CF6] shadow-[0_0_6px_#8b5cf6]" : "bg-slate-800 border border-slate-700"}`} />
                           </div>
-                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showWind ? "text-slate-350" : "text-slate-550"}`}>High-wind damage indicators</p>
+                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showWind ? "text-slate-350" : "text-slate-550"}`}>High-wind damage indicators</p>
                         </button>
 
                         {/* Tornado Signal Card */}
                         <button
                           type="button"
                           onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
-                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          className={`w-full p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between h-[68px] ${
                             filters.showTornado
-                              ? "bg-[#F43F5E]/10 border-[#F43F5E] shadow-[0_0_12px_rgba(244,63,94,0.2)] ring-1 ring-[#F43F5E]/25"
+                              ? "bg-[#F43F5E]/10 border-[#F43F5E] shadow-[0_0_10px_rgba(244,63,94,0.15)] ring-1 ring-[#F43F5E]/20"
                               : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Tornado size={15} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-600"} />
-                              <span className={`text-[11px] font-black uppercase ${filters.showTornado ? "text-[#F8FAFC]" : "text-slate-450"}`}>Tornado</span>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Tornado size={13} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-600"} />
+                              <span className={`text-[10px] font-black uppercase truncate ${filters.showTornado ? "text-[#F8FAFC]" : "text-slate-450"}`}>Tornado</span>
                             </div>
-                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showTornado ? "bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]" : "bg-slate-800 border border-slate-700"}`} />
+                            <span className={`w-2 h-2 rounded-full transition-all shrink-0 ${filters.showTornado ? "bg-[#F43F5E] shadow-[0_0_6px_#f43f5e]" : "bg-slate-800 border border-slate-700"}`} />
                           </div>
-                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showTornado ? "text-slate-350" : "text-slate-550"}`}>Tornado reports and severe rotation paths</p>
+                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showTornado ? "text-slate-350" : "text-slate-550"}`}>Tornado paths & rotation</p>
                         </button>
 
                         {/* Alerts Signal Card */}
                         <button
                           type="button"
                           onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
-                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          className={`w-full p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between h-[68px] ${
                             filters.showAlerts
-                              ? "bg-[#FBBF24]/10 border-[#FBBF24] shadow-[0_0_12px_rgba(251,191,36,0.2)] ring-1 ring-[#FBBF24]/25"
+                              ? "bg-[#FBBF24]/10 border-[#FBBF24] shadow-[0_0_10px_rgba(251,191,36,0.15)] ring-1 ring-[#FBBF24]/20"
                               : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ShieldAlert size={15} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-600"} />
-                              <span className={`text-[11px] font-black uppercase ${filters.showAlerts ? "text-[#F8FAFC]" : "text-slate-450"}`}>Alerts</span>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ShieldAlert size={13} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-600"} />
+                              <span className={`text-[10px] font-black uppercase truncate ${filters.showAlerts ? "text-[#F8FAFC]" : "text-slate-450"}`}>Alerts</span>
                             </div>
-                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showAlerts ? "bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]" : "bg-slate-800 border border-slate-700"}`} />
+                            <span className={`w-2 h-2 rounded-full transition-all shrink-0 ${filters.showAlerts ? "bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]" : "bg-slate-800 border border-slate-700"}`} />
                           </div>
-                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showAlerts ? "text-slate-350" : "text-slate-550"}`}>Active NWS warnings and watches</p>
+                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showAlerts ? "text-slate-350" : "text-slate-550"}`}>Active NWS watches & warnings</p>
                         </button>
                       </div>
 
                       {/* Hail Severity Sub-section */}
                       {filters.showHail && (
-                        <div className="flex flex-col gap-1.5 bg-[#050B16]/50 p-2.5 rounded-lg border border-[rgba(20,92,255,0.10)] animate-in fade-in duration-200">
+                        <div className="flex flex-col gap-1 bg-[#050B16]/50 p-2.5 rounded-xl border border-[rgba(20,92,255,0.10)] animate-in fade-in duration-200">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9.5px] text-[#94A3B8] font-bold uppercase tracking-wider pl-0.5">Hail Severity</span>
+                            <span className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider pl-0.5">Hail Severity</span>
                             <select
                               value={filters.minHailSize}
                               onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
@@ -1224,28 +1338,38 @@ export function StormSidebar({
                       {/* Confirmation Card */}
                       <div className="bg-[#050B16]/60 border border-[rgba(20,92,255,0.12)] rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Target Territory</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Target Territory</span>
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{tCounty?.countyName || "County"}, {tState}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Radius</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Radius</span>
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{tRadius} miles</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Scan Dates</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Scan Dates</span>
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{dateRangeSummary}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Storm Signals</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Storm Signals</span>
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{selectedSignals}</span>
                         </div>
                         {filters.showHail && filters.minHailSize > 0 && (
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Hail Severity</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hail Severity</span>
                             <span className="text-[10.5px] font-black text-[#F8FAFC]">{hailSeverityLabel}</span>
                           </div>
                         )}
                       </div>
+
+                      {scanError && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/25 rounded-lg flex items-start gap-2 text-[10px] text-[#ef4444] font-extrabold animate-pulse">
+                          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                          <div className="flex-1 leading-normal">
+                            Unable to complete scan. Please check the selected territory and try again.
+                            <span className="block text-[8px] font-medium text-red-500/80 mt-0.5">{scanError}</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Hero Scan Button */}
                       <button
@@ -1569,7 +1693,7 @@ export function StormSidebar({
 
       {/* Sticky bottom CTA banner when scanStatus === "complete" */}
       {scanStatus === "complete" && resultLeadEstimate !== null && (
-        <div className="sticky bottom-0 left-0 right-0 p-3 bg-[#060D1E]/95 border-t border-[#145CFF]/30 backdrop-blur-md z-30 shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom duration-300">
+        <div className="shrink-0 relative p-3 bg-[#060D1E]/95 border-t border-[#145CFF]/30 z-30 shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[7.5px] font-black text-emerald-500 uppercase tracking-widest block leading-none mb-1">

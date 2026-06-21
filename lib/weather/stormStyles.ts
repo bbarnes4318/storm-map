@@ -45,12 +45,12 @@ export const stormFillColorExpression: ExpressionSpecification = [
   [
     "case",
     ["<", ["coalesce", ["get", "magnitudeNum"], 0], 1.0],
-    "#60A5FA", // Light Blue (< 1.00")
+    "#38BDF8", // sky blue (< 1.00")
     ["<", ["coalesce", ["get", "magnitudeNum"], 0], 1.5],
-    "#2563EB", // Royal Blue (1.00" - 1.49")
+    "#2563EB", // strong blue (1.00" - 1.49")
     ["<", ["coalesce", ["get", "magnitudeNum"], 0], 2.0],
-    "#4F46E5", // Deep Indigo (1.50" - 1.99")
-    "#994B82"  // Destructive Fuchsia (>= 2.00")
+    "#F59E0B", // amber / orange (1.50" - 1.99")
+    "#EF4444"  // red (>= 2.00")
   ],
   ["==", ["downcase", ["get", "type"]], "wind"],
   STORM_TYPE_COLORS.wind.fill,
