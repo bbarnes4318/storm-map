@@ -7,6 +7,12 @@ import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AppHeader } from "@/components/storm-map/AppHeader";
 import { LeadIntelligencePanel } from "@/components/storm-map/enrichment/LeadIntelligencePanel";
 import { AlertCircle, RefreshCw, Zap } from "lucide-react";
+import { TerritoryScanOverlay } from "@/components/storm-map/TerritoryScanOverlay";
+import { TerritoryLeadResultCard } from "@/components/storm-map/TerritoryLeadResultCard";
+import { SampleLeadFileModal } from "@/components/storm-map/SampleLeadFileModal";
+import { UpgradeCheckoutModal } from "@/components/storm-map/UpgradeCheckoutModal";
+import { getCountyByStateAndName } from "@/lib/geo/us-counties";
+import { getDistanceMiles } from "@/lib/weather/geo";
 
 // Dynamically import the map component with SSR disabled to prevent Mapbox window reference errors
 const StormMap = dynamic(() => import("@/components/storm-map/StormMap"), {
@@ -57,6 +63,13 @@ export default function StormMapPage() {
   const [selectedProperty, setSelectedProperty] = React.useState<SelectedPropertyTarget | null>(null);
   const [activeDetail, setActiveDetail] = React.useState<ActivePopupDetail | null>(null);
   const [leads, setLeads] = React.useState<SelectedPropertyTarget[]>([]);
+
+  // Scan Orchestration States
+  const [scanStatus, setScanStatus] = React.useState<"idle" | "scanning" | "complete">("idle");
+  const [scanNonce, setScanNonce] = React.useState<number>(0);
+  const [sampleModalOpen, setSampleModalOpen] = React.useState<boolean>(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = React.useState<boolean>(false);
+  const [resultLeadEstimate, setResultLeadEstimate] = React.useState<number | null>(null);
 
   // Load from localStorage on mount
   React.useEffect(() => {
@@ -206,6 +219,13 @@ export default function StormMapPage() {
     return () => clearInterval(interval);
   }, [fetchWeatherData]);
 
+  React.useEffect(() => {
+    if (!filters.center) {
+      setScanStatus("idle");
+      setResultLeadEstimate(null);
+    }
+  }, [filters.center]);
+
   const handleFiltersChange = (newFilters: Partial<StormFilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
@@ -248,6 +268,90 @@ export default function StormMapPage() {
       countyBbox: undefined,
       searchStatus: "empty",
     });
+    setScanStatus("idle");
+    setResultLeadEstimate(null);
+  };
+
+  const handleScanStart = (selectedState: string, selectedCounty: string, selectedRadius: number) => {
+    const countyData = getCountyByStateAndName(selectedState, selectedCounty);
+    if (!countyData) {
+      alert("Error finding selected county bounds.");
+      return;
+    }
+
+    const centerCoords: [number, number] = [countyData.centroid.lat, countyData.centroid.lon];
+
+    // Filter reports in radius to compute multiplier
+    const filteredInRadius = reports.filter((r) => {
+      if (r.state.toUpperCase() !== selectedState.toUpperCase()) return false;
+      const dist = getDistanceMiles(centerCoords[0], centerCoords[1], r.lat, r.lon);
+      if (dist > selectedRadius) return false;
+      
+      // Layer toggles
+      if (r.type === "hail" && !filters.showHail) return false;
+      if (r.type === "wind" && !filters.showWind) return false;
+      if (r.type === "tornado" && !filters.showTornado) return false;
+      
+      // Hail size filter
+      if (r.type === "hail" && filters.minHailSize > 0) {
+        const hSize = parseFloat(r.magnitude || "0");
+        if (!isNaN(hSize) && hSize < filters.minHailSize) return false;
+      }
+      return true;
+    });
+
+    const hCount = filteredInRadius.filter((r) => r.type === "hail").length;
+    const wCount = filteredInRadius.filter((r) => r.type === "wind").length;
+    const tCount = filteredInRadius.filter((r) => r.type === "tornado").length;
+    
+    // Count warnings in county
+    const warnCount = alerts.filter((a) => {
+      if (!a.event.includes("Warning")) return false;
+      const mentionsCounty = a.areaDesc?.toLowerCase().includes(selectedCounty.toLowerCase()) || 
+                             a.headline?.toLowerCase().includes(selectedCounty.toLowerCase());
+      return mentionsCounty;
+    }).length;
+
+    // Calculate lead estimate using the specified formula
+    const base = selectedRadius * selectedRadius * 2.8;
+    const stormMultiplier = 1 + hCount * 0.12 + wCount * 0.08 + tCount * 0.18 + warnCount * 0.10;
+    
+    let hailSizeMultiplier = 1.0;
+    if (filters.minHailSize === 1.0) hailSizeMultiplier = 1.15;
+    else if (filters.minHailSize === 1.5) hailSizeMultiplier = 1.3;
+    else if (filters.minHailSize === 2.0) hailSizeMultiplier = 1.5;
+
+    const estimated = Math.round(base * stormMultiplier * hailSizeMultiplier);
+    const clampedEstimate = Math.max(47, Math.min(2500, estimated));
+
+    setResultLeadEstimate(clampedEstimate);
+
+    // Update filters
+    setFilters((prev) => ({
+      ...prev,
+      state: selectedState,
+      selectedCounty: countyData.countyName,
+      selectedCountyFull: countyData.countyFullName,
+      selectedCountyFips: countyData.fips,
+      countyBbox: {
+        west: countyData.bbox.west,
+        south: countyData.bbox.south,
+        east: countyData.bbox.east,
+        north: countyData.bbox.north,
+      },
+      center: centerCoords,
+      radius: selectedRadius,
+      searchQuery: `${countyData.countyFullName}, ${selectedState}`,
+      searchStatus: "complete",
+    }));
+
+    // Trigger scanning
+    setScanStatus("scanning");
+    setScanNonce((prev) => prev + 1);
+  };
+
+  const handleScanComplete = () => {
+    setScanStatus("complete");
   };
 
   return (
@@ -277,6 +381,12 @@ export default function StormMapPage() {
           setActiveDetail={setActiveDetail}
           onSelectProperty={handleLockProperty}
           onAddLeads={handleAddLeads}
+          scanStatus={scanStatus}
+          scanNonce={scanNonce}
+          onScanStart={handleScanStart}
+          onOpenSampleModal={() => setSampleModalOpen(true)}
+          onOpenUpgradeModal={() => setUpgradeModalOpen(true)}
+          resultLeadEstimate={resultLeadEstimate}
         />
 
         {/* Main Map Viewer Panel */}
@@ -348,7 +458,47 @@ export default function StormMapPage() {
                 activeDetail={activeDetail}
                 setActiveDetail={setActiveDetail}
                 onAddLeads={handleAddLeads}
+                scanStatus={scanStatus}
+                scanNonce={scanNonce}
+                onScanComplete={handleScanComplete}
               />
+
+              {/* Tactical Scanning HUD Overlay */}
+              {scanStatus === "scanning" && filters.selectedCounty && filters.state && (
+                <TerritoryScanOverlay
+                  selectedCounty={filters.selectedCounty}
+                  stateCode={filters.state}
+                  radius={filters.radius}
+                  showHail={filters.showHail}
+                  showWind={filters.showWind}
+                  showTornado={filters.showTornado}
+                  showAlerts={filters.showAlerts}
+                />
+              )}
+
+              {/* Floating Lead Target Scan Result Card */}
+              {scanStatus === "complete" && filters.selectedCounty && filters.state && resultLeadEstimate !== null && (
+                <TerritoryLeadResultCard
+                  leadCount={resultLeadEstimate}
+                  county={filters.selectedCounty}
+                  state={filters.state}
+                  radius={filters.radius}
+                  center={filters.center}
+                  showHail={filters.showHail}
+                  showWind={filters.showWind}
+                  showTornado={filters.showTornado}
+                  showAlerts={filters.showAlerts}
+                  minHailSize={filters.minHailSize}
+                  reports={reports}
+                  alerts={alerts}
+                  onViewSample={() => setSampleModalOpen(true)}
+                  onUpgrade={() => setUpgradeModalOpen(true)}
+                  onClose={() => {
+                    setScanStatus("idle");
+                    setResultLeadEstimate(null);
+                  }}
+                />
+              )}
 
               {/* Redesigned Floating Lead Target Info Panel */}
               {selectedProperty && (
@@ -369,6 +519,30 @@ export default function StormMapPage() {
 
         </div>
       </div>
+
+      {/* Excel-Style Sample Leads Preview Modal */}
+      {sampleModalOpen && filters.selectedCounty && filters.state && (
+        <SampleLeadFileModal
+          isOpen={sampleModalOpen}
+          onClose={() => setSampleModalOpen(false)}
+          county={filters.selectedCounty}
+          state={filters.state}
+          onUpgrade={() => {
+            setSampleModalOpen(false);
+            setUpgradeModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* Premium Territory Upgrade Form/Checkout Modal */}
+      {upgradeModalOpen && filters.selectedCounty && filters.state && (
+        <UpgradeCheckoutModal
+          isOpen={upgradeModalOpen}
+          onClose={() => setUpgradeModalOpen(false)}
+          county={filters.selectedCounty}
+          state={filters.state}
+        />
+      )}
     </div>
   );
 }

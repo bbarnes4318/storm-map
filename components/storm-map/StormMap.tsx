@@ -140,6 +140,9 @@ interface StormMapProps {
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
   isDemo?: boolean;
   demoStep?: number;
+  scanStatus?: "idle" | "scanning" | "complete";
+  scanNonce?: number;
+  onScanComplete?: () => void;
 }
 
 export function StormMap({
@@ -158,6 +161,9 @@ export function StormMap({
   onAddLeads,
   isDemo = false,
   demoStep = 0,
+  scanStatus = "idle",
+  scanNonce = 0,
+  onScanComplete,
 }: StormMapProps) {
   const defaultCenter = { latitude: 38.5, longitude: -96.5 }; // Central US
   const defaultZoom = 3.8;
@@ -168,6 +174,32 @@ export function StormMap({
   const [radiusStatusMsg, setRadiusStatusMsg] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [selectedCounty, setSelectedCounty] = React.useState<AlertTargetCounty | null>(null);
   const [resolvingCountyId, setResolvingCountyId] = React.useState<string | null>(null);
+  const [pulseFactor, setPulseFactor] = React.useState(1.0);
+  const [viewState, setViewState] = React.useState({
+    latitude: defaultCenter.latitude,
+    longitude: defaultCenter.longitude,
+    zoom: defaultZoom,
+  });
+
+  // Dynamic county and radius pulsing animation loop
+  React.useEffect(() => {
+    if (scanStatus === "complete") {
+      let start: number | null = null;
+      let animId: number;
+      const step = (timestamp: number) => {
+        if (!start) start = timestamp;
+        const progress = timestamp - start;
+        // Oscillate between 0.8 and 1.3
+        const pulse = 1.05 + 0.25 * Math.sin((progress / 350) % (2 * Math.PI));
+        setPulseFactor(pulse);
+        animId = requestAnimationFrame(step);
+      };
+      animId = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(animId);
+    } else {
+      setPulseFactor(1.0);
+    }
+  }, [scanStatus]);
 
   const marketCounty = React.useMemo(() => {
     if (filters.selectedCounty && filters.state) {
@@ -199,8 +231,72 @@ export function StormMap({
   const mapRef = React.useRef<MapRef>(null);
   const geocodeAbortControllerRef = React.useRef<AbortController | null>(null);
 
-  // Synchronize filters.center changes with Mapbox camera
+  // Guided Scan Nonce animation trigger
+  const prevScanNonce = React.useRef(scanNonce);
   React.useEffect(() => {
+    if (scanNonce > 0 && scanNonce !== prevScanNonce.current) {
+      prevScanNonce.current = scanNonce;
+
+      const map = mapRef.current?.getMap();
+      if (map && filters.center) {
+        const startZoom = map.getZoom();
+        const startCenter = map.getCenter();
+        const startPitch = map.getPitch();
+        const startBearing = map.getBearing();
+
+        // 1. Quick zoom-out/tilt/bearing tilt (duration: ~650ms)
+        const tempZoom = Math.max(startZoom - 2.5, 3.5);
+        map.easeTo({
+          center: startCenter,
+          zoom: tempZoom,
+          pitch: 55,
+          bearing: startBearing + 45,
+          duration: 650,
+          essential: true
+        });
+
+        // 2. Smooth flyTo/fitBounds into the target bounding box (duration: ~1400ms)
+        setTimeout(() => {
+          if (filters.countyBbox) {
+            const [eWest, eSouth, eEast, eNorth] = expandBbox(
+              filters.countyBbox,
+              filters.radius,
+              filters.center![0]
+            );
+            map.fitBounds([[eWest, eSouth], [eEast, eNorth]], {
+              padding: 60,
+              pitch: 30,
+              bearing: 0,
+              duration: 1400,
+              essential: true
+            });
+          } else {
+            const [lat, lon] = filters.center!;
+            map.flyTo({
+              center: [lon, lat],
+              zoom: getZoomForRadius(filters.radius),
+              pitch: 30,
+              bearing: 0,
+              duration: 1400,
+              essential: true
+            });
+          }
+
+          // 3. Complete scan after animation completes
+          setTimeout(() => {
+            if (onScanComplete) {
+              onScanComplete();
+            }
+          }, 1450);
+        }, 650);
+      }
+    }
+  }, [scanNonce, filters.center, filters.countyBbox, filters.radius, onScanComplete]);
+
+  // Synchronize filters.center changes with Mapbox camera (when not in scanning animation)
+  React.useEffect(() => {
+    if (scanStatus === "scanning") return;
+    
     if (filters.center) {
       if (filters.countyBbox) {
         // Fit to expanded estimated bbox
@@ -733,12 +829,7 @@ export function StormMap({
     setActiveDetail(null);
   };
 
-  // Viewport camera tracking state
-  const [viewState, setViewState] = React.useState({
-    latitude: filters.center ? filters.center[0] : defaultCenter.latitude,
-    longitude: filters.center ? filters.center[1] : defaultCenter.longitude,
-    zoom: filters.center ? 8.5 : defaultZoom,
-  });
+
 
   // Dynamically toggle neighborhood label style layer visibility
   React.useEffect(() => {
@@ -1916,7 +2007,7 @@ export function StormMap({
               type="fill"
               paint={{
                 "fill-color": "#145CFF",
-                "fill-opacity": 0.05,
+                "fill-opacity": 0.05 * pulseFactor,
               }}
             />
             <Layer
@@ -1924,7 +2015,7 @@ export function StormMap({
               type="line"
               paint={{
                 "line-color": "#145CFF",
-                "line-width": 1.5,
+                "line-width": 1.5 * pulseFactor,
                 "line-dasharray": [4, 4],
               }}
             />
@@ -1939,7 +2030,7 @@ export function StormMap({
               type="fill"
               paint={{
                 "fill-color": "#06b6d4",
-                "fill-opacity": 0.05,
+                "fill-opacity": 0.05 * pulseFactor,
               }}
             />
             <Layer
@@ -1947,7 +2038,7 @@ export function StormMap({
               type="line"
               paint={{
                 "line-color": "#06b6d4",
-                "line-width": 2.2,
+                "line-width": 2.2 * pulseFactor,
                 "line-dasharray": [3, 3],
               }}
             />

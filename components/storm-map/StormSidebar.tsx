@@ -4,7 +4,7 @@ import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
 import { clusterStormReports, formatSPCDescriptor, getDistanceMiles, expandBbox } from "@/lib/weather/geo";
 import { allStates, getCountiesByState, USCounty, getCountyByStateAndName } from "@/lib/geo/us-counties";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Compass, ShieldAlert } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
@@ -40,6 +40,12 @@ interface StormSidebarProps {
   setTempCounty?: (county: USCounty | null) => void;
   tempRadius?: number;
   setTempRadius?: (radius: number) => void;
+  scanStatus?: "idle" | "scanning" | "complete";
+  scanNonce?: number;
+  onScanStart?: (selectedState: string, selectedCounty: string, selectedRadius: number) => void;
+  onOpenSampleModal?: () => void;
+  onOpenUpgradeModal?: () => void;
+  resultLeadEstimate?: number | null;
 }
 
 const US_STATES = [
@@ -84,10 +90,48 @@ export function StormSidebar({
   setTempCounty,
   tempRadius,
   setTempRadius,
+  scanStatus = "idle",
+  scanNonce = 0,
+  onScanStart,
+  onOpenSampleModal,
+  onOpenUpgradeModal,
+  resultLeadEstimate = null,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
+
+  const [logs, setLogs] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (scanStatus === "scanning") {
+      setLogs([]);
+      const startTimestamp = new Date().toLocaleTimeString();
+      const messages = [
+        `[${startTimestamp}] INIT: Satellite connection established`,
+        `[${startTimestamp}] TARGET: Locking territory at ${tCounty?.countyFullName || filters.selectedCounty || "Target Area"}, ${tState || filters.state}`,
+        `[${startTimestamp}] RADAR: Initializing NOAA reflectivity sweep`,
+        `[${startTimestamp}] WEATHER: Querying live storm cells`,
+        `[${startTimestamp}] ALERTS: Fetching NWS hazard polygons`,
+        `[${startTimestamp}] CALC: Running proprietary B2B estimator formula`,
+        `[${startTimestamp}] COMPILING: Generating mock target file...`,
+        `[${startTimestamp}] DONE: Territory locked. Visualizing results.`,
+      ];
+      
+      const timeouts = messages.map((msg, i) => 
+        setTimeout(() => {
+          setLogs((prev) => [...prev, msg]);
+        }, i * 200)
+      );
+      return () => timeouts.forEach(clearTimeout);
+    }
+  }, [scanStatus, tCounty, tState, filters.selectedCounty, filters.state]);
+
+  const handleScanTerritory = () => {
+    if (!tState || !tCounty) return;
+    if (onScanStart) {
+      onScanStart(tState, tCounty.countyName, tRadius);
+    }
+  };
 
   // Guided Selector local inputs state
   const [localTempState, setLocalTempState] = React.useState(filters.state || "");
@@ -406,302 +450,59 @@ export function StormSidebar({
           borderRight: sidebarOpen ? "1px solid rgba(20, 92, 255, 0.20)" : "none"
         }}
       >
-        {/* Market Selector & Controls Header */}
-        <div className={`p-3 border-b border-[#145CFF]/20 bg-[#071426]/50 flex flex-col gap-2.5 shrink-0 select-none relative transition-all duration-300 ${
-          isDemo && demoStep === 2 ? "ring-2 ring-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.5)] z-[100]" : ""
-        }`}>
-          {isDemo && demoStep === 2 && (
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-lg animate-bounce z-[1002] whitespace-nowrap flex items-center gap-1 border border-indigo-400">
-              <span>👈 Use Market Selector Here</span>
-            </div>
-          )}
-
-          {/* Header Row: Title & Action Controls */}
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-300">
-              Market Area Selector
+        {/* Logo & Controls Header */}
+        <div className="p-3 border-b border-[#145CFF]/20 bg-[#071426]/50 flex items-center justify-between shrink-0 select-none">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#F8FAFC]">
+              STORM TARGET INTEL
             </span>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <a
-                href="https://sms.leadzer.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
-                title="Open SMS App"
-              >
-                <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
-                <span>SMS</span>
-              </a>
-              <button
-                onClick={onResetView}
-                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
-                title="Reset Map Bounds"
-                type="button"
-              >
-                <Navigation size={10} />
-              </button>
-              <button
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
-                title="Refresh Weather Data"
-                type="button"
-              >
-                <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} />
-              </button>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all md:hidden"
-                title="Close Sidebar"
-                type="button"
-              >
-                <ChevronLeft size={10} />
-              </button>
-            </div>
           </div>
 
-          {/* Selector Grid: State, County, Radius */}
-          <div className="grid grid-cols-12 gap-2 text-left">
-            {/* State (Col-span 3) */}
-            <div className={`col-span-3 flex flex-col gap-1 relative transition-all duration-300 ${
-              isDemo && demoStep === 2
-                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
-                : isDemo && demoStep !== 2 && demoStep >= 2 && demoStep <= 5
-                ? "opacity-35 pointer-events-none blur-[0.5px]"
-                : ""
-            }`}>
-              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                {isDemo && demoStep === 2 && (
-                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">1</span>
-                )}
-                State
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStateDropdownOpen(!stateDropdownOpen);
-                    setCountyDropdownOpen(false);
-                    setRadiusDropdownOpen(false);
-                  }}
-                  className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
-                >
-                  <span className="truncate">{tState || "ST"}</span>
-                  <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
-                </button>
-
-                {stateDropdownOpen && (
-                  <div className="absolute top-12 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[120px]">
-                    <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                      {allStates.map((st) => (
-                        <button
-                          key={st.code}
-                          type="button"
-                          onClick={() => {
-                            setTState(st.code);
-                            setTCounty(null);
-                            setCountySearchQuery("");
-                            if (filters.center) {
-                              onFiltersChange({ state: st.code });
-                            }
-                            setStateDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
-                            isDemo && demoStep === 2 && st.code === "TN"
-                              ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
-                              : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
-                          }`}
-                        >
-                          <span>{st.code}</span>
-                          {isDemo && demoStep === 2 && st.code === "TN" && (
-                            <span className="text-[9px] animate-bounce">👈</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* County (Col-span 6) */}
-            <div className={`col-span-6 flex flex-col gap-1 relative transition-all duration-300 ${
-              isDemo && demoStep === 3
-                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
-                : isDemo && demoStep !== 3 && demoStep >= 2 && demoStep <= 5
-                ? "opacity-35 pointer-events-none blur-[0.5px]"
-                : ""
-            }`}>
-              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                {isDemo && demoStep === 3 && (
-                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">2</span>
-                )}
-                County
-              </label>
-              <button
-                type="button"
-                disabled={!tState}
-                onClick={() => {
-                  setCountyDropdownOpen(!countyDropdownOpen);
-                  setStateDropdownOpen(false);
-                  setRadiusDropdownOpen(false);
-                }}
-                className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between min-h-[32px] cursor-pointer"
-              >
-                <span className="truncate">
-                  {tCounty ? tCounty.countyName : "Select County"}
-                </span>
-                <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
-              </button>
-
-              {countyDropdownOpen && tState && (
-                <div className="absolute top-12 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[220px]">
-                  <div className="relative shrink-0">
-                    <input
-                      type="text"
-                      value={countySearchQuery}
-                      onChange={(e) => setCountySearchQuery(e.target.value)}
-                      placeholder="Filter counties..."
-                      className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1 text-xs text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
-                    />
-                    <Search className="absolute right-2.5 top-2 text-slate-555" size={11} />
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                    {filteredCounties.length === 0 ? (
-                      <div className="text-center text-[10px] text-slate-550 py-2 italic">
-                        No counties found
-                      </div>
-                    ) : (
-                      filteredCounties.map((c) => (
-                        <button
-                          key={c.fips}
-                          type="button"
-                          onClick={() => {
-                            setTCounty(c);
-                            setCountyDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
-                            isDemo && demoStep === 3 && (c.countyName === "Knox" || c.countyName === "Knox County")
-                              ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
-                              : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
-                          }`}
-                        >
-                          <span>{c.countyFullName}</span>
-                          {isDemo && demoStep === 3 && (c.countyName === "Knox" || c.countyName === "Knox County") && (
-                            <span className="text-[9px] animate-bounce">👈</span>
-                          )}
-                          {tCounty?.fips === c.fips && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Radius (Col-span 3) */}
-            <div className={`col-span-3 flex flex-col gap-1 relative transition-all duration-300 ${
-              isDemo && demoStep === 4
-                ? "ring-4 ring-indigo-500 rounded-lg p-1 bg-indigo-500/20 shadow-[0_0_25px_rgba(99,102,241,0.8)] z-[100] scale-105"
-                : isDemo && demoStep !== 4 && demoStep >= 2 && demoStep <= 5
-                ? "opacity-35 pointer-events-none blur-[0.5px]"
-                : ""
-            }`}>
-              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                {isDemo && demoStep === 4 && (
-                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black animate-bounce shrink-0">3</span>
-                )}
-                Radius
-              </label>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  setRadiusDropdownOpen(!radiusDropdownOpen);
-                  setStateDropdownOpen(false);
-                  setCountyDropdownOpen(false);
-                }}
-                className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-1.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
-              >
-                <span>{tRadius ? `${tRadius} mi` : "Radius"}</span>
-                <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
-              </button>
-
-              {radiusDropdownOpen && (
-                <div className="absolute top-12 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1005] p-2 space-y-1.5 max-h-48 flex flex-col w-[100px]">
-                  <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                    {[5, 10, 15, 25, 50, 75, 100].map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => {
-                          setTRadius(r);
-                          if (filters.center) {
-                            onFiltersChange({ radius: r });
-                          }
-                          setRadiusDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded font-semibold text-left transition-all cursor-pointer ${
-                          isDemo && demoStep === 4 && r === 15
-                            ? "bg-indigo-650 text-[#F8FAFC] ring-2 ring-indigo-405 animate-pulse font-extrabold shadow-[0_0_10px_rgba(99,102,241,0.6)]"
-                            : "text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
-                        }`}
-                      >
-                        <span>{r} mi</span>
-                        {isDemo && demoStep === 4 && r === 15 && (
-                          <span className="text-[9px] animate-bounce">👈</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Full-width Prominent Scan Button */}
-          <div className={`relative transition-all duration-300 ${
-            isDemo && demoStep === 5
-              ? "z-[100]"
-              : isDemo && demoStep !== 5 && demoStep >= 2 && demoStep <= 5
-              ? "opacity-35 pointer-events-none blur-[0.5px]"
-              : ""
-          }`}>
-            {isDemo && demoStep === 5 && (
-              <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black animate-bounce z-[110]">4</span>
-            )}
-            <button
-              type="button"
-              disabled={!tState || !tCounty || filters.searchStatus === "loading"}
-              onClick={() => handleSearchSubmit()}
-              className={`w-full py-2 px-4 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[#145CFF]/15 disabled:text-[#145CFF]/40 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-extrabold uppercase text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/10 cursor-pointer ${
-                isDemo && demoStep === 5 ? "ring-4 ring-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.7)] animate-pulse scale-[1.02]" : ""
-              }`}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <a
+              href="https://sms.leadzer.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
+              title="Open SMS App"
             >
-              {filters.searchStatus === "loading" ? (
-                <>
-                  <RefreshCw size={12} className="animate-spin" />
-                  <span>Scanning Weather Data...</span>
-                </>
-              ) : (
-                <>
-                  <Navigation size={12} className="rotate-45" />
-                  <span>Scan Selected Territory</span>
-                </>
-              )}
+              <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
+              <span>SMS</span>
+            </a>
+            <button
+              onClick={onResetView}
+              className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
+              title="Reset Map Bounds"
+              type="button"
+            >
+              <Navigation size={10} />
+            </button>
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
+              title="Refresh Weather Data"
+              type="button"
+            >
+              <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} />
+            </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all md:hidden"
+              title="Close Sidebar"
+              type="button"
+            >
+              <ChevronLeft size={10} />
             </button>
           </div>
         </div>
 
-        {/* Results Header Status banner (Only when search is complete) */}
-        {filters.searchStatus === "complete" && (
+        {/* Results Header Status banner */}
+        {filters.selectedCounty && filters.state && scanStatus !== "scanning" && (
           <div className="mx-3 mt-2 bg-[#0E8F6E]/8 border border-[#0E8F6E]/20 rounded-lg p-2 flex items-center justify-between text-[9px] text-[#0E8F6E] font-extrabold uppercase tracking-wide shrink-0 select-none animate-in fade-in duration-200">
             <span className="truncate">
-              Active Market: {filters.selectedCounty}, {filters.state}
+              Locked: {filters.selectedCounty}, {filters.state}
             </span>
             <span className="flex h-1.5 w-1.5 relative shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0E8F6E] opacity-75"></span>
@@ -710,8 +511,8 @@ export function StormSidebar({
           </div>
         )}
 
-        {/* Target location display (Only when active) */}
-        {filters.center && (
+        {/* Target location display (Only when active and not scanning) */}
+        {filters.center && scanStatus !== "scanning" && (
           <div className="px-2.5 py-1.5 border-b border-[#145CFF]/15 bg-[#0B1930]/20 text-[9px] text-slate-400 flex items-center justify-between gap-1 shrink-0">
             <div className="flex items-center gap-1 truncate">
               <MapPin size={9} className="text-[#145CFF] shrink-0" />
@@ -805,219 +606,379 @@ export function StormSidebar({
         ) : null}
 
         {/* Navigation Tabs */}
-        <div className={`flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300 ${
-          isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
-        }`}>
-          <button
-            onClick={() => setActiveTab("filters")}
-            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
-              activeTab === "filters"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
-                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-            }`}
-          >
-            FILTERS
-          </button>
-          <button
-            onClick={() => setActiveTab("targets")}
-            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
-              activeTab === "targets"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
-                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-            }`}
-          >
-            OPPORTUNITIES
-            {clusters.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-md bg-[rgba(20,92,255,0.14)] text-[#145CFF] border border-[rgba(20,92,255,0.24)] text-[8px] font-extrabold">
-                {clusters.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("leads")}
-            className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
-              activeTab === "leads"
-                ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
-                : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-            }`}
-          >
-            Property Leads
-            {leads.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-md bg-[#0E8F6E]/16 text-[#00A86B] border border-[#0E8F6E]/30 text-[8px] font-extrabold animate-pulse">
-                {leads.length}
-              </span>
-            )}
-          </button>
-        </div>
+        {scanStatus !== "scanning" && (
+          <div className={`flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300 ${
+            isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
+          }`}>
+            <button
+              onClick={() => setActiveTab("filters")}
+              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
+                activeTab === "filters"
+                  ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                  : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+              }`}
+            >
+              FILTERS
+            </button>
+            <button
+              onClick={() => setActiveTab("targets")}
+              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+                activeTab === "targets"
+                  ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                  : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+              }`}
+            >
+              OPPORTUNITIES
+              {clusters.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-[rgba(20,92,255,0.14)] text-[#145CFF] border border-[rgba(20,92,255,0.24)] text-[8px] font-extrabold">
+                  {clusters.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("leads")}
+              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+                activeTab === "leads"
+                  ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                  : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+              }`}
+            >
+              Property Leads
+              {leads.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-[#0E8F6E]/16 text-[#00A86B] border border-[#0E8F6E]/30 text-[8px] font-extrabold animate-pulse">
+                  {leads.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
-        {/* Tab Contents */}
-        <div className={`flex-1 overflow-y-auto p-2 space-y-2.5 transition-all duration-300 ${
-          isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
-        }`}>
-          {activeTab === "filters" && (
-            <div className="space-y-2.5">
-              {filters.searchStatus === "loading" ? (
-                <div className="bg-[#0B1930]/72 border border-[#145CFF]/20 rounded-xl p-6 text-center space-y-3.5 shadow-xl animate-pulse select-none">
-                  <div className="w-8 h-8 rounded-full border-2 border-[#145CFF]/20 border-t-[#145CFF] animate-spin mx-auto"></div>
-                  <div className="space-y-1">
-                    <h4 className="font-extrabold text-[#F8FAFC] text-[10px] uppercase tracking-wider">
-                      Analyzing Market Opportunity
-                    </h4>
-                    <p className="text-[9.5px] text-slate-400 font-medium">
-                      Scanning storm activity around {tCounty?.countyName || filters.selectedCounty || "selected area"}, {tState || filters.state}...
-                    </p>
+        {/* Tab Contents OR Scanning HUD */}
+        {scanStatus === "scanning" ? (
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="bg-[#0B1930]/72 border border-[#145CFF]/25 rounded-xl p-4 text-center space-y-4 shadow-xl select-none animate-pulse">
+              <div className="relative w-12 h-12 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-[#145CFF]/20 border-t-[#145CFF] animate-spin" />
+                <Compass className="w-5 h-5 text-[#145CFF]" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-[#F8FAFC] text-[11px] uppercase tracking-widest text-[#2F7DFF] flex items-center justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                  Radar Scan Active
+                </h4>
+                <p className="text-[9.5px] text-slate-400 font-semibold">
+                  Analyzing {tCounty?.countyFullName || filters.selectedCounty || "territory"}, {tState || filters.state}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block px-0.5">
+                HUD Tactical Scan Logs
+              </span>
+              <div className="font-mono text-[9px] text-[#00FF66] bg-black/95 p-3 rounded-lg border border-[#145CFF]/30 h-56 overflow-y-auto space-y-1 shadow-inner custom-scrollbar text-left">
+                {logs.map((log, i) => (
+                  <div key={i} className="animate-in fade-in duration-100">{log}</div>
+                ))}
+                <div className="w-1.5 h-3 bg-[#00FF66] inline-block animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className={`flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300 ${
+            isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
+          }`}>
+            {activeTab === "filters" && (
+              <div className="space-y-3.5">
+                {/* Step 1: Select Territory */}
+                <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
+                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#145CFF] text-white text-[10px] font-black">1</div>
+                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Select Territory</h3>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-2">
+                    {/* State Input */}
+                    <div className="col-span-4 flex flex-col gap-1 relative">
+                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">State</label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStateDropdownOpen(!stateDropdownOpen);
+                            setCountyDropdownOpen(false);
+                            setRadiusDropdownOpen(false);
+                          }}
+                          className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
+                        >
+                          <span className="truncate">{tState || "ST"}</span>
+                          <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+                        </button>
+
+                        {stateDropdownOpen && (
+                          <div className="absolute top-10 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[120px]">
+                            <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                              {allStates.map((st) => (
+                                <button
+                                  key={st.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setTState(st.code);
+                                    setTCounty(null);
+                                    setCountySearchQuery("");
+                                    setStateDropdownOpen(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                                >
+                                  <span>{st.code}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* County Input */}
+                    <div className="col-span-8 flex flex-col gap-1 relative">
+                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">County</label>
+                      <button
+                        type="button"
+                        disabled={!tState}
+                        onClick={() => {
+                          setCountyDropdownOpen(!countyDropdownOpen);
+                          setStateDropdownOpen(false);
+                          setRadiusDropdownOpen(false);
+                        }}
+                        className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between min-h-[32px] cursor-pointer"
+                      >
+                        <span className="truncate">
+                          {tCounty ? tCounty.countyName : "Select County"}
+                        </span>
+                        <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+                      </button>
+
+                      {countyDropdownOpen && tState && (
+                        <div className="absolute top-10 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[200px]">
+                          <div className="relative shrink-0">
+                            <input
+                              type="text"
+                              value={countySearchQuery}
+                              onChange={(e) => setCountySearchQuery(e.target.value)}
+                              placeholder="Filter counties..."
+                              className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1 text-xs text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
+                            />
+                            <Search className="absolute right-2.5 top-2 text-slate-500" size={11} />
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                            {filteredCounties.length === 0 ? (
+                              <div className="text-center text-[10px] text-slate-500 py-2 italic">
+                                No counties found
+                              </div>
+                            ) : (
+                              filteredCounties.map((c) => (
+                                <button
+                                  key={c.fips}
+                                  type="button"
+                                  onClick={() => {
+                                    setTCounty(c);
+                                    setCountyDropdownOpen(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                                >
+                                  <span>{c.countyFullName}</span>
+                                  {tCounty?.fips === c.fips && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Radius Button Group */}
+                  <div className="flex flex-col gap-1 relative">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Search Radius (Miles)</label>
+                    <div className="flex flex-wrap gap-1">
+                      {[5, 10, 15, 25, 50, 75, 100].map((r) => {
+                        const isSelected = tRadius === r;
+                        return (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => setTRadius(r)}
+                            className={`flex-1 py-1.5 px-1 text-center text-[10px] font-extrabold rounded-lg border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[#145CFF]/20 border-[#145CFF] text-[#F8FAFC] shadow-sm shadow-[#145CFF]/10"
+                                : "bg-[#050B16] border-slate-700/30 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-500/50"
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <>
 
-                  {/* 1. Visible Reports Summary (Metrics Card) - Moved to Top */}
-                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-2.5 space-y-2 shadow-lg shadow-black/20">
-                    <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5 px-0.5">
-                      <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
-                      <div className="relative">
+                {/* Step 2: Choose Storm Signals */}
+                <div className={`bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left transition-opacity duration-300 ${
+                  !tState || !tCounty ? "opacity-45 pointer-events-none" : ""
+                }`}>
+                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
+                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
+                      !tState || !tCounty ? "bg-slate-700 text-slate-400" : "bg-[#145CFF]"
+                    }`}>2</div>
+                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Choose Storm Signals</h3>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <span className="text-[8px] font-bold text-[#64748B] uppercase tracking-wider block">Acquisition Channels</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onFiltersChange({ showHail: !filters.showHail })}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                          filters.showHail
+                            ? "bg-[#2F7DFF]/10 border-[#2F7DFF] text-[#F8FAFC] shadow-sm shadow-[#2F7DFF]/5"
+                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Zap size={12} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
+                          <span className="text-[10px] font-black uppercase">Hail</span>
+                        </div>
+                        {filters.showHail && <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]"></span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onFiltersChange({ showWind: !filters.showWind })}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                          filters.showWind
+                            ? "bg-[#8B5CF6]/10 border-[#8B5CF6] text-[#F8FAFC] shadow-sm shadow-[#8B5CF6]/5"
+                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Wind size={12} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-650"} />
+                          <span className="text-[10px] font-black uppercase">Wind</span>
+                        </div>
+                        {filters.showWind && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]"></span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                          filters.showTornado
+                            ? "bg-[#F43F5E]/10 border-[#F43F5E] text-[#F8FAFC] shadow-sm shadow-[#F43F5E]/5"
+                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Tornado size={12} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-650"} />
+                          <span className="text-[10px] font-black uppercase">Tornado</span>
+                        </div>
+                        {filters.showTornado && <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]"></span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                          filters.showAlerts
+                            ? "bg-[#FBBF24]/10 border-[#FBBF24] text-[#F8FAFC] shadow-sm shadow-[#FBBF24]/5"
+                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <ShieldAlert size={12} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-650"} />
+                          <span className="text-[10px] font-black uppercase">Alerts</span>
+                        </div>
+                        {filters.showAlerts && <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]"></span>}
+                      </button>
+                    </div>
+
+                    {filters.showHail && (
+                      <div className="flex items-center justify-between bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.10)] mt-2">
+                        <span className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider">Min Hail Size</span>
                         <select
-                          value={filters.timeWindow}
-                          onChange={(e) => {
-                            const val = e.target.value as any;
-                            if (val === "custom") {
-                              const todayStr = new Date().toISOString().slice(0, 10);
-                              onFiltersChange({
-                                timeWindow: val,
-                                startDate: filters.startDate || todayStr,
-                                endDate: filters.endDate || todayStr,
-                              });
-                            } else {
-                              onFiltersChange({ timeWindow: val });
-                            }
-                          }}
-                          className="bg-[#050B16]/80 border border-[#145CFF]/20 hover:border-[#145CFF]/40 rounded px-1.5 py-0.5 text-[8px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-4 select-none relative"
+                          value={filters.minHailSize}
+                          onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
+                          className="bg-[#050B16] border border-[#145CFF]/20 hover:border-[#145CFF]/45 rounded px-2 py-1 text-[9px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-5 relative text-right"
                           style={{
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
                             backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 3px center',
+                            backgroundPosition: 'right 4px center',
                             backgroundSize: '8px',
                           }}
                         >
-                          <option value="24h" className="bg-[#050B16] text-[#F8FAFC]">24h</option>
-                          <option value="today" className="bg-[#050B16] text-[#F8FAFC]">Today</option>
-                          <option value="yesterday" className="bg-[#050B16] text-[#F8FAFC]">Yesterday</option>
-                          <option value="7d" className="bg-[#050B16] text-[#F8FAFC]">7 Days</option>
-                          <option value="30d" className="bg-[#050B16] text-[#F8FAFC]">30 Days</option>
-                          <option value="custom" className="bg-[#050B16] text-[#F8FAFC]">Custom</option>
+                          <option value="0">All Sizes</option>
+                          <option value="1.0">≥ 1.00" (Severe)</option>
+                          <option value="1.5">≥ 1.50"</option>
+                          <option value="2.0">≥ 2.00" (Significant)</option>
                         </select>
                       </div>
-                    </div>
-                    {filters.timeWindow === "custom" && (
-                      <div className="flex items-center gap-1.5 bg-[#050B16]/50 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)] mt-0.5 mb-1 text-left">
-                        <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">From Date</span>
-                          <input
-                            type="date"
-                            value={filters.startDate || ""}
-                            max={new Date().toISOString().slice(0, 10)}
-                            onChange={(e) => onFiltersChange({ startDate: e.target.value })}
-                            className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
-                          />
-                        </div>
-                        <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">To Date</span>
-                          <input
-                            type="date"
-                            value={filters.endDate || ""}
-                            max={new Date().toISOString().slice(0, 10)}
-                            onChange={(e) => onFiltersChange({ endDate: e.target.value })}
-                            className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
-                          />
-                        </div>
-                      </div>
                     )}
-                    {filters.timeWindow === "custom" && filters.startDate && filters.endDate && filters.startDate > filters.endDate && (
-                      <div className="text-[7.5px] text-rose-400 font-semibold text-center my-0.5">
-                        Start date cannot be after end date
-                      </div>
-                    )}
-                    {filters.timeWindow === "custom" && (() => {
-                      const start = new Date(filters.startDate || "");
-                      const end = new Date(filters.endDate || "");
-                      const diffTime = Math.abs(end.getTime() - start.getTime());
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      if (diffDays > 30) {
-                        return (
-                          <div className="text-[7.5px] text-amber-400 font-semibold text-center my-0.5">
-                            Note: Capped at maximum 30 days range for performance
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                    <div className="grid grid-cols-4 gap-1 text-center">
-                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                        <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
-                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
-                      </div>
-                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                        <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
-                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
-                      </div>
-                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                        <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
-                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
-                      </div>
-                      <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                        <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
-                        <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
-                      </div>
-                    </div>
-                    <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1 font-medium px-0.5">
-                      <span>Total Reports: {hailCount + windCount + tornadoCount}</span>
-                      <span>Active Watches: {watchCount}</span>
-                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3: Scan Territory */}
+                <div className={`bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left transition-opacity duration-300 ${
+                  !tState || !tCounty ? "opacity-45 pointer-events-none" : ""
+                }`}>
+                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
+                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
+                      !tState || !tCounty ? "bg-slate-700 text-slate-400" : "bg-[#145CFF]"
+                    }`}>3</div>
+                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Scan Territory</h3>
                   </div>
 
-              {/* 2. Compact Storm Report Layer Toggles (Unified Row) */}
-              <div className="space-y-1">
-                <span className="text-[8px] font-extrabold text-[#64748B] uppercase tracking-wider block px-0.5">Active Storm Layers</span>
-                <div className="bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2 space-y-1.5 select-none">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                      <input
-                        type="checkbox"
-                        checked={filters.showHail}
-                        onChange={(e) => onFiltersChange({ showHail: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-glow-hail shrink-0"></span>
-                      <span>Hail</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                      <input
-                        type="checkbox"
-                        checked={filters.showWind}
-                        onChange={(e) => onFiltersChange({ showWind: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-glow-wind shrink-0"></span>
-                      <span>Wind</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[9.5px] text-[#94A3B8] hover:text-[#F8FAFC] font-extrabold">
-                      <input
-                        type="checkbox"
-                        checked={filters.showTornado}
-                        onChange={(e) => onFiltersChange({ showTornado: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-glow-tornado shrink-0 animate-pulse"></span>
-                      <span>Tornado</span>
-                    </label>
-                  </div>
+                  <button
+                    type="button"
+                    disabled={!tState || !tCounty}
+                    onClick={handleScanTerritory}
+                    className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] disabled:from-[#145CFF]/10 disabled:to-[#145CFF]/10 disabled:text-[#145CFF]/30 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-black uppercase text-[10.5px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#145CFF]/20 hover:shadow-[#145CFF]/35 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] cursor-pointer"
+                  >
+                    <Navigation size={12} className="rotate-45" />
+                    <span>Scan Territory</span>
+                  </button>
 
-                  {filters.showHail && (
-                    <div className="flex items-center justify-between border-t border-slate-900/60 pt-1.5 mt-0.5">
-                      <span className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider">Min Hail Size</span>
+                  {tState && tCounty && (
+                    <p className="text-[9px] text-slate-450 leading-normal font-medium text-center bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.06)]">
+                      Scan matching storm events and property records in{" "}
+                      <strong className="text-slate-355">{tCounty.countyFullName}</strong>,{" "}
+                      <strong className="text-slate-355">{tState}</strong> within{" "}
+                      <strong className="text-slate-355">{tRadius}</strong> miles.
+                    </p>
+                  )}
+                </div>
+
+                {/* Reports Summary */}
+                <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3 space-y-2.5 shadow-lg shadow-black/20 text-left">
+                  <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5">
+                    <span className="text-[8.5px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
+                    <div className="relative">
                       <select
-                        value={filters.minHailSize}
-                        onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
+                        value={filters.timeWindow}
+                        onChange={(e) => {
+                          const val = e.target.value as any;
+                          if (val === "custom") {
+                            const todayStr = new Date().toISOString().slice(0, 10);
+                            onFiltersChange({
+                              timeWindow: val,
+                              startDate: filters.startDate || todayStr,
+                              endDate: filters.endDate || todayStr,
+                            });
+                          } else {
+                            onFiltersChange({ timeWindow: val });
+                          }
+                        }}
                         className="bg-[#050B16]/80 border border-[#145CFF]/20 hover:border-[#145CFF]/40 rounded px-1.5 py-0.5 text-[8px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-4 select-none relative"
                         style={{
                           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
@@ -1026,122 +987,172 @@ export function StormSidebar({
                           backgroundSize: '8px',
                         }}
                       >
-                        <option value="0" className="bg-[#050B16] text-[#F8FAFC]">All Sizes</option>
-                        <option value="1.0" className="bg-[#050B16] text-[#F8FAFC]">≥ 1.00" (Severe)</option>
-                        <option value="1.5" className="bg-[#050B16] text-[#F8FAFC]">≥ 1.50"</option>
-                        <option value="2.0" className="bg-[#050B16] text-[#F8FAFC]">≥ 2.00" (Significant)</option>
+                        <option value="24h">24h</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="7d">7 Days</option>
+                        <option value="30d">30 Days</option>
+                        <option value="custom">Custom</option>
                       </select>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* 4. Secondary Map Settings (Collapsible Accordion) & Legend */}
-              <div className="border-t border-slate-900 pt-2 relative">
-                <details className="group border border-[rgba(20,92,255,0.14)] rounded-lg bg-[rgba(11,25,48,0.40)] overflow-visible">
-                  <summary className="flex items-center justify-between px-2.5 py-2 text-[9.5px] font-extrabold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider cursor-pointer hover:bg-[rgba(20,92,255,0.08)] rounded-lg select-none transition-colors">
-                    <span>Basemap & Layer Toggles</span>
-                    <span className="text-[7px] text-[#64748B] group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="absolute left-0 right-0 z-[20] mt-1 p-3 border border-[rgba(20,92,255,0.20)] rounded-lg bg-[#0B1220] shadow-2xl space-y-2.5 hidden group-open:block backdrop-blur-md">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-[#94A3B8] block uppercase">Basemap style</label>
-                      <select
-                        value={filters.mapStyle}
-                        onChange={(e) => onFiltersChange({ mapStyle: e.target.value as StormMapStyle })}
-                        className="w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer"
-                      >
-                        <option value="streets">Streets</option>
-                        <option value="dark">Operational Dark</option>
-                        <option value="satellite">Satellite Streets</option>
-                      </select>
-                    </div>
-
-                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                      <span className="text-[10px] text-[#94A3B8]">Show neighborhood labels</span>
-                      <input
-                        type="checkbox"
-                        checked={filters.showNeighborhoodLabels}
-                        onChange={(e) => onFiltersChange({ showNeighborhoodLabels: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                      <span className="text-[10px] text-[#94A3B8]">Show building footprints</span>
-                      <input
-                        type="checkbox"
-                        checked={filters.showBuildings}
-                        onChange={(e) => onFiltersChange({ showBuildings: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                      <span className="text-[10px] text-[#94A3B8]">Show house numbers</span>
-                      <input
-                        type="checkbox"
-                        checked={filters.showHouseNumbers}
-                        onChange={(e) => onFiltersChange({ showHouseNumbers: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between px-2 py-1.5 rounded-md bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                      <span className="text-[10px] text-[#94A3B8] flex items-center gap-1">
-                        <Layers size={10} className="text-[#64748B]" />
-                        NOAA Radar Overlay
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={filters.showRadar}
-                        onChange={(e) => onFiltersChange({ showRadar: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                      />
-                    </label>
-
-                    {filters.showRadar && (
-                      <div className="p-1.5 bg-slate-900/10 border border-slate-900 rounded space-y-1">
-                        <div className="flex justify-between text-[9px] text-slate-555 font-semibold">
-                          <span>Radar Opacity</span>
-                          <span>{Math.round(filters.radarOpacity * 100)}%</span>
-                        </div>
+                  {filters.timeWindow === "custom" && (
+                    <div className="flex items-center gap-1.5 bg-[#050B16]/50 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)] text-left">
+                      <div className="flex-1 flex flex-col gap-0.5">
+                        <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">From</span>
                         <input
-                          type="range"
-                          min="0.1"
-                          max="1.0"
-                          step="0.05"
-                          value={filters.radarOpacity}
-                          onChange={(e) => onFiltersChange({ radarOpacity: parseFloat(e.target.value) })}
-                          className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500"
+                          type="date"
+                          value={filters.startDate || ""}
+                          max={new Date().toISOString().slice(0, 10)}
+                          onChange={(e) => onFiltersChange({ startDate: e.target.value })}
+                          className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
                         />
                       </div>
-                    )}
+                      <div className="flex-1 flex flex-col gap-0.5">
+                        <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">To</span>
+                        <input
+                          type="date"
+                          value={filters.endDate || ""}
+                          max={new Date().toISOString().slice(0, 10)}
+                          onChange={(e) => onFiltersChange({ endDate: e.target.value })}
+                          className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                    <label className="flex items-center justify-between p-1.5 rounded bg-slate-900/20 border border-slate-900/65 cursor-pointer">
-                      <span className="text-[10px] text-slate-300 flex items-center gap-1">
-                        <AlertCircle size={10} className="text-amber-500" />
-                        Active NWS Alert Areas
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={filters.showAlerts}
-                        onChange={(e) => onFiltersChange({ showAlerts: e.target.checked })}
-                        className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-red-500 focus:ring-0 cursor-pointer"
-                      />
-                    </label>
+                  <div className="grid grid-cols-4 gap-1 text-center">
+                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                      <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
+                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
+                    </div>
+                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                      <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
+                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
+                    </div>
+                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                      <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
+                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
+                    </div>
+                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
+                      <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
+                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
+                    </div>
                   </div>
-                </details>
 
-                {/* Map Legend */}
-                <div className="mt-2">
-                  <StormLegend className="bg-slate-900/10 border border-slate-900/60 rounded p-2 text-[10px] text-slate-400 w-full" />
+                  <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1.5 font-semibold px-0.5">
+                    <span>Total reports: {hailCount + windCount + tornadoCount}</span>
+                    <span>Active watches: {watchCount}</span>
+                  </div>
+                </div>
+
+                {/* Advanced Map Settings Accordion & Legend */}
+                <div className="pt-1.5 relative text-left">
+                  <details className="group border border-[rgba(20,92,255,0.14)] rounded-xl bg-[rgba(11,25,48,0.40)] overflow-visible">
+                    <summary className="flex items-center justify-between px-3 py-2.5 text-[9.5px] font-extrabold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider cursor-pointer hover:bg-[rgba(20,92,255,0.08)] rounded-xl select-none transition-colors">
+                      <span className="flex items-center gap-1.5">
+                        <Layers size={11} className="text-slate-505" />
+                        Advanced Map Settings
+                      </span>
+                      <span className="text-[8px] text-[#64748B] group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="p-3 border-t border-[rgba(20,92,255,0.14)] rounded-b-xl bg-[#091122]/90 backdrop-blur-md space-y-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[8.5px] font-bold text-[#94A3B8] block uppercase">Basemap style</label>
+                        <select
+                          value={filters.mapStyle}
+                          onChange={(e) => onFiltersChange({ mapStyle: e.target.value as StormMapStyle })}
+                          className="w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded-lg px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer"
+                        >
+                          <option value="streets">Streets</option>
+                          <option value="dark">Operational Dark</option>
+                          <option value="satellite">Satellite Streets</option>
+                        </select>
+                      </div>
+
+                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                        <span className="text-[10px] text-[#94A3B8]">Show neighborhood labels</span>
+                        <input
+                          type="checkbox"
+                          checked={filters.showNeighborhoodLabels}
+                          onChange={(e) => onFiltersChange({ showNeighborhoodLabels: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                        <span className="text-[10px] text-[#94A3B8]">Show building footprints</span>
+                        <input
+                          type="checkbox"
+                          checked={filters.showBuildings}
+                          onChange={(e) => onFiltersChange({ showBuildings: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                        <span className="text-[10px] text-[#94A3B8]">Show house numbers</span>
+                        <input
+                          type="checkbox"
+                          checked={filters.showHouseNumbers}
+                          onChange={(e) => onFiltersChange({ showHouseNumbers: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                        <span className="text-[10px] text-[#94A3B8] flex items-center gap-1.5">
+                          <Layers size={11} className="text-[#64748B]" />
+                          NOAA Radar Overlay
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={filters.showRadar}
+                          onChange={(e) => onFiltersChange({ showRadar: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                        />
+                      </label>
+
+                      {filters.showRadar && (
+                        <div className="p-2 bg-[#050B16]/60 border border-[rgba(20,92,255,0.15)] rounded-lg space-y-1">
+                          <div className="flex justify-between text-[9px] text-[#94A3B8] font-bold">
+                            <span>Radar Opacity</span>
+                            <span>{Math.round(filters.radarOpacity * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.05"
+                            value={filters.radarOpacity}
+                            onChange={(e) => onFiltersChange({ radarOpacity: parseFloat(e.target.value) })}
+                            className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-[#145CFF]"
+                          />
+                        </div>
+                      )}
+
+                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
+                        <span className="text-[10px] text-[#94A3B8] flex items-center gap-1.5">
+                          <AlertCircle size={11} className="text-amber-500" />
+                          Active NWS Alert Areas
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={filters.showAlerts}
+                          onChange={(e) => onFiltersChange({ showAlerts: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
+                        />
+                      </label>
+                    </div>
+                  </details>
+
+                  <div className="mt-2.5">
+                    <StormLegend className="bg-[rgba(11,25,48,0.20)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2.5 text-[9.5px] text-slate-400 w-full" />
+                  </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            )}
 
           {activeTab === "targets" && (
             <div className="space-y-4">
@@ -1415,7 +1426,44 @@ export function StormSidebar({
             </div>
           )}
         </div>
+      )}
 
+      {/* Sticky bottom CTA banner when scanStatus === "complete" */}
+      {scanStatus === "complete" && resultLeadEstimate !== null && (
+        <div className="sticky bottom-0 left-0 right-0 p-3 bg-[#060D1E]/95 border-t border-[#145CFF]/30 backdrop-blur-md z-30 shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[7.5px] font-black text-emerald-500 uppercase tracking-widest block leading-none mb-1">
+                Scanned Leads Found!
+              </span>
+              <h4 className="text-[11.5px] font-black text-[#F8FAFC] uppercase truncate">
+                {resultLeadEstimate} Estimated Leads
+              </h4>
+              <span className="text-[8.5px] text-slate-450 block truncate">
+                In {filters.selectedCounty || tCounty?.countyName || "County"}, {filters.state || tState} ({filters.radius} mi)
+              </span>
+            </div>
+            <div className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            <button
+              onClick={onOpenSampleModal}
+              className="py-1.5 px-2 rounded bg-[#0B1930]/60 hover:bg-[#145CFF]/10 border border-[#145CFF]/30 hover:border-[#145CFF]/50 text-slate-350 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+            >
+              View Sample
+            </button>
+            <button
+              onClick={onOpenUpgradeModal}
+              className="py-1.5 px-2 rounded bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[9.5px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-[#145CFF]/20"
+            >
+              Unlock Leads
+            </button>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Floating Toggle Button for Mobile */}

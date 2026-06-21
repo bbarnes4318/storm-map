@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^5.0.0",
+    "@next/swc-win32-x64-msvc": "^16.2.9",
     "clsx": "^2.1.0",
     "drizzle-orm": "^0.30.10",
     "lucide-react": "^0.368.0",
