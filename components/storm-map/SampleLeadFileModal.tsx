@@ -139,8 +139,8 @@ export function SampleLeadFileModal({
 
         {/* Excel style grid view */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="border border-slate-900 rounded-xl overflow-hidden shadow-lg">
-            <table className="w-full text-left border-collapse text-[10px] bg-[#050B16]/70">
+          <div className="border border-slate-900 rounded-xl overflow-x-auto shadow-lg">
+            <table className="min-w-[1500px] w-full text-left border-collapse text-[10px] bg-[#050B16]/70 whitespace-nowrap">
               
               {/* Sticky Header Row */}
               <thead className="bg-[#0B1930] text-[#94A3B8] uppercase font-black tracking-wider text-[8.5px] border-b border-slate-900 sticky top-0 z-10 select-none">
