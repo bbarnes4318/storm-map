@@ -1894,7 +1894,7 @@ export function StormMap({
               minzoom={9}
               paint={{
                 "fill-color": stormFillColorExpression,
-                "fill-opacity": 0.12,
+                "fill-opacity": 0.06,
               }}
             />
             <Layer
@@ -1904,7 +1904,7 @@ export function StormMap({
               paint={{
                 "line-color": stormFillColorExpression,
                 "line-width": 1.2,
-                "line-opacity": 0.4,
+                "line-opacity": 0.2,
               }}
             />
           </Source>
@@ -2205,47 +2205,46 @@ export function StormMap({
 
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         <div 
-          className="rounded-xl p-1.5 flex flex-col gap-1 pointer-events-auto transition-all"
+          className="rounded-2xl p-2.5 flex flex-col gap-1.5 pointer-events-auto transition-all duration-300 border border-[rgba(20,92,255,0.35)] hover:border-[#145CFF]/50 hover:shadow-[0_0_20px_rgba(20,92,255,0.25)]"
           style={{
-            background: "rgba(6, 26, 47, 0.88)",
-            border: "1px solid rgba(20, 92, 255, 0.24)",
-            boxShadow: "0 18px 45px rgba(0, 0, 0, 0.35)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
+            background: "rgba(6, 26, 47, 0.90)",
+            boxShadow: "0 20px 50px -12px rgba(0, 0, 0, 0.5), 0 0 15px rgba(20, 92, 255, 0.15)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
           }}
         >
           <button
             onClick={handleGeolocate}
-            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
+            className="p-2.5 rounded-xl text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.20)] hover:shadow-[0_0_8px_rgba(20,92,255,0.3)] transition-all duration-200 active:scale-[0.90]"
             title="Locate Me"
             type="button"
           >
-            <Compass size={16} />
+            <Compass size={18} />
           </button>
           <button
             onClick={handleResetMap}
-            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
+            className="p-2.5 rounded-xl text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.20)] hover:shadow-[0_0_8px_rgba(20,92,255,0.3)] transition-all duration-200 active:scale-[0.90]"
             title="Reset Map Bounds"
             type="button"
           >
-            <Maximize2 size={16} />
+            <Maximize2 size={18} />
           </button>
           <button
             onClick={handleZoomToStreetLevel}
-            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 active:scale-[0.95]"
+            className="p-2.5 rounded-xl text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.20)] hover:shadow-[0_0_8px_rgba(20,92,255,0.3)] transition-all duration-200 active:scale-[0.90]"
             title="Zoom to Street Level"
             type="button"
           >
-            <Target size={16} />
+            <Target size={18} />
           </button>
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="p-2 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.16)] transition-all duration-150 disabled:opacity-40 active:scale-[0.95]"
+            className="p-2.5 rounded-xl text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[rgba(20,92,255,0.20)] hover:shadow-[0_0_8px_rgba(20,92,255,0.3)] transition-all duration-200 disabled:opacity-40 active:scale-[0.90]"
             title="Manual Refresh Data"
             type="button"
           >
-            <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+            <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
           </button>
         </div>
       </div>

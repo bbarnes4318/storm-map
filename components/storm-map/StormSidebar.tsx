@@ -434,9 +434,20 @@ export function StormSidebar({
   const warningCount = alerts.filter(a => a.event.includes("Warning")).length;
   const watchCount = alerts.filter(a => a.event.includes("Watch")).length;
 
-  const hailCount = filteredReports.filter((r) => r.type === "hail").length;
-  const windCount = filteredReports.filter((r) => r.type === "wind").length;
-  const tornadoCount = filteredReports.filter((r) => r.type === "tornado").length;
+  const hailCount = filteredReports.filter(r => r.type === "hail").length;
+  const windCount = filteredReports.filter(r => r.type === "wind").length;
+  const tornadoCount = filteredReports.filter(r => r.type === "tornado").length;
+
+  const isCountySelected = !!tState && !!tCounty;
+  const isAnySignalSelected = filters.showHail || filters.showWind || filters.showTornado || filters.showAlerts;
+  const isScanUnlockable = isCountySelected && isAnySignalSelected;
+
+  let disabledReasonText = "";
+  if (!isCountySelected) {
+    disabledReasonText = "Select a county to unlock scan";
+  } else if (!isAnySignalSelected) {
+    disabledReasonText = "Choose at least one storm signal";
+  }
 
   return (
     <>
@@ -453,9 +464,9 @@ export function StormSidebar({
         {/* Logo & Controls Header */}
         <div className="p-3 border-b border-[#145CFF]/20 bg-[#071426]/50 flex items-center justify-between shrink-0 select-none">
           <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-            <span className="text-[11px] font-black uppercase tracking-widest text-[#F8FAFC]">
-              STORM TARGET INTEL
+            <span className="h-1.5 w-1.5 rounded-full bg-[#145CFF] animate-pulse shadow-[0_0_6px_rgba(20,92,255,0.4)]"></span>
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-350">
+              Lead Finder Console
             </span>
           </div>
 
@@ -612,32 +623,17 @@ export function StormSidebar({
           }`}>
             <button
               onClick={() => setActiveTab("filters")}
-              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 uppercase ${
+              className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 uppercase tracking-wider ${
                 activeTab === "filters"
                   ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
                   : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
               }`}
             >
-              FILTERS
-            </button>
-            <button
-              onClick={() => setActiveTab("targets")}
-              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
-                activeTab === "targets"
-                  ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
-                  : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
-              }`}
-            >
-              OPPORTUNITIES
-              {clusters.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-md bg-[rgba(20,92,255,0.14)] text-[#145CFF] border border-[rgba(20,92,255,0.24)] text-[8px] font-extrabold">
-                  {clusters.length}
-                </span>
-              )}
+              Lead Finder
             </button>
             <button
               onClick={() => setActiveTab("leads")}
-              className={`flex-1 py-2.5 text-center text-[10px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase ${
+              className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase tracking-wider ${
                 activeTab === "leads"
                   ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
                   : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
@@ -645,7 +641,7 @@ export function StormSidebar({
             >
               Property Leads
               {leads.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-md bg-[#0E8F6E]/16 text-[#00A86B] border border-[#0E8F6E]/30 text-[8px] font-extrabold animate-pulse">
+                <span className="px-1.5 py-0.5 rounded bg-[#0E8F6E]/12 border border-[#0E8F6E]/30 text-[#00A86B] text-[8.5px] font-extrabold animate-pulse">
                   {leads.length}
                 </span>
               )}
@@ -685,284 +681,301 @@ export function StormSidebar({
             </div>
           </div>
         ) : (
-          <div className={`flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300 ${
-            isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
-          }`}>
-            {activeTab === "filters" && (
-              <div className="space-y-3.5">
-                {/* Step 1: Select Territory */}
-                <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
-                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#145CFF] text-white text-[10px] font-black">1</div>
-                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Select Territory</h3>
-                  </div>
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            
+            {/* Scrollable Tab Body */}
+            <div className={`flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300 ${
+              isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
+            } ${activeTab === "filters" && scanStatus === "idle" ? "pb-[160px]" : ""}`}>
+              
+              {activeTab === "filters" && (
+                <div className="space-y-3.5">
+                  {/* Step 1: Select Territory */}
+                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
+                    <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#145CFF] text-white text-[10px] font-black">1</div>
+                      <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Select Territory</h3>
+                    </div>
+                    <p className="text-[9.5px] text-slate-400 font-semibold leading-relaxed pl-0.5">
+                      Choose the market where you want to find storm-damage property leads.
+                    </p>
 
-                  <div className="grid grid-cols-12 gap-2">
-                    {/* State Input */}
-                    <div className="col-span-4 flex flex-col gap-1 relative">
-                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">State</label>
-                      <div className="relative">
+                    <div className="grid grid-cols-12 gap-2">
+                      {/* State Input */}
+                      <div className="col-span-4 flex flex-col gap-1 relative">
+                        <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">State</label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStateDropdownOpen(!stateDropdownOpen);
+                              setCountyDropdownOpen(false);
+                              setRadiusDropdownOpen(false);
+                            }}
+                            className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
+                          >
+                            <span className="truncate">{tState || "Select State"}</span>
+                            <ChevronRight className="text-slate-505 rotate-90 shrink-0" size={10} />
+                          </button>
+
+                          {stateDropdownOpen && (
+                            <div className="absolute top-10 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[130px]">
+                              <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
+                                {allStates.map((st) => (
+                                  <button
+                                    key={st.code}
+                                    type="button"
+                                    onClick={() => {
+                                      setTState(st.code);
+                                      setTCounty(null);
+                                      setCountySearchQuery("");
+                                      setStateDropdownOpen(false);
+                                    }}
+                                    className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                                  >
+                                    <span>{st.code || "All"}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* County Input */}
+                      <div className="col-span-8 flex flex-col gap-1 relative">
+                        <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">County</label>
                         <button
                           type="button"
+                          disabled={!tState}
                           onClick={() => {
-                            setStateDropdownOpen(!stateDropdownOpen);
-                            setCountyDropdownOpen(false);
+                            setCountyDropdownOpen(!countyDropdownOpen);
+                            setStateDropdownOpen(false);
                             setRadiusDropdownOpen(false);
                           }}
-                          className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] flex items-center justify-between min-h-[32px] cursor-pointer"
+                          className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between min-h-[32px] cursor-pointer"
                         >
-                          <span className="truncate">{tState || "ST"}</span>
-                          <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
+                          <span className="truncate">
+                            {tCounty ? tCounty.countyName : "Select County"}
+                          </span>
+                          <ChevronRight className="text-slate-550 rotate-90 shrink-0" size={10} />
                         </button>
 
-                        {stateDropdownOpen && (
-                          <div className="absolute top-10 left-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[120px]">
+                        {countyDropdownOpen && tState && (
+                          <div className="absolute top-10 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[200px]">
+                            <div className="relative shrink-0">
+                              <input
+                                type="text"
+                                value={countySearchQuery}
+                                onChange={(e) => setCountySearchQuery(e.target.value)}
+                                placeholder="Filter counties..."
+                                className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1 text-xs text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
+                              />
+                              <Search className="absolute right-2.5 top-2 text-slate-550" size={11} />
+                            </div>
+
                             <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                              {allStates.map((st) => (
-                                <button
-                                  key={st.code}
-                                  type="button"
-                                  onClick={() => {
-                                    setTState(st.code);
-                                    setTCounty(null);
-                                    setCountySearchQuery("");
-                                    setStateDropdownOpen(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
-                                >
-                                  <span>{st.code}</span>
-                                </button>
-                              ))}
+                              {filteredCounties.length === 0 ? (
+                                <div className="text-center text-[10px] text-slate-500 py-2 italic">
+                                  No counties found
+                                </div>
+                              ) : (
+                                filteredCounties.map((c) => (
+                                  <button
+                                    key={c.fips}
+                                    type="button"
+                                    onClick={() => {
+                                      setTCounty(c);
+                                      setCountyDropdownOpen(false);
+                                    }}
+                                    className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
+                                  >
+                                    <span>{c.countyFullName}</span>
+                                    {tCounty?.fips === c.fips && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
+                                    )}
+                                  </button>
+                                ))
+                              )}
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* County Input */}
-                    <div className="col-span-8 flex flex-col gap-1 relative">
-                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">County</label>
-                      <button
-                        type="button"
-                        disabled={!tState}
-                        onClick={() => {
-                          setCountyDropdownOpen(!countyDropdownOpen);
-                          setStateDropdownOpen(false);
-                          setRadiusDropdownOpen(false);
-                        }}
-                        className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-left text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between min-h-[32px] cursor-pointer"
-                      >
-                        <span className="truncate">
-                          {tCounty ? tCounty.countyName : "Select County"}
-                        </span>
-                        <ChevronRight className="text-slate-500 rotate-90 shrink-0" size={10} />
-                      </button>
-
-                      {countyDropdownOpen && tState && (
-                        <div className="absolute top-10 left-0 right-0 bg-[#071426] border border-[#145CFF]/30 rounded-lg shadow-2xl z-[1050] p-2 space-y-1.5 max-h-48 flex flex-col w-[200px]">
-                          <div className="relative shrink-0">
-                            <input
-                              type="text"
-                              value={countySearchQuery}
-                              onChange={(e) => setCountySearchQuery(e.target.value)}
-                              placeholder="Filter counties..."
-                              className="w-full bg-[#050B16] border border-[#145CFF]/20 rounded px-2.5 py-1 text-xs text-[#F8FAFC] placeholder:text-slate-500 focus:outline-none focus:border-[#145CFF]"
-                            />
-                            <Search className="absolute right-2.5 top-2 text-slate-500" size={11} />
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 custom-scrollbar">
-                            {filteredCounties.length === 0 ? (
-                              <div className="text-center text-[10px] text-slate-500 py-2 italic">
-                                No counties found
-                              </div>
-                            ) : (
-                              filteredCounties.map((c) => (
-                                <button
-                                  key={c.fips}
-                                  type="button"
-                                  onClick={() => {
-                                    setTCounty(c);
-                                    setCountyDropdownOpen(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-2 py-1 text-xs rounded font-semibold text-left transition-all cursor-pointer text-slate-350 hover:text-[#F8FAFC] hover:bg-[#145CFF]/10"
-                                >
-                                  <span>{c.countyFullName}</span>
-                                  {tCounty?.fips === c.fips && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#145CFF]"></span>
-                                  )}
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {/* Radius Button Group */}
+                    <div className="flex flex-col gap-1 relative">
+                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">Search Radius (Miles)</label>
+                      <div className="flex flex-wrap gap-1">
+                        {[5, 10, 15, 25, 50, 75, 100].map((r) => {
+                          const isSelected = tRadius === r;
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => setTRadius(r)}
+                              className={`flex-1 py-2 text-center text-[10.5px] font-black rounded-lg border transition-all duration-200 hover:-translate-y-[1px] active:translate-y-0 cursor-pointer ${
+                                isSelected
+                                  ? "bg-[#145CFF]/15 border-[#145CFF] text-[#F8FAFC] shadow-[0_0_12px_rgba(20,92,255,0.25)] ring-1 ring-[#145CFF]/30"
+                                  : "bg-[#050B16] border-slate-800 text-slate-400 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5 hover:shadow-[0_0_8px_rgba(20,92,255,0.1)]"
+                              }`}
+                            >
+                              {r}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {/* Summary Success Chip */}
+                    {tState && tCounty && (
+                      <div className="mt-1 p-2 bg-[#0E8F6E]/10 border border-[#0E8F6E]/20 rounded-lg flex items-center gap-2 text-[10px] text-[#00E676] font-extrabold animate-in fade-in duration-200 select-none">
+                        <svg className="w-3.5 h-3.5 text-[#00E676] shrink-0" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="truncate">
+                          {tCounty.countyFullName}, {tState} · {tRadius} mile radius
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Radius Button Group */}
-                  <div className="flex flex-col gap-1 relative">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Search Radius (Miles)</label>
-                    <div className="flex flex-wrap gap-1">
-                      {[5, 10, 15, 25, 50, 75, 100].map((r) => {
-                        const isSelected = tRadius === r;
-                        return (
+                  {/* Step 2: Choose Storm Signals */}
+                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
+                    <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
+                      <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
+                        !isCountySelected ? "bg-slate-800 text-slate-500" : "bg-[#145CFF]"
+                      }`}>2</div>
+                      <h3 className={`text-[10.5px] font-black uppercase tracking-wider ${
+                        !isCountySelected ? "text-slate-405" : "text-slate-200"
+                      }`}>Choose Storm Signals</h3>
+                    </div>
+
+                    {!isCountySelected ? (
+                      <div className="py-6 flex flex-col items-center justify-center gap-2 text-center bg-[#050B16]/50 border border-slate-900 rounded-lg p-3 select-none">
+                        <svg
+                          className="w-5 h-5 text-slate-655"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                          />
+                        </svg>
+                        <span className="text-[10.5px] font-semibold text-slate-500">
+                          Complete territory selection first.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 animate-in fade-in duration-200">
+                        <span className="text-[8px] font-bold text-[#64748B] uppercase tracking-wider block">Storm Signals</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Hail Signal */}
                           <button
-                            key={r}
                             type="button"
-                            onClick={() => setTRadius(r)}
-                            className={`flex-1 py-1.5 px-1 text-center text-[10px] font-extrabold rounded-lg border transition-all cursor-pointer ${
-                              isSelected
-                                ? "bg-[#145CFF]/20 border-[#145CFF] text-[#F8FAFC] shadow-sm shadow-[#145CFF]/10"
-                                : "bg-[#050B16] border-slate-700/30 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-500/50"
+                            onClick={() => onFiltersChange({ showHail: !filters.showHail })}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
+                              filters.showHail
+                                ? "bg-[#2F7DFF]/12 border-[#2F7DFF] text-[#F8FAFC] shadow-[0_0_10px_rgba(47,125,255,0.2)] ring-1 ring-[#2F7DFF]/25"
+                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
                             }`}
                           >
-                            {r}
+                            <div className="flex items-center gap-1.5">
+                              <Zap size={12} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
+                              <span className="text-[10px] font-black uppercase">Hail</span>
+                            </div>
+                            {filters.showHail && <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]"></span>}
                           </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Step 2: Choose Storm Signals */}
-                <div className={`bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left transition-opacity duration-300 ${
-                  !tState || !tCounty ? "opacity-45 pointer-events-none" : ""
-                }`}>
-                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
-                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
-                      !tState || !tCounty ? "bg-slate-700 text-slate-400" : "bg-[#145CFF]"
-                    }`}>2</div>
-                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Choose Storm Signals</h3>
-                  </div>
+                          {/* Wind Signal */}
+                          <button
+                            type="button"
+                            onClick={() => onFiltersChange({ showWind: !filters.showWind })}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
+                              filters.showWind
+                                ? "bg-[#8B5CF6]/12 border-[#8B5CF6] text-[#F8FAFC] shadow-[0_0_10px_rgba(139,92,246,0.2)] ring-1 ring-[#8B5CF6]/25"
+                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Wind size={12} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-650"} />
+                              <span className="text-[10px] font-black uppercase">Wind</span>
+                            </div>
+                            {filters.showWind && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]"></span>}
+                          </button>
 
-                  <div className="space-y-2.5">
-                    <span className="text-[8px] font-bold text-[#64748B] uppercase tracking-wider block">Acquisition Channels</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onFiltersChange({ showHail: !filters.showHail })}
-                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                          filters.showHail
-                            ? "bg-[#2F7DFF]/10 border-[#2F7DFF] text-[#F8FAFC] shadow-sm shadow-[#2F7DFF]/5"
-                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Zap size={12} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
-                          <span className="text-[10px] font-black uppercase">Hail</span>
+                          {/* Tornado Signal */}
+                          <button
+                            type="button"
+                            onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
+                              filters.showTornado
+                                ? "bg-[#F43F5E]/12 border-[#F43F5E] text-[#F8FAFC] shadow-[0_0_10px_rgba(244,63,94,0.2)] ring-1 ring-[#F43F5E]/25"
+                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Tornado size={12} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-650"} />
+                              <span className="text-[10px] font-black uppercase">Tornado</span>
+                            </div>
+                            {filters.showTornado && <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]"></span>}
+                          </button>
+
+                          {/* Alerts Signal */}
+                          <button
+                            type="button"
+                            onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
+                              filters.showAlerts
+                                ? "bg-[#FBBF24]/12 border-[#FBBF24] text-[#F8FAFC] shadow-[0_0_10px_rgba(251,191,36,0.2)] ring-1 ring-[#FBBF24]/25"
+                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <ShieldAlert size={12} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-650"} />
+                              <span className="text-[10px] font-black uppercase">Alerts</span>
+                            </div>
+                            {filters.showAlerts && <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]"></span>}
+                          </button>
                         </div>
-                        {filters.showHail && <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]"></span>}
-                      </button>
 
-                      <button
-                        type="button"
-                        onClick={() => onFiltersChange({ showWind: !filters.showWind })}
-                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                          filters.showWind
-                            ? "bg-[#8B5CF6]/10 border-[#8B5CF6] text-[#F8FAFC] shadow-sm shadow-[#8B5CF6]/5"
-                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Wind size={12} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-650"} />
-                          <span className="text-[10px] font-black uppercase">Wind</span>
-                        </div>
-                        {filters.showWind && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]"></span>}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
-                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                          filters.showTornado
-                            ? "bg-[#F43F5E]/10 border-[#F43F5E] text-[#F8FAFC] shadow-sm shadow-[#F43F5E]/5"
-                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Tornado size={12} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-650"} />
-                          <span className="text-[10px] font-black uppercase">Tornado</span>
-                        </div>
-                        {filters.showTornado && <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]"></span>}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
-                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                          filters.showAlerts
-                            ? "bg-[#FBBF24]/10 border-[#FBBF24] text-[#F8FAFC] shadow-sm shadow-[#FBBF24]/5"
-                            : "bg-[#050B16] border-slate-750 text-slate-450 hover:text-slate-350 hover:border-slate-500/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <ShieldAlert size={12} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-650"} />
-                          <span className="text-[10px] font-black uppercase">Alerts</span>
-                        </div>
-                        {filters.showAlerts && <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]"></span>}
-                      </button>
-                    </div>
-
-                    {filters.showHail && (
-                      <div className="flex items-center justify-between bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.10)] mt-2">
-                        <span className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider">Min Hail Size</span>
-                        <select
-                          value={filters.minHailSize}
-                          onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
-                          className="bg-[#050B16] border border-[#145CFF]/20 hover:border-[#145CFF]/45 rounded px-2 py-1 text-[9px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-5 relative text-right"
-                          style={{
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 4px center',
-                            backgroundSize: '8px',
-                          }}
-                        >
-                          <option value="0">All Sizes</option>
-                          <option value="1.0">≥ 1.00" (Severe)</option>
-                          <option value="1.5">≥ 1.50"</option>
-                          <option value="2.0">≥ 2.00" (Significant)</option>
-                        </select>
+                        {filters.showHail && (
+                          <div className="flex items-center justify-between bg-[#050B16]/50 p-2.5 rounded-lg border border-[rgba(20,92,255,0.10)] mt-2">
+                            <span className="text-[9.5px] text-[#94A3B8] font-bold uppercase tracking-wider pl-0.5">Min Hail Size</span>
+                            <select
+                              value={filters.minHailSize}
+                              onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
+                              className="bg-[#050B16] border border-[#145CFF]/25 hover:border-[#145CFF]/45 rounded px-2 py-1 text-[9.5px] font-black text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-5 relative text-right"
+                              style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 4px center',
+                                backgroundSize: '8px',
+                              }}
+                            >
+                              <option value="0">All Sizes</option>
+                              <option value="1.0">≥ 1.00" (Severe)</option>
+                              <option value="1.5">≥ 1.50"</option>
+                              <option value="2.0">≥ 2.00" (Significant)</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
+              )}
 
-                {/* Step 3: Scan Territory */}
-                <div className={`bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left transition-opacity duration-300 ${
-                  !tState || !tCounty ? "opacity-45 pointer-events-none" : ""
-                }`}>
-                  <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
-                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
-                      !tState || !tCounty ? "bg-slate-700 text-slate-400" : "bg-[#145CFF]"
-                    }`}>3</div>
-                    <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Scan Territory</h3>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={!tState || !tCounty}
-                    onClick={handleScanTerritory}
-                    className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] disabled:from-[#145CFF]/10 disabled:to-[#145CFF]/10 disabled:text-[#145CFF]/30 disabled:cursor-not-allowed border-none text-[#F8FAFC] font-black uppercase text-[10.5px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-md shadow-[#145CFF]/20 hover:shadow-[#145CFF]/35 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] cursor-pointer"
-                  >
-                    <Navigation size={12} className="rotate-45" />
-                    <span>Scan Territory</span>
-                  </button>
-
-                  {tState && tCounty && (
-                    <p className="text-[9px] text-slate-450 leading-normal font-medium text-center bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.06)]">
-                      Scan matching storm events and property records in{" "}
-                      <strong className="text-slate-355">{tCounty.countyFullName}</strong>,{" "}
-                      <strong className="text-slate-355">{tState}</strong> within{" "}
-                      <strong className="text-slate-355">{tRadius}</strong> miles.
-                    </p>
-                  )}
-                </div>
-
-                {/* Reports Summary */}
+              {/* Reports Summary */}
+              {activeTab === "filters" && (
                 <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3 space-y-2.5 shadow-lg shadow-black/20 text-left">
                   <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5">
-                    <span className="text-[8.5px] font-extrabold text-[#64748B] uppercase tracking-wider">Reports Summary</span>
+                    <span className="text-[8.5px] font-extrabold text-[#64748B] uppercase tracking-wider pl-0.5">Reports Summary</span>
                     <div className="relative">
                       <select
                         value={filters.timeWindow}
@@ -1046,13 +1059,15 @@ export function StormSidebar({
                     <span>Active watches: {watchCount}</span>
                   </div>
                 </div>
+              )}
 
-                {/* Advanced Map Settings Accordion & Legend */}
+              {/* Advanced Map Settings Accordion & Legend */}
+              {activeTab === "filters" && (
                 <div className="pt-1.5 relative text-left">
                   <details className="group border border-[rgba(20,92,255,0.14)] rounded-xl bg-[rgba(11,25,48,0.40)] overflow-visible">
                     <summary className="flex items-center justify-between px-3 py-2.5 text-[9.5px] font-extrabold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider cursor-pointer hover:bg-[rgba(20,92,255,0.08)] rounded-xl select-none transition-colors">
                       <span className="flex items-center gap-1.5">
-                        <Layers size={11} className="text-slate-505" />
+                        <Layers size={11} className="text-slate-550" />
                         Advanced Map Settings
                       </span>
                       <span className="text-[8px] text-[#64748B] group-open:rotate-180 transition-transform">▼</span>
@@ -1151,282 +1166,334 @@ export function StormSidebar({
                     <StormLegend className="bg-[rgba(11,25,48,0.20)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2.5 text-[9.5px] text-slate-400 w-full" />
                   </div>
                 </div>
+              )}
+
+              {activeTab === "targets" && (
+                <div className="space-y-4 text-left">
+                  {statusBanner && (
+                    <div className={`p-3 rounded-lg border text-[10.5px] flex justify-between items-start ${
+                      statusBanner.type === "success" ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400" :
+                      statusBanner.type === "error" ? "bg-red-950/20 border-red-500/30 text-red-400" :
+                      "bg-blue-950/20 border-blue-500/30 text-blue-400"
+                    }`}>
+                      <span className="leading-normal flex-1">{statusBanner.text}</span>
+                      <button onClick={() => setStatusBanner(null)} className="text-[10px] font-bold text-slate-500 hover:text-slate-350 ml-2 shrink-0">X</button>
+                    </div>
+                  )}
+
+                  <div className="bg-slate-900/40 border border-slate-905 rounded-lg p-3 text-[10.5px] text-slate-350 flex flex-col gap-1.5 shadow-sm">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-205">
+                      <Info size={13} className="text-[#145CFF] shrink-0" />
+                      <span>Opportunity Targeting</span>
+                    </div>
+                    <p className="leading-normal text-slate-400">
+                      These target opportunities represent approximate storm-impacted communities identified by SPC/NOAA datasets. Focus roofing target lists in these territories.
+                    </p>
+                  </div>
+
+                  {clusters.length === 0 ? (
+                    <div className="py-8 text-center border border-dashed border-slate-900 rounded-lg text-slate-600 text-xs">
+                      No active storm target clusters found for current filters.
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wide block pl-0.5">Top Opportunity Territories</span>
+                      <div className="space-y-2.5">
+                        {clusters.map((cluster) => {
+                          const hasHighestImpact = cluster.highestMagnitude && 
+                                                    cluster.highestMagnitude !== "N/A" && 
+                                                    !cluster.highestMagnitude.includes("NaN") && 
+                                                    !cluster.highestMagnitude.includes("undefined") && 
+                                                    !cluster.highestMagnitude.includes("null");
+                          return (
+                            <div
+                              key={cluster.id}
+                              className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 flex flex-col gap-2 relative group"
+                            >
+                              <div 
+                                onClick={() => {
+                                  onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
+                                  setActiveDetail({
+                                    type: "cluster",
+                                    coordinates: cluster.center,
+                                    data: cluster,
+                                  });
+                                }}
+                                className="flex justify-between items-start gap-1.5 cursor-pointer"
+                              >
+                                <div className="truncate">
+                                  <h4 className="font-extrabold text-xs text-slate-200 uppercase truncate">
+                                    {cluster.county ? `${cluster.county} County` : "Unknown County"}, {cluster.state || "ST"} Storm
+                                  </h4>
+                                  <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                    Strike Zone: {formatSPCDescriptor(cluster.name)}
+                                  </span>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold shrink-0 border ${
+                                  cluster.totalScore >= 120
+                                    ? "bg-red-500/10 border-red-500/30 text-red-400"
+                                    : cluster.totalScore >= 70
+                                    ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                                    : "bg-slate-800 border-slate-700 text-slate-305"
+                                }`}>
+                                  Score: {cluster.totalScore}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5 bg-slate-950/40 border border-slate-900/60 p-2 rounded text-[10px] text-slate-400">
+                                <div className="flex justify-between items-center">
+                                  <span>Reports Count:</span>
+                                  <span className="font-bold text-slate-200">{cluster.reportsCount}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span>Strike Radius:</span>
+                                  <span className="font-bold text-slate-200">{cluster.suggestedRadius} mi</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span>Threat Signal:</span>
+                                  <span className="font-bold text-slate-200 capitalize">{cluster.mainStormType}</span>
+                                </div>
+                                {hasHighestImpact && (
+                                  <div className="flex justify-between items-center border-t border-slate-900/30 pt-1 mt-1">
+                                    <span>Max Measured Intensity:</span>
+                                    <span className="font-bold text-[#F8FAFC]">{cluster.highestMagnitude}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="pt-1.5 border-t border-slate-900/30 flex gap-1.5 items-center justify-between">
+                                <button
+                                  disabled={loadingClusterId === cluster.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCollectRadiusLeads(cluster);
+                                  }}
+                                  className="flex-1 py-2 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[rgba(20,92,255,0.08)] disabled:text-slate-500 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/20"
+                                >
+                                  {loadingClusterId === cluster.id ? "Adding..." : "Add Properties in Radius"}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
+                                    setActiveDetail({
+                                      type: "cluster",
+                                      coordinates: cluster.center,
+                                      data: cluster,
+                                    });
+                                  }}
+                                  className="py-2 px-2.5 rounded-lg border border-[rgba(20,92,255,0.20)] hover:border-[rgba(20,92,255,0.40)] bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] text-[#94A3B8] hover:text-[#F8FAFC] text-[10px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center"
+                                >
+                                  <Eye size={10} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "leads" && (
+                <div className="space-y-4 text-left">
+                  {selectedProperty && (
+                    <div className="p-2.5 bg-slate-900/10 border border-slate-905 rounded-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                      <LeadIntelligencePanel
+                        selectedProperty={selectedProperty}
+                        onUpdateLead={onUpdateLead}
+                        onClearProperty={onUnlockProperty}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <ClipboardList size={14} className="text-emerald-500 animate-pulse" />
+                      <span className="text-[10.5px] font-bold text-slate-305 tracking-wide">Saved Properties</span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold">
+                        {leads.length}
+                      </span>
+                    </div>
+                    {leads.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleExportCSV}
+                          className="flex items-center gap-1 px-2 py-1 bg-[#145CFF] hover:bg-[#2570FF] text-white text-[9px] font-extrabold uppercase rounded shadow transition-colors cursor-pointer border-none"
+                        >
+                          <Download size={10} />
+                          Export CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to clear all saved leads?")) {
+                              leads.forEach(l => onRemoveLead(l.id));
+                            }
+                          }}
+                          className="px-2 py-1 bg-slate-905 hover:bg-red-950/40 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-900/30 text-[9px] font-extrabold uppercase rounded transition-all cursor-pointer"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {leads.length === 0 ? (
+                    <div className="py-10 text-center border border-dashed border-slate-800 rounded-lg text-slate-500 flex flex-col items-center justify-center gap-2">
+                      <MapPin size={20} className="text-slate-700 animate-pulse" />
+                      <p className="text-[11px] font-bold text-slate-350">No saved properties yet</p>
+                      <p className="text-[9.5px] text-slate-500 max-w-[220px] leading-normal font-medium">
+                        Click on any location or address on the map, then click <strong className="text-slate-400">"Access Homeowner Data"</strong> to add it here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {leads.map((lead) => {
+                        const isActive = selectedProperty?.id === lead.id;
+                        return (
+                          <div
+                            key={lead.id}
+                            onClick={() => {
+                              onSelectCoords([lead.latitude, lead.longitude], lead.fullAddress, 16.5);
+                              setActiveDetail({
+                                type: "address",
+                                coordinates: [lead.latitude, lead.longitude],
+                                data: { ...lead, locked: true },
+                              });
+                              if (onSelectProperty) {
+                                onSelectProperty(lead);
+                              }
+                            }}
+                            className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
+                              isActive
+                                ? "bg-[#0E8F6E]/12 border-[#0E8F6E]/40 hover:border-[#0E8F6E]/60 shadow-md shadow-[#0E8F6E]/5"
+                                : "bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border-[rgba(20,92,255,0.14)] hover:border-[rgba(20,92,255,0.30)]"
+                            }`}
+                          >
+                            <div className="flex gap-2 truncate">
+                              <MapPin
+                                size={12}
+                                className={`shrink-0 mt-0.5 ${isActive ? "text-[#0E8F6E] animate-bounce" : "text-slate-600 group-hover:text-slate-400"}`}
+                              />
+                              <div className="truncate flex flex-col gap-0.5">
+                                <span className={`text-[11px] font-bold leading-tight truncate ${isActive ? "text-[#F8FAFC] animate-pulse" : "text-[#94A3B8]"}`}>
+                                  {lead.fullAddress}
+                                </span>
+                                <span className="text-[9.5px] text-[#64748B] font-medium">
+                                  {[lead.city, lead.state, lead.postcode].filter(Boolean).join(", ")}
+                                </span>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="text-[8.5px] text-[#64748B] font-mono">
+                                    {lead.latitude.toFixed(4)}, {lead.longitude.toFixed(4)}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded-sm text-[7px] font-extrabold uppercase ${
+                                    lead.confidence === "exact"
+                                      ? "bg-[#0E8F6E]/12 text-[#00A86B] border border-[#0E8F6E]/20"
+                                      : "bg-[#F59E0B]/12 text-[#F59E0B]/90 border border-[#F59E0B]/20"
+                                  }`}>
+                                    {lead.confidence}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation(); // prevent map panning
+                                onRemoveLead(lead.id);
+                              }}
+                              className="text-[#64748B] hover:text-[#F43F5E] p-1.5 rounded-md bg-[rgba(20,92,255,0.06)] hover:bg-[#F43F5E]/10 border border-[rgba(20,92,255,0.12)] hover:border-[#F43F5E]/20 transition-all shrink-0"
+                              title="Remove lead"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Step 3: Scan Territory Box (only visible on Lead Finder tab and when idle) */}
+            {activeTab === "filters" && scanStatus === "idle" && (
+              <div className="p-3 bg-[#071426]/95 border-t border-[#145CFF]/30 backdrop-blur-md z-30 shadow-2xl flex flex-col gap-2.5 shrink-0 text-left">
+                <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
+                      !isScanUnlockable ? "bg-slate-800 text-slate-500" : "bg-[#145CFF]"
+                    }`}>3</div>
+                    <h3 className={`text-[10.5px] font-black uppercase tracking-wider ${
+                      !isScanUnlockable ? "text-slate-405" : "text-slate-200"
+                    }`}>Scan Territory</h3>
+                  </div>
+                  {isScanUnlockable && (
+                    <span className="flex h-2 w-2 relative shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#145CFF] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2F7DFF]"></span>
+                    </span>
+                  )}
+                </div>
+
+                {isScanUnlockable ? (
+                  <button
+                    type="button"
+                    onClick={handleScanTerritory}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] via-[#2F7DFF] to-[#00E676] hover:from-[#2570FF] hover:via-[#3b82f6] hover:to-[#00C853] text-[#F8FAFC] font-black uppercase text-[11px] tracking-widest transition-all duration-300 flex flex-col items-center justify-center gap-0.5 shadow-lg shadow-[#145CFF]/30 hover:shadow-[#145CFF]/50 hover:-translate-y-[1.5px] active:translate-y-0 active:scale-[0.98] cursor-pointer group relative overflow-hidden"
+                  >
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                    <div className="flex items-center gap-2">
+                      <Compass size={13} className="animate-spin-slow text-white" style={{ animationDuration: '6s' }} />
+                      <span className="font-extrabold text-[12px]">Scan Territory</span>
+                    </div>
+                    <span className="text-[8.5px] font-bold text-blue-105/90 lowercase first-letter:uppercase leading-none tracking-normal">
+                      Find storm-damage property leads
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-3.5 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 font-bold uppercase text-[11px] tracking-wider cursor-not-allowed flex flex-col items-center justify-center gap-1 select-none"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <svg
+                        className="w-3.5 h-3.5 text-slate-650"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                        />
+                      </svg>
+                      <span>Scan Territory</span>
+                    </div>
+                    <span className="text-[8.5px] font-bold text-red-400 bg-red-950/20 border border-red-950/45 px-2 py-0.5 rounded-full mt-0.5 select-none lowercase first-letter:uppercase tracking-normal">
+                      {disabledReasonText}
+                    </span>
+                  </button>
+                )}
+
+                {isScanUnlockable && tCounty && (
+                  <p className="text-[9px] text-slate-400 leading-normal font-semibold text-center bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.06)] select-none">
+                    Targeting <span className="text-slate-200 font-bold">{tCounty.countyFullName}</span> (within {tRadius} mi) for B2B leads.
+                  </p>
+                )}
               </div>
             )}
 
-          {activeTab === "targets" && (
-            <div className="space-y-4">
-              {statusBanner && (
-                <div className={`p-3 rounded-lg border text-[10.5px] flex justify-between items-start ${
-                  statusBanner.type === "success" ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400" :
-                  statusBanner.type === "error" ? "bg-red-950/20 border-red-500/30 text-red-400" :
-                  "bg-blue-950/20 border-blue-500/30 text-blue-400"
-                }`}>
-                  <span className="leading-normal flex-1">{statusBanner.text}</span>
-                  <button onClick={() => setStatusBanner(null)} className="text-[10px] font-bold text-slate-500 hover:text-slate-350 ml-2 shrink-0">X</button>
-                </div>
-              )}
-
-              <div className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 text-[10.5px] text-slate-350 flex flex-col gap-1.5 shadow-sm">
-                <div className="flex items-center gap-1.5 font-bold text-slate-200">
-                  <span>What Top Opportunities Shows</span>
-                </div>
-                <p className="leading-normal text-slate-400">
-                  Top Opportunities groups nearby storm reports into high-priority roofing target areas. These are not individual home addresses. The location is an approximate storm report area from NOAA/SPC data. Click an opportunity to zoom into the storm-hit area, then click individual houses to view property and homeowner information.
-                </p>
-              </div>
-
-              {clusters.length === 0 ? (
-                <div className="py-8 text-center border border-dashed border-slate-900 rounded-lg text-slate-600 text-xs">
-                  No active storm target clusters found for current filters.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Top opportunity areas</span>
-                  <div className="space-y-2.5">
-                    {clusters.map((cluster) => {
-                      const hasHighestImpact = cluster.highestMagnitude && 
-                                                cluster.highestMagnitude !== "N/A" && 
-                                                !cluster.highestMagnitude.includes("NaN") && 
-                                                !cluster.highestMagnitude.includes("undefined") && 
-                                                !cluster.highestMagnitude.includes("null");
-                      return (
-                        <div
-                          key={cluster.id}
-                          className="bg-slate-900/40 border border-slate-900 rounded-lg p-3 flex flex-col gap-2 relative group"
-                        >
-                          {/* Upper row */}
-                          <div 
-                            onClick={() => {
-                              onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
-                              setActiveDetail({
-                                type: "cluster",
-                                coordinates: cluster.center,
-                                data: cluster,
-                              });
-                            }}
-                            className="flex justify-between items-start gap-1.5 cursor-pointer"
-                          >
-                            <div className="truncate">
-                              <h4 className="font-extrabold text-xs text-slate-200 uppercase truncate">
-                                {cluster.county ? `${cluster.county} County` : "Unknown County"}, {cluster.state || "ST"} Storm Opportunity
-                              </h4>
-                              <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                                Approx. storm report area: {formatSPCDescriptor(cluster.name)}
-                              </span>
-                              <span className="text-[9px] text-slate-500 block leading-tight mt-1 max-w-[240px]">
-                                This is a storm report area, not a property address. Click a house on the map to view property and homeowner information.
-                              </span>
-                            </div>
-                            
-                            {/* Score Badge */}
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-extrabold shrink-0 border ${
-                                cluster.totalScore >= 120
-                                  ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-glow-tornado"
-                                  : cluster.totalScore >= 70
-                                  ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                                  : "bg-slate-800 border-slate-700 text-slate-300"
-                              }`}
-                            >
-                              Score: {cluster.totalScore}
-                            </span>
-                          </div>
-
-                          {/* New Metrics Layout */}
-                          <div className="space-y-1.5 bg-slate-950/40 border border-slate-900/60 p-2 rounded text-[10px] text-slate-400">
-                            <div className="flex justify-between items-center">
-                              <span>Reports:</span>
-                              <span className="font-bold text-slate-200">{cluster.reportsCount} storm reports</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Target Area:</span>
-                              <span className="font-bold text-slate-200">{cluster.suggestedRadius} mi radius</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Primary Threat:</span>
-                              <span className="font-bold text-slate-200 capitalize">
-                                {cluster.mainStormType} · {
-                                  cluster.mainStormType === "hail" ? cluster.hailCount :
-                                  cluster.mainStormType === "wind" ? cluster.windCount :
-                                  cluster.tornadoCount
-                                } reports
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Opportunity Score:</span>
-                              <span className="font-bold text-slate-200">{cluster.totalScore}</span>
-                            </div>
-                            {hasHighestImpact && (
-                              <div className="flex justify-between items-center border-t border-slate-900/30 pt-1 mt-1">
-                                <span>Highest Measured Impact:</span>
-                                <span className="font-bold text-red-400">{cluster.highestMagnitude}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <p className="text-[8px] text-slate-550 leading-normal italic">
-                            Opportunity Score combines storm type, report density, magnitude, recency, and active warning context. Higher scores indicate stronger roofing outreach potential.
-                          </p>
-
-                          {/* Tiny breakdown */}
-                          <div className="flex gap-2 text-[9px] text-slate-500 font-semibold uppercase">
-                            {cluster.hailCount > 0 && <span>Hail: {cluster.hailCount}</span>}
-                            {cluster.windCount > 0 && <span>Wind: {cluster.windCount}</span>}
-                            {cluster.tornadoCount > 0 && <span className="text-red-400">Torn: {cluster.tornadoCount}</span>}
-                          </div>
-
-                          {/* Add Properties in Radius Button */}
-                          <div className="pt-1.5 border-t border-slate-900/30 flex gap-1.5 items-center justify-between">
-                            <button
-                              disabled={loadingClusterId === cluster.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCollectRadiusLeads(cluster);
-                              }}
-                              className="flex-1 py-2 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] disabled:bg-[rgba(20,92,255,0.08)] disabled:text-slate-500 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/20 hover:shadow-[#145CFF]/30"
-                            >
-                              {loadingClusterId === cluster.id ? "Adding..." : "Add Properties in Radius"}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectCoords(cluster.center, `${cluster.name}, ${cluster.state}`, 9.5);
-                                setActiveDetail({
-                                  type: "cluster",
-                                  coordinates: cluster.center,
-                                  data: cluster,
-                                });
-                              }}
-                              className="py-2 px-2.5 rounded-lg border border-[rgba(20,92,255,0.20)] hover:border-[rgba(20,92,255,0.40)] bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] text-[#94A3B8] hover:text-[#F8FAFC] text-[10px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center shadow-sm"
-                              title="View on Map"
-                            >
-                              <Eye size={10} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "leads" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <ClipboardList size={14} className="text-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Saved Properties</span>
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold">
-                    {leads.length}
-                  </span>
-                </div>
-                {leads.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleExportCSV}
-                      className="flex items-center gap-1 px-2 py-1 bg-[#145CFF] hover:bg-[#2570FF] text-white text-[9px] font-extrabold uppercase rounded shadow transition-colors cursor-pointer border-none"
-                    >
-                      <Download size={10} />
-                      Export CSV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("Are you sure you want to clear all saved leads?")) {
-                          leads.forEach(l => onRemoveLead(l.id));
-                        }
-                      }}
-                      className="px-2 py-1 bg-slate-905 hover:bg-red-950/40 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-900/30 text-[9px] font-extrabold uppercase rounded transition-all cursor-pointer"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {leads.length === 0 ? (
-                <div className="py-10 text-center border border-dashed border-slate-805 rounded-lg text-slate-500 flex flex-col items-center justify-center gap-2">
-                  <MapPin size={20} className="text-slate-700 animate-pulse" />
-                  <p className="text-[11px] font-bold text-slate-350">No saved properties yet</p>
-                  <p className="text-[9.5px] text-slate-600 max-w-[220px] leading-normal">
-                    Click on any location or address on the map, then click <strong className="text-slate-400">"Access Homeowner Data"</strong> to add it here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {leads.map((lead) => {
-                    const isActive = selectedProperty?.id === lead.id;
-                    return (
-                      <div
-                        key={lead.id}
-                        onClick={() => {
-                          onSelectCoords([lead.latitude, lead.longitude], lead.fullAddress, 16.5);
-                          setActiveDetail({
-                            type: "address",
-                            coordinates: [lead.latitude, lead.longitude],
-                            data: { ...lead, locked: true },
-                          });
-                          if (onSelectProperty) {
-                            onSelectProperty(lead);
-                          }
-                        }}
-                        className={`p-3 border rounded-lg transition-all cursor-pointer flex justify-between items-start gap-2 relative group ${
-                          isActive
-                            ? "bg-[#0E8F6E]/12 border-[#0E8F6E]/40 hover:border-[#0E8F6E]/60 shadow-md shadow-[#0E8F6E]/5"
-                            : "bg-[rgba(11,25,48,0.40)] hover:bg-[rgba(11,25,48,0.72)] border-[rgba(20,92,255,0.14)] hover:border-[rgba(20,92,255,0.30)]"
-                        }`}
-                      >
-                        <div className="flex gap-2 truncate">
-                          <MapPin
-                            size={12}
-                            className={`shrink-0 mt-0.5 ${isActive ? "text-[#0E8F6E] animate-bounce" : "text-slate-600 group-hover:text-slate-400"}`}
-                          />
-                          <div className="truncate flex flex-col gap-0.5">
-                            <span className={`text-[11px] font-bold leading-tight truncate ${isActive ? "text-[#F8FAFC] animate-pulse" : "text-[#94A3B8]"}`}>
-                              {lead.fullAddress}
-                            </span>
-                            <span className="text-[9.5px] text-[#64748B] font-medium">
-                              {[lead.city, lead.state, lead.postcode].filter(Boolean).join(", ")}
-                            </span>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-[8.5px] text-[#64748B] font-mono">
-                                {lead.latitude.toFixed(4)}, {lead.longitude.toFixed(4)}
-                              </span>
-                              <span className={`px-1.5 py-0.2 rounded-sm text-[7px] font-extrabold uppercase ${
-                                lead.confidence === "exact"
-                                  ? "bg-[#0E8F6E]/12 text-[#00A86B] border border-[#0E8F6E]/20"
-                                  : "bg-[#F59E0B]/12 text-[#F59E0B]/90 border border-[#F59E0B]/20"
-                              }`}>
-                                {lead.confidence}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation(); // prevent map panning
-                            onRemoveLead(lead.id);
-                          }}
-                          className="text-[#64748B] hover:text-[#F43F5E] p-1.5 rounded-md bg-[rgba(20,92,255,0.06)] hover:bg-[#F43F5E]/10 border border-[rgba(20,92,255,0.12)] hover:border-[#F43F5E]/20 transition-all shrink-0"
-                          title="Remove lead"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
       {/* Sticky bottom CTA banner when scanStatus === "complete" */}
       {scanStatus === "complete" && resultLeadEstimate !== null && (

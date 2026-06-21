@@ -176,3 +176,25 @@
   display: none !important;
 }
 
+/* Excel Style Horizontal Scrollbar for Sample Lead Modal */
+.excel-scrollbar::-webkit-scrollbar {
+  height: 9px !important;
+  width: 9px !important;
+}
+
+.excel-scrollbar::-webkit-scrollbar-track {
+  background: #030712 !important;
+  border-radius: 6px !important;
+}
+
+.excel-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(20, 92, 255, 0.45) !important; /* Premium storm blue scrollbar */
+  border: 2px solid #030712 !important;
+  border-radius: 6px !important;
+}
+
+.excel-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 92, 255, 0.75) !important;
+}
+
+

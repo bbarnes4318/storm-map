@@ -62,7 +62,7 @@ export function StormLegend({ className }: { className?: string }) {
                 <span>Large (1.5"-2.0")</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="w-4 h-4 rounded-full bg-[#D946EF] inline-block"></span>
+                <span className="w-4 h-4 rounded-full bg-[#C23BA0] inline-block"></span>
                 <span>Giant (&ge;2.0")</span>
               </div>
             </div>

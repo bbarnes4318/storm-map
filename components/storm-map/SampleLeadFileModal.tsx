@@ -138,8 +138,8 @@ export function SampleLeadFileModal({
         </div>
 
         {/* Excel style grid view */}
-        <div className="flex-1 overflow-auto p-4">
-          <div className="border border-slate-900 rounded-xl overflow-x-auto shadow-lg">
+        <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+          <div className="border border-slate-900 rounded-xl overflow-x-auto excel-scrollbar shadow-lg">
             <table className="min-w-[1500px] w-full text-left border-collapse text-[10px] bg-[#050B16]/70 whitespace-nowrap">
               
               {/* Sticky Header Row */}

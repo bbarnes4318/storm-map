@@ -50,7 +50,7 @@ export const stormFillColorExpression: ExpressionSpecification = [
     "#2563EB", // Royal Blue (1.00" - 1.49")
     ["<", ["coalesce", ["get", "magnitudeNum"], 0], 2.0],
     "#4F46E5", // Deep Indigo (1.50" - 1.99")
-    "#D946EF"  // Destructive Fuchsia (>= 2.00")
+    "#C23BA0"  // Destructive Fuchsia (>= 2.00")
   ],
   ["==", ["downcase", ["get", "type"]], "wind"],
   STORM_TYPE_COLORS.wind.fill,
