@@ -48,7 +48,8 @@ ln -sfn "${TARGET_RELEASE}" "${CURRENT_SYM}"
 # 6. Build and start containers
 echo "Starting containers (building app container)..."
 cd "${CURRENT_SYM}"
-docker compose up -d --build
+docker compose build --no-cache
+docker compose up -d
 
 echo "========================================================"
 echo "Deployment completed successfully!"

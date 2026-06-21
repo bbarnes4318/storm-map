@@ -51,8 +51,8 @@ export function UpgradeCheckoutModal({
               <h2 className="text-sm font-black text-[#F8FAFC] uppercase tracking-wider leading-tight">
                 Unlock StormTarget Intelligence
               </h2>
-              <p className="text-[10px] text-slate-400 font-medium">
-                Subscribe to get instant access to verified homeowner leads and roofing targets.
+              <p className="text-[10px] text-slate-450 font-bold">
+                Pricing: <span className="text-[#F8FAFC] font-extrabold">$149/mo per county or $499/mo nationwide</span>
               </p>
             </div>
           </div>
@@ -76,8 +76,8 @@ export function UpgradeCheckoutModal({
               <h3 className="text-base font-black text-[#F8FAFC] uppercase tracking-wider">
                 Subscription Request Received
               </h3>
-              <p className="text-[10.5px] text-slate-400 leading-relaxed font-semibold">
-                Thank you! Our territory manager has locked in your request. We will reach out to you at <span className="text-[#F8FAFC] font-extrabold">{email}</span> within 2 hours to unlock your market!
+              <p className="text-[10.5px] text-[#00E676] leading-relaxed font-black">
+                Thank you! Our territory manager will reach out within 2 hours to unlock your market.
               </p>
             </div>
             <button

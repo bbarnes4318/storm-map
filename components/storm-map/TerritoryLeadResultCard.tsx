@@ -21,6 +21,7 @@ interface TerritoryLeadResultCardProps {
   onViewSample: () => void;
   onUpgrade: () => void;
   onClose: () => void;
+  isDemo?: boolean;
 }
 
 export function TerritoryLeadResultCard({
@@ -39,6 +40,7 @@ export function TerritoryLeadResultCard({
   onViewSample,
   onUpgrade,
   onClose,
+  isDemo = false,
 }: TerritoryLeadResultCardProps) {
   // Count specific reports within target area
   const stats = React.useMemo(() => {
@@ -88,7 +90,10 @@ export function TerritoryLeadResultCard({
   if (showAlerts) activeLayers.push("NWS Warnings");
 
   return (
-    <div className="absolute bottom-6 right-6 z-[1010] w-[350px] md:w-[380px] bg-[#071426]/95 border border-[rgba(20,92,255,0.25)] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-md text-left select-none overflow-hidden animate-in slide-in-from-bottom-6 duration-300">
+    <div 
+      data-tour="result-card"
+      className="absolute bottom-6 right-6 z-[1010] w-[350px] md:w-[380px] bg-[#071426]/95 border border-[rgba(20,92,255,0.25)] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-md text-left select-none overflow-hidden animate-in slide-in-from-bottom-6 duration-300"
+    >
       
       {/* Decorative colored glow bar at top */}
       <div className="h-1 bg-gradient-to-r from-[#145CFF] via-[#2F7DFF] to-[#0E8F6E]" />
@@ -100,7 +105,7 @@ export function TerritoryLeadResultCard({
             <Award className="w-5 h-5 text-[#00A86B] shrink-0 animate-pulse" />
             <div>
               <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest block leading-none mb-0.5">
-                SCAN COMPLETE
+                SCAN COMPLETE {isDemo && "· DEMO"}
               </span>
               <span className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider block">
                 Target Lock Established
@@ -177,10 +182,11 @@ export function TerritoryLeadResultCard({
         </div>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col gap-2 pt-1">
+        <div className="flex flex-col gap-2 pt-1 font-sans">
           <button
             onClick={onViewSample}
-            className="w-full bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/35 hover:border-[#145CFF]/60 py-2 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            data-tour="sample-button"
+            className="w-full bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/35 hover:border-[#145CFF]/60 py-2 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm animate-pulse"
           >
             <FileText size={12} className="text-[#145CFF]" />
             <span>View Sample Lead File</span>

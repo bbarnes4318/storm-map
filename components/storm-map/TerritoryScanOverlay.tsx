@@ -44,7 +44,10 @@ export function TerritoryScanOverlay({
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-[#050B16]/90 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden animate-in fade-in duration-300">
+    <div 
+      data-tour="scan-overlay"
+      className="absolute inset-0 bg-[#050B16]/90 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden animate-in fade-in duration-300"
+    >
       <style>{`
         @keyframes radar-sweep {
           from { transform: rotate(0deg); }
@@ -144,7 +147,7 @@ export function TerritoryScanOverlay({
           {/* Target Layers */}
           <div className="border-t border-[rgba(20,92,255,0.12)] pt-2.5 space-y-1.5">
             <span className="text-[7.5px] font-black text-[#64748B] uppercase tracking-wider block">
-              ACQUISITION CHANNELS
+              STORM SIGNALS
             </span>
             <div className="flex flex-wrap gap-1">
               {showHail && (

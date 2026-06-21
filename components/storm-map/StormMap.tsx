@@ -530,6 +530,25 @@ export function StormMap({
     try {
       const resolved = await resolveCountyBounds(county, alert);
       setSelectedCounty(resolved);
+      
+      // Map bbox from array [west, south, east, north] to object { west, south, east, north }
+      let countyBboxObj: { west: number; south: number; east: number; north: number } | undefined = undefined;
+      if (resolved.bbox) {
+        const [west, south, east, north] = resolved.bbox;
+        countyBboxObj = { west, south, east, north };
+      }
+
+      onFiltersChange({
+        selectedCounty: resolved.countyName,
+        selectedCountyFull: resolved.label,
+        selectedCountyFips: resolved.fips,
+        state: resolved.stateCode || filters.state,
+        center: resolved.centroid || filters.center,
+        countyBbox: countyBboxObj,
+        searchQuery: resolved.label,
+        searchStatus: "complete",
+      });
+
       const map = mapRef.current?.getMap();
       if (map) {
         if (resolved.bbox) {
@@ -1894,7 +1913,7 @@ export function StormMap({
               minzoom={9}
               paint={{
                 "fill-color": stormFillColorExpression,
-                "fill-opacity": 0.06,
+                "fill-opacity": 0.04 * (0.8 + 0.2 * pulseFactor),
               }}
             />
             <Layer
@@ -1903,8 +1922,8 @@ export function StormMap({
               minzoom={9}
               paint={{
                 "line-color": stormFillColorExpression,
-                "line-width": 1.2,
-                "line-opacity": 0.2,
+                "line-width": 0.8 * pulseFactor,
+                "line-opacity": 0.15,
               }}
             />
           </Source>
@@ -2022,51 +2041,9 @@ export function StormMap({
           </Source>
         )}
 
-        {/* Selected County Bounding Box Highlight */}
-        {countyPolygonGeoJSON && (
-          <Source id="selected-county" type="geojson" data={countyPolygonGeoJSON}>
-            <Layer
-              id="selected-county-fill"
-              type="fill"
-              paint={{
-                "fill-color": "#06b6d4",
-                "fill-opacity": 0.05 * pulseFactor,
-              }}
-            />
-            <Layer
-              id="selected-county-outline"
-              type="line"
-              paint={{
-                "line-color": "#06b6d4",
-                "line-width": 2.2 * pulseFactor,
-                "line-dasharray": [3, 3],
-              }}
-            />
-          </Source>
-        )}
 
-        {/* Selected County Name Label at Centroid */}
-        {countyPointGeoJSON && (
-          <Source id="selected-county-label" type="geojson" data={countyPointGeoJSON}>
-            <Layer
-              id="selected-county-name-label"
-              type="symbol"
-              layout={{
-                "text-field": ["get", "name"],
-                "text-size": 10.5,
-                "text-justify": "center",
-                "text-anchor": "center",
-                "text-allow-overlap": true,
-                "text-ignore-placement": true,
-              }}
-              paint={{
-                "text-color": "#22d3ee",
-                "text-halo-color": "#090d16",
-                "text-halo-width": 2,
-              }}
-            />
-          </Source>
-        )}
+
+
 
         {/* Layer 5: Geocoding Target Pin marker */}
         {filters.center && (
@@ -2248,6 +2225,28 @@ export function StormMap({
           </button>
         </div>
       </div>
+
+      {/* Floating Target Territory Chip */}
+      {filters.selectedCounty && filters.state && (
+        <div className="absolute top-4 left-4 z-[999] pointer-events-none select-none animate-in fade-in slide-in-from-top duration-300">
+          <div 
+            className="rounded-xl px-3.5 py-2 flex flex-col pointer-events-auto border border-[rgba(20,92,255,0.3)] bg-[#071426]/90 backdrop-blur-md shadow-lg shadow-black/40 text-left"
+            style={{
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 10px rgba(20, 92, 255, 0.1)",
+            }}
+          >
+            <span className="text-[7.5px] font-black text-[#145CFF] uppercase tracking-widest leading-none mb-0.5">
+              Target Territory
+            </span>
+            <span className="text-[11px] font-black text-[#F8FAFC] leading-tight">
+              {filters.selectedCountyFull || `${filters.selectedCounty} County` || "Knox County"}, {filters.state}
+            </span>
+            <span className="text-[8.5px] font-bold text-slate-405 leading-none mt-1">
+              {filters.radius} mile radius
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ interface SampleLeadFileModalProps {
   county: string;
   state: string;
   onUpgrade: () => void;
+  isDemo?: boolean;
 }
 
 export function SampleLeadFileModal({
@@ -17,6 +18,7 @@ export function SampleLeadFileModal({
   county,
   state,
   onUpgrade,
+  isDemo = false,
 }: SampleLeadFileModalProps) {
   if (!isOpen) return null;
 
@@ -55,14 +57,14 @@ export function SampleLeadFileModal({
         email: `${firstNames[i].toLowerCase()}.${lastNames[i].toLowerCase()}@example.com`,
         roofAge: `${5 + (i * 3) % 15} yrs`,
         propertyType: i % 4 === 0 ? "Commercial" : "Single Family",
-        stormDate: "2026-06-18",
+        stormDate: isDemo ? "2025-06-15" : "2026-06-18",
         stormType: isHail ? "Hail" : (isWind ? "Wind" : "Tornado"),
         hailSize: isHail ? `${1.0 + (i * 0.25).toFixed(2)}"` : "-",
         windSpeed: isWind ? `${60 + i * 2} mph` : "-",
         confidence: isHail || isTornado ? "High" : "Medium",
       };
     });
-  }, [county, state]);
+  }, [county, state, isDemo]);
 
   // Export mock rows to CSV string and download
   const handleDownloadCsv = () => {
@@ -106,7 +108,10 @@ export function SampleLeadFileModal({
     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none animate-in fade-in duration-300">
       
       {/* Modal Card Box */}
-      <div className="w-full max-w-6xl bg-[#071426] border border-[rgba(20,92,255,0.25)] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden select-text">
+      <div 
+        data-tour="sample-modal"
+        className="w-full max-w-6xl bg-[#071426] border border-[rgba(20,92,255,0.25)] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden select-text"
+      >
         
         {/* Modal Header */}
         <div className="p-4 border-b border-[rgba(20,92,255,0.15)] flex items-center justify-between shrink-0 bg-[#0B1930]/40">
@@ -114,7 +119,7 @@ export function SampleLeadFileModal({
             <Database className="w-5 h-5 text-[#145CFF]" />
             <div>
               <h2 className="text-sm font-black text-[#F8FAFC] uppercase tracking-wider leading-tight">
-                Sample Lead File Preview
+                Sample Lead File Preview {isDemo && "· DEMO MODE"}
               </h2>
               <p className="text-[10px] text-slate-400 font-medium">
                 Example fields included with a StormTarget subscription. Showing mock data for {county} County, {state}.
@@ -134,7 +139,11 @@ export function SampleLeadFileModal({
         {/* Warning Badge / Notice */}
         <div className="mx-4 mt-3 bg-amber-500/10 border border-amber-500/25 p-2 rounded-lg text-[9.5px] text-amber-300 font-semibold flex items-center gap-2 shrink-0 select-none">
           <CheckCircle size={12} className="text-amber-400 shrink-0" />
-          <span>This sheet shows sample preview rows for marketing purposes. To unlock live, verified homeowner contact details for this county, upgrade to a subscription.</span>
+          <span>
+            {isDemo 
+              ? "Demo mode lets you preview sample property leads. Columns contain realistic but fake homeowner data for safety and privacy."
+              : "This sheet shows sample preview rows for marketing purposes. To unlock live, verified homeowner contact details for this county, upgrade to a subscription."}
+          </span>
         </div>
 
         {/* Excel style grid view */}
@@ -167,7 +176,14 @@ export function SampleLeadFileModal({
               <tbody className="divide-y divide-slate-900/50 font-medium text-slate-300">
                 {mockRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-[rgba(20,92,255,0.04)] transition-colors">
-                    <td className="px-3.5 py-2 border-r border-slate-900/40 font-black text-slate-100">{row.name}</td>
+                    <td className="px-3.5 py-2 border-r border-slate-900/40 font-black text-slate-100 flex items-center gap-2">
+                      <span>{row.name}</span>
+                      {isDemo && (
+                        <span className="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[7px] text-red-400 font-extrabold uppercase select-none tracking-wider shrink-0">
+                          SAMPLE DATA
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3.5 py-2 border-r border-slate-900/40 text-slate-400">{row.address}</td>
                     <td className="px-3.5 py-2 border-r border-slate-900/40">{row.city}</td>
                     <td className="px-3.5 py-2 border-r border-slate-900/40 text-center font-bold text-[#145CFF]">{row.state}</td>
@@ -205,7 +221,8 @@ export function SampleLeadFileModal({
         <div className="p-4 border-t border-[rgba(20,92,255,0.15)] flex items-center justify-between bg-[#0B1930]/40 shrink-0 select-none">
           <button
             onClick={handleDownloadCsv}
-            className="px-4 py-2 bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/30 hover:border-[#145CFF]/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            data-tour="sample-csv-button"
+            className="px-4 py-2 bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/30 hover:border-[#145CFF]/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm animate-pulse"
           >
             <Download size={13} className="text-[#145CFF]" />
             <span>Download Sample CSV</span>

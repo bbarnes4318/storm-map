@@ -4,7 +4,7 @@ import React from "react";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
 import { clusterStormReports, formatSPCDescriptor, getDistanceMiles, expandBbox } from "@/lib/weather/geo";
 import { allStates, getCountiesByState, USCounty, getCountyByStateAndName } from "@/lib/geo/us-counties";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Compass, ShieldAlert } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Compass, ShieldAlert, CheckCircle2, ArrowLeft } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
@@ -34,6 +34,8 @@ interface StormSidebarProps {
   onAddLeads?: (leads: SelectedPropertyTarget[]) => void;
   isDemo?: boolean;
   demoStep?: number;
+  wizardStep?: 1 | 2 | 3 | 4;
+  onWizardStepChange?: (step: 1 | 2 | 3 | 4) => void;
   tempState?: string;
   setTempState?: (state: string) => void;
   tempCounty?: USCounty | null;
@@ -84,6 +86,8 @@ export function StormSidebar({
   onAddLeads,
   isDemo = false,
   demoStep = 0,
+  wizardStep: externalWizardStep,
+  onWizardStepChange: externalSetWizardStep,
   tempState,
   setTempState,
   tempCounty,
@@ -100,6 +104,9 @@ export function StormSidebar({
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
+  const [localWizardStep, localSetWizardStep] = React.useState<1 | 2 | 3 | 4>(1);
+  const wizardStep = externalWizardStep !== undefined ? externalWizardStep : localWizardStep;
+  const setWizardStep = externalSetWizardStep !== undefined ? externalSetWizardStep : localSetWizardStep;
 
   // Guided Selector local inputs state
   const [localTempState, setLocalTempState] = React.useState(filters.state || "");
@@ -453,7 +460,7 @@ export function StormSidebar({
     <>
       {/* Sidebar container */}
       <div
-        className={`fixed md:relative top-[56px] md:top-0 h-[calc(100vh-56px)] md:h-full z-[1000] md:z-10 flex flex-col overflow-hidden transition-all duration-300 ${
+        className={`fixed md:relative top-[80px] md:top-0 h-[calc(100vh-80px)] md:h-full z-[1000] md:z-10 flex flex-col overflow-hidden transition-all duration-300 ${
           sidebarOpen ? "w-[360px]" : "w-0 md:w-0 border-r-0"
         }`}
         style={{
@@ -511,33 +518,31 @@ export function StormSidebar({
 
         {/* Results Header Status banner */}
         {filters.selectedCounty && filters.state && scanStatus !== "scanning" && (
-          <div className="mx-3 mt-2 bg-[#0E8F6E]/8 border border-[#0E8F6E]/20 rounded-lg p-2 flex items-center justify-between text-[9px] text-[#0E8F6E] font-extrabold uppercase tracking-wide shrink-0 select-none animate-in fade-in duration-200">
-            <span className="truncate">
-              Locked: {filters.selectedCounty}, {filters.state}
-            </span>
-            <span className="flex h-1.5 w-1.5 relative shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0E8F6E] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0E8F6E]"></span>
-            </span>
-          </div>
-        )}
-
-        {/* Target location display (Only when active and not scanning) */}
-        {filters.center && scanStatus !== "scanning" && (
-          <div className="px-2.5 py-1.5 border-b border-[#145CFF]/15 bg-[#0B1930]/20 text-[9px] text-slate-400 flex items-center justify-between gap-1 shrink-0">
-            <div className="flex items-center gap-1 truncate">
-              <MapPin size={9} className="text-[#145CFF] shrink-0" />
-              <span className="truncate font-semibold" title={filters.searchQuery || "Selected Center"}>
-                Target: {filters.searchQuery || "Geocoded Point"}
+          <div className="mx-3 mt-2.5 bg-[#0E8F6E]/12 border border-[#0E8F6E]/30 rounded-xl p-3 flex flex-col gap-1 text-left select-none animate-in fade-in duration-200 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-black text-[#00E676] uppercase tracking-widest leading-none">
+                Territory Locked
+              </span>
+              <span className="flex h-1.5 w-1.5 relative shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E676] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00E676]"></span>
               </span>
             </div>
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              className="text-[8px] font-extrabold text-[#145CFF] hover:text-[#2570FF] uppercase shrink-0"
-            >
-              Clear
-            </button>
+            <div className="flex items-center justify-between gap-2 mt-0.5">
+              <span className="text-[11.5px] font-black text-[#F8FAFC] truncate">
+                {filters.selectedCountyFull || `${filters.selectedCounty} County` || "Knox County"}, {filters.state}
+              </span>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="text-[8.5px] font-black text-[#145CFF] hover:text-[#2570FF] uppercase shrink-0 transition-colors cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+            <span className="text-[9px] font-bold text-slate-450 leading-none">
+              {filters.radius} mile radius
+            </span>
           </div>
         )}
         {/* Unified Active Target Selection Panel (Storm Area Context) */}
@@ -618,9 +623,7 @@ export function StormSidebar({
 
         {/* Navigation Tabs */}
         {scanStatus !== "scanning" && (
-          <div className={`flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300 ${
-            isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
-          }`}>
+          <div className="flex border-b border-[rgba(20,92,255,0.14)] bg-[#050B16]/80 backdrop-blur-md transition-all duration-300">
             <button
               onClick={() => setActiveTab("filters")}
               className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 uppercase tracking-wider ${
@@ -684,21 +687,138 @@ export function StormSidebar({
           <div className="flex-1 flex flex-col overflow-hidden relative">
             
             {/* Scrollable Tab Body */}
-            <div className={`flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300 ${
-              isDemo && demoStep >= 2 && demoStep <= 8 ? "opacity-20 pointer-events-none blur-[1px]" : ""
-            } ${activeTab === "filters" && scanStatus === "idle" ? "pb-[160px]" : ""}`}>
+            <div className="flex-1 overflow-y-auto p-2 space-y-3.5 custom-scrollbar transition-all duration-300">
               
-              {activeTab === "filters" && (
-                <div className="space-y-3.5">
-                  {/* Step 1: Select Territory */}
-                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
-                    <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#145CFF] text-white text-[10px] font-black">1</div>
-                      <h3 className="text-[10.5px] font-black uppercase tracking-wider text-slate-200">Select Territory</h3>
+              {/* === WIZARD: Lead Finder === */}
+              {activeTab === "filters" && scanStatus === "idle" && (() => {
+                const selectedSignals = [
+                  filters.showHail && "Hail",
+                  filters.showWind && "Wind",
+                  filters.showTornado && "Tornado",
+                  filters.showAlerts && "Alerts",
+                ].filter(Boolean).join(" + ");
+
+                const hailSeverityLabel = filters.minHailSize === 0 ? "All Sizes" : `≥ ${filters.minHailSize.toFixed(2)}\"` ;
+
+                const formatDateSummary = (dateStr?: string) => {
+                  if (!dateStr) return "-";
+                  const [y, m, d] = dateStr.split("-");
+                  return `${m}/${d}/${y}`;
+                };
+
+                const dateRangeSummary = `${formatDateSummary(filters.startDate)} → ${formatDateSummary(filters.endDate)}`;
+
+                const maxDemoDate = (() => {
+                  const today = new Date();
+                  // Strict over 1 year ago: today - 1 year - 1 day
+                  const maxDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate() - 1);
+                  return maxDate.toISOString().split("T")[0];
+                })();
+
+                const isDateMoreThanOneYearOld = (dateStr?: string) => {
+                  if (!dateStr) return false;
+                  const date = new Date(dateStr + "T00:00:00");
+                  const oneYearAgo = new Date();
+                  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                  oneYearAgo.setDate(oneYearAgo.getDate() - 1);
+                  oneYearAgo.setHours(23, 59, 59, 999);
+                  return date <= oneYearAgo;
+                };
+
+                const showDateError = isDemo && (
+                  (filters.startDate && !isDateMoreThanOneYearOld(filters.startDate)) ||
+                  (filters.endDate && !isDateMoreThanOneYearOld(filters.endDate))
+                );
+
+                const isTerritoryValid = !!tState && !!tCounty;
+
+                const isDatesValid = React.useMemo(() => {
+                  if (!filters.startDate || !filters.endDate) return false;
+                  if (filters.endDate < filters.startDate) return false;
+                  if (isDemo) {
+                    return isDateMoreThanOneYearOld(filters.startDate) && isDateMoreThanOneYearOld(filters.endDate);
+                  }
+                  return true;
+                }, [filters.startDate, filters.endDate, isDemo]);
+
+                const isSignalsValid = filters.showHail || filters.showWind || filters.showTornado || filters.showAlerts;
+
+                return (
+                <div className="space-y-3 text-left">
+                  {/* Progress Header */}
+                  <div className="bg-[rgba(11,25,48,0.85)] border border-[rgba(20,92,255,0.18)] rounded-xl p-3.5 shadow-lg shadow-black/25">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <h3 className="text-[13px] font-black text-[#F8FAFC] tracking-tight">Find Storm Leads</h3>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Step {wizardStep} of 4</span>
                     </div>
-                    <p className="text-[9.5px] text-slate-400 font-semibold leading-relaxed pl-0.5">
-                      Choose the market where you want to find storm-damage property leads.
-                    </p>
+                    <div className="flex gap-1 mb-1.5">
+                      {[1, 2, 3, 4].map((s) => (
+                        <div key={s} className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                          s < wizardStep ? "bg-[#00E676]" : s === wizardStep ? "bg-[#145CFF] shadow-[0_0_8px_rgba(20,92,255,0.5)]" : "bg-slate-800"
+                        }`} />
+                      ))}
+                    </div>
+                    <div className="flex justify-between px-0.5">
+                      {["Territory", "Dates", "Signals", "Scan"].map((label, i) => (
+                        <span key={label} className={`text-[8px] font-bold uppercase tracking-wider transition-colors duration-300 ${
+                          i + 1 < wizardStep ? "text-[#00E676]" : i + 1 === wizardStep ? "text-[#60A5FA]" : "text-slate-600"
+                        }`}>{label}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Completed Step Summaries */}
+                  {wizardStep > 1 && (
+                    <div className="bg-[rgba(11,25,48,0.55)] border border-[rgba(0,230,118,0.12)] rounded-xl px-3 py-2 flex items-center justify-between animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle2 size={14} className="text-[#00E676] shrink-0" />
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black text-white block truncate">Territory</span>
+                          <span className="text-[9px] font-semibold text-slate-400 block truncate">{tCounty?.countyName || "County"}, {tState} · {tRadius} mi</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => setWizardStep(1)} className="text-[8.5px] font-bold text-[#60A5FA] hover:text-white uppercase tracking-wider cursor-pointer shrink-0 ml-2">Edit</button>
+                    </div>
+                  )}
+
+                  {wizardStep > 2 && (
+                    <div className="bg-[rgba(11,25,48,0.55)] border border-[rgba(0,230,118,0.12)] rounded-xl px-3 py-2 flex items-center justify-between animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle2 size={14} className="text-[#00E676] shrink-0" />
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black text-white block truncate">Storm Dates</span>
+                          <span className="text-[9px] font-semibold text-slate-400 block truncate">{dateRangeSummary}</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => setWizardStep(2)} className="text-[8.5px] font-bold text-[#60A5FA] hover:text-white uppercase tracking-wider cursor-pointer shrink-0 ml-2">Edit</button>
+                    </div>
+                  )}
+
+                  {wizardStep > 3 && (
+                    <div className="bg-[rgba(11,25,48,0.55)] border border-[rgba(0,230,118,0.12)] rounded-xl px-3 py-2 flex items-center justify-between animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle2 size={14} className="text-[#00E676] shrink-0" />
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black text-white block truncate">Storm Signals</span>
+                          <span className="text-[9px] font-semibold text-slate-400 block truncate">{selectedSignals || "None"}{filters.showHail && filters.minHailSize > 0 ? ` · ${hailSeverityLabel}` : ""}</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => setWizardStep(3)} className="text-[8.5px] font-bold text-[#60A5FA] hover:text-white uppercase tracking-wider cursor-pointer shrink-0 ml-2">Edit</button>
+                    </div>
+                  )}
+
+                  {/* ===== STEP 1: Select Territory ===== */}
+                  {wizardStep === 1 && (
+                    <div 
+                      data-tour="territory"
+                      className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300"
+                    >
+                      <div>
+                        <h3 className="text-[14px] font-black text-[#F8FAFC]">Select Your Territory</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
+                          Choose the market where you want to find storm-damage property leads.
+                        </p>
+                      </div>
 
                     <div className="grid grid-cols-12 gap-2">
                       {/* State Input */}
@@ -803,150 +923,242 @@ export function StormSidebar({
                       </div>
                     </div>
 
-                    {/* Radius Button Group */}
-                    <div className="flex flex-col gap-1 relative">
-                      <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">Search Radius (Miles)</label>
-                      <div className="flex flex-wrap gap-1">
-                        {[5, 10, 15, 25, 50, 75, 100].map((r) => {
-                          const isSelected = tRadius === r;
-                          return (
-                            <button
-                              key={r}
-                              type="button"
-                              onClick={() => setTRadius(r)}
-                              className={`flex-1 py-2 text-center text-[10.5px] font-black rounded-lg border transition-all duration-200 hover:-translate-y-[1px] active:translate-y-0 cursor-pointer ${
-                                isSelected
-                                  ? "bg-[#145CFF]/15 border-[#145CFF] text-[#F8FAFC] shadow-[0_0_12px_rgba(20,92,255,0.25)] ring-1 ring-[#145CFF]/30"
-                                  : "bg-[#050B16] border-slate-800 text-slate-400 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5 hover:shadow-[0_0_8px_rgba(20,92,255,0.1)]"
-                              }`}
-                            >
-                              {r}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Summary Success Chip */}
-                    {tState && tCounty && (
-                      <div className="mt-1 p-2 bg-[#0E8F6E]/10 border border-[#0E8F6E]/20 rounded-lg flex items-center gap-2 text-[10px] text-[#00E676] font-extrabold animate-in fade-in duration-200 select-none">
-                        <svg className="w-3.5 h-3.5 text-[#00E676] shrink-0" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="truncate">
-                          {tCounty.countyFullName}, {tState} · {tRadius} mile radius
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Step 2: Choose Storm Signals */}
-                  <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 text-left">
-                    <div className="flex items-center gap-2 border-b border-slate-900/40 pb-1.5">
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
-                        !isCountySelected ? "bg-slate-800 text-slate-500" : "bg-[#145CFF]"
-                      }`}>2</div>
-                      <h3 className={`text-[10.5px] font-black uppercase tracking-wider ${
-                        !isCountySelected ? "text-slate-405" : "text-slate-200"
-                      }`}>Choose Storm Signals</h3>
-                    </div>
-
-                    {!isCountySelected ? (
-                      <div className="py-6 flex flex-col items-center justify-center gap-2 text-center bg-[#050B16]/50 border border-slate-900 rounded-lg p-3 select-none">
-                        <svg
-                          className="w-5 h-5 text-slate-655"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                          />
-                        </svg>
-                        <span className="text-[10.5px] font-semibold text-slate-500">
-                          Complete territory selection first.
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 animate-in fade-in duration-200">
-                        <span className="text-[8px] font-bold text-[#64748B] uppercase tracking-wider block">Storm Signals</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          {/* Hail Signal */}
-                          <button
-                            type="button"
-                            onClick={() => onFiltersChange({ showHail: !filters.showHail })}
-                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
-                              filters.showHail
-                                ? "bg-[#2F7DFF]/12 border-[#2F7DFF] text-[#F8FAFC] shadow-[0_0_10px_rgba(47,125,255,0.2)] ring-1 ring-[#2F7DFF]/25"
-                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Zap size={12} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
-                              <span className="text-[10px] font-black uppercase">Hail</span>
-                            </div>
-                            {filters.showHail && <span className="w-1.5 h-1.5 rounded-full bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]"></span>}
-                          </button>
-
-                          {/* Wind Signal */}
-                          <button
-                            type="button"
-                            onClick={() => onFiltersChange({ showWind: !filters.showWind })}
-                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
-                              filters.showWind
-                                ? "bg-[#8B5CF6]/12 border-[#8B5CF6] text-[#F8FAFC] shadow-[0_0_10px_rgba(139,92,246,0.2)] ring-1 ring-[#8B5CF6]/25"
-                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Wind size={12} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-650"} />
-                              <span className="text-[10px] font-black uppercase">Wind</span>
-                            </div>
-                            {filters.showWind && <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]"></span>}
-                          </button>
-
-                          {/* Tornado Signal */}
-                          <button
-                            type="button"
-                            onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
-                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
-                              filters.showTornado
-                                ? "bg-[#F43F5E]/12 border-[#F43F5E] text-[#F8FAFC] shadow-[0_0_10px_rgba(244,63,94,0.2)] ring-1 ring-[#F43F5E]/25"
-                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Tornado size={12} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-650"} />
-                              <span className="text-[10px] font-black uppercase">Tornado</span>
-                            </div>
-                            {filters.showTornado && <span className="w-1.5 h-1.5 rounded-full bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]"></span>}
-                          </button>
-
-                          {/* Alerts Signal */}
-                          <button
-                            type="button"
-                            onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
-                            className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all duration-200 cursor-pointer ${
-                              filters.showAlerts
-                                ? "bg-[#FBBF24]/12 border-[#FBBF24] text-[#F8FAFC] shadow-[0_0_10px_rgba(251,191,36,0.2)] ring-1 ring-[#FBBF24]/25"
-                                : "bg-[#050B16] border-slate-805 text-slate-450 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <ShieldAlert size={12} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-650"} />
-                              <span className="text-[10px] font-black uppercase">Alerts</span>
-                            </div>
-                            {filters.showAlerts && <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]"></span>}
-                          </button>
+                      {/* Radius Chips */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider pl-0.5">Search Radius (Miles)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[5, 10, 15, 25, 50, 75, 100].map((r) => {
+                            const isSelected = tRadius === r;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => setTRadius(r)}
+                                className={`flex-1 py-2.5 text-center text-[11px] font-black rounded-xl border transition-all duration-200 hover:-translate-y-[1px] active:translate-y-0 cursor-pointer ${
+                                  isSelected
+                                    ? "bg-[#145CFF]/15 border-[#145CFF] text-[#F8FAFC] shadow-[0_0_14px_rgba(20,92,255,0.3)] ring-1 ring-[#145CFF]/30"
+                                    : "bg-[#050B16] border-slate-800 text-slate-400 hover:text-[#F8FAFC] hover:border-slate-700 hover:bg-[#145CFF]/5 hover:shadow-[0_0_8px_rgba(20,92,255,0.1)]"
+                                }`}
+                              >
+                                {r}
+                              </button>
+                            );
+                          })}
                         </div>
+                      </div>
 
-                        {filters.showHail && (
-                          <div className="flex items-center justify-between bg-[#050B16]/50 p-2.5 rounded-lg border border-[rgba(20,92,255,0.10)] mt-2">
-                            <span className="text-[9.5px] text-[#94A3B8] font-bold uppercase tracking-wider pl-0.5">Min Hail Size</span>
+                      {/* Territory Ready Chip */}
+                      {tState && tCounty && (
+                        <div className="mt-1 p-2 bg-[#0E8F6E]/10 border border-[#0E8F6E]/20 rounded-lg flex items-center gap-2 text-[10px] text-[#00E676] font-extrabold animate-in fade-in duration-200 select-none">
+                          <CheckCircle2 size={14} className="text-[#00E676] shrink-0" />
+                          <span className="truncate">Territory Ready — {tCounty.countyFullName}, {tState} · {tRadius} mi</span>
+                        </div>
+                      )}
+
+                      {/* Continue Button */}
+                      {isTerritoryValid ? (
+                        <button
+                          type="button"
+                          onClick={() => setWizardStep(2)}
+                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          Continue to Storm Dates
+                          <ChevronRight size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-3 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 text-[11px] font-bold uppercase tracking-wider cursor-not-allowed select-none"
+                        >
+                          Select a state and county to continue
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ===== STEP 2: Select Storm Dates ===== */}
+                  {wizardStep === 2 && (
+                    <div 
+                      data-tour="dates"
+                      className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3.5 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300"
+                    >
+                      <div>
+                        <h3 className="text-[14px] font-black text-[#F8FAFC]">Select Storm Dates</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
+                          {isDemo 
+                            ? "Demo mode uses historical storm data. Select a From and To date more than 1 year old to continue." 
+                            : "Define the custom date range to scan for storm events."}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8.5px] font-bold text-slate-450 uppercase tracking-wider pl-0.5">From Date</label>
+                          <input
+                            type="date"
+                            value={filters.startDate || ""}
+                            max={isDemo ? maxDemoDate : undefined}
+                            onChange={(e) => onFiltersChange({ startDate: e.target.value })}
+                            style={{ colorScheme: "dark" }}
+                            className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[32px] cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8.5px] font-bold text-slate-450 uppercase tracking-wider pl-0.5">To Date</label>
+                          <input
+                            type="date"
+                            value={filters.endDate || ""}
+                            max={isDemo ? maxDemoDate : undefined}
+                            onChange={(e) => onFiltersChange({ endDate: e.target.value })}
+                            style={{ colorScheme: "dark" }}
+                            className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[32px] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      {showDateError && (
+                        <div className="p-2 bg-red-500/10 border border-red-500/25 rounded-lg text-[9.5px] text-red-400 font-extrabold animate-pulse">
+                          Demo dates must be more than 1 year old.
+                        </div>
+                      )}
+
+                      {/* Navigation buttons */}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setWizardStep(1)}
+                          className="py-2.5 px-4 rounded-xl bg-[#050B16] border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <ArrowLeft size={12} />
+                          Back
+                        </button>
+                        {isDatesValid ? (
+                          <button
+                            type="button"
+                            onClick={() => setWizardStep(3)}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            Continue to Signals
+                            <ChevronRight size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-wider cursor-not-allowed select-none text-center"
+                          >
+                            {!filters.startDate || !filters.endDate 
+                              ? "Select a From Date and To Date" 
+                              : filters.endDate < filters.startDate 
+                                ? "To Date must be after From Date" 
+                                : "Demo dates must be more than 1 year old"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ===== STEP 3: Choose Storm Signals ===== */}
+                  {wizardStep === 3 && (
+                    <div 
+                      data-tour="signals"
+                      className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300"
+                    >
+                      <div>
+                        <h3 className="text-[14px] font-black text-[#F8FAFC]">Choose Storm Signals</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
+                          Select the storm events you want included in your lead scan.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* Hail Signal Card */}
+                        <button
+                          type="button"
+                          onClick={() => onFiltersChange({ showHail: !filters.showHail })}
+                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                            filters.showHail
+                              ? "bg-[#2F7DFF]/10 border-[#2F7DFF] shadow-[0_0_12px_rgba(47,125,255,0.2)] ring-1 ring-[#2F7DFF]/25"
+                              : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Zap size={15} className={filters.showHail ? "text-[#2F7DFF]" : "text-slate-600"} />
+                              <span className={`text-[11px] font-black uppercase ${filters.showHail ? "text-[#F8FAFC]" : "text-slate-450"}`}>Hail</span>
+                            </div>
+                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showHail ? "bg-[#2F7DFF] shadow-[0_0_8px_#2f7dff]" : "bg-slate-800 border border-slate-700"}`} />
+                          </div>
+                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showHail ? "text-slate-350" : "text-slate-550"}`}>Roof-impact events and hail-size reports</p>
+                        </button>
+
+                        {/* Wind Signal Card */}
+                        <button
+                          type="button"
+                          onClick={() => onFiltersChange({ showWind: !filters.showWind })}
+                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                            filters.showWind
+                              ? "bg-[#8B5CF6]/10 border-[#8B5CF6] shadow-[0_0_12px_rgba(139,92,246,0.2)] ring-1 ring-[#8B5CF6]/25"
+                              : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Wind size={15} className={filters.showWind ? "text-[#8B5CF6]" : "text-slate-600"} />
+                              <span className={`text-[11px] font-black uppercase ${filters.showWind ? "text-[#F8FAFC]" : "text-slate-450"}`}>Wind</span>
+                            </div>
+                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showWind ? "bg-[#8B5CF6] shadow-[0_0_8px_#8b5cf6]" : "bg-slate-800 border border-slate-700"}`} />
+                          </div>
+                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showWind ? "text-slate-350" : "text-slate-550"}`}>High-wind damage indicators</p>
+                        </button>
+
+                        {/* Tornado Signal Card */}
+                        <button
+                          type="button"
+                          onClick={() => onFiltersChange({ showTornado: !filters.showTornado })}
+                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                            filters.showTornado
+                              ? "bg-[#F43F5E]/10 border-[#F43F5E] shadow-[0_0_12px_rgba(244,63,94,0.2)] ring-1 ring-[#F43F5E]/25"
+                              : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Tornado size={15} className={filters.showTornado ? "text-[#F43F5E]" : "text-slate-600"} />
+                              <span className={`text-[11px] font-black uppercase ${filters.showTornado ? "text-[#F8FAFC]" : "text-slate-450"}`}>Tornado</span>
+                            </div>
+                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showTornado ? "bg-[#F43F5E] shadow-[0_0_8px_#f43f5e]" : "bg-slate-800 border border-slate-700"}`} />
+                          </div>
+                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showTornado ? "text-slate-350" : "text-slate-550"}`}>Tornado reports and severe rotation paths</p>
+                        </button>
+
+                        {/* Alerts Signal Card */}
+                        <button
+                          type="button"
+                          onClick={() => onFiltersChange({ showAlerts: !filters.showAlerts })}
+                          className={`w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                            filters.showAlerts
+                              ? "bg-[#FBBF24]/10 border-[#FBBF24] shadow-[0_0_12px_rgba(251,191,36,0.2)] ring-1 ring-[#FBBF24]/25"
+                              : "bg-[#050B16] border-slate-800 hover:border-slate-700 hover:bg-[#145CFF]/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldAlert size={15} className={filters.showAlerts ? "text-[#FBBF24]" : "text-slate-600"} />
+                              <span className={`text-[11px] font-black uppercase ${filters.showAlerts ? "text-[#F8FAFC]" : "text-slate-450"}`}>Alerts</span>
+                            </div>
+                            <span className={`w-2.5 h-2.5 rounded-full transition-all ${filters.showAlerts ? "bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]" : "bg-slate-800 border border-slate-700"}`} />
+                          </div>
+                          <p className={`text-[9px] font-semibold mt-1 ml-[23px] ${filters.showAlerts ? "text-slate-350" : "text-slate-550"}`}>Active NWS warnings and watches</p>
+                        </button>
+                      </div>
+
+                      {/* Hail Severity Sub-section */}
+                      {filters.showHail && (
+                        <div className="flex flex-col gap-1.5 bg-[#050B16]/50 p-2.5 rounded-lg border border-[rgba(20,92,255,0.10)] animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9.5px] text-[#94A3B8] font-bold uppercase tracking-wider pl-0.5">Hail Severity</span>
                             <select
                               value={filters.minHailSize}
                               onChange={(e) => onFiltersChange({ minHailSize: parseFloat(e.target.value) })}
@@ -959,214 +1171,144 @@ export function StormSidebar({
                               }}
                             >
                               <option value="0">All Sizes</option>
-                              <option value="1.0">≥ 1.00" (Severe)</option>
-                              <option value="1.5">≥ 1.50"</option>
-                              <option value="2.0">≥ 2.00" (Significant)</option>
+                              <option value="1.0">≥ 1.00&quot;</option>
+                              <option value="1.5">≥ 1.50&quot;</option>
+                              <option value="2.0">≥ 2.00&quot;</option>
                             </select>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Navigation */}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setWizardStep(2)}
+                          className="py-2.5 px-4 rounded-xl bg-[#050B16] border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <ArrowLeft size={12} />
+                          Back
+                        </button>
+                        {isSignalsValid ? (
+                          <button
+                            type="button"
+                            onClick={() => setWizardStep(4)}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            Continue to Scan
+                            <ChevronRight size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-wider cursor-not-allowed select-none"
+                          >
+                            Choose at least one storm signal
+                          </button>
                         )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Reports Summary */}
-              {activeTab === "filters" && (
-                <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3 space-y-2.5 shadow-lg shadow-black/20 text-left">
-                  <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5">
-                    <span className="text-[8.5px] font-extrabold text-[#64748B] uppercase tracking-wider pl-0.5">Reports Summary</span>
-                    <div className="relative">
-                      <select
-                        value={filters.timeWindow}
-                        onChange={(e) => {
-                          const val = e.target.value as any;
-                          if (val === "custom") {
-                            const todayStr = new Date().toISOString().slice(0, 10);
-                            onFiltersChange({
-                              timeWindow: val,
-                              startDate: filters.startDate || todayStr,
-                              endDate: filters.endDate || todayStr,
-                            });
-                          } else {
-                            onFiltersChange({ timeWindow: val });
-                          }
-                        }}
-                        className="bg-[#050B16]/80 border border-[#145CFF]/20 hover:border-[#145CFF]/40 rounded px-1.5 py-0.5 text-[8px] font-extrabold text-[#F8FAFC] focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-4 select-none relative"
-                        style={{
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 3px center',
-                          backgroundSize: '8px',
-                        }}
-                      >
-                        <option value="24h">24h</option>
-                        <option value="today">Today</option>
-                        <option value="yesterday">Yesterday</option>
-                        <option value="7d">7 Days</option>
-                        <option value="30d">30 Days</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {filters.timeWindow === "custom" && (
-                    <div className="flex items-center gap-1.5 bg-[#050B16]/50 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)] text-left">
-                      <div className="flex-1 flex flex-col gap-0.5">
-                        <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">From</span>
-                        <input
-                          type="date"
-                          value={filters.startDate || ""}
-                          max={new Date().toISOString().slice(0, 10)}
-                          onChange={(e) => onFiltersChange({ startDate: e.target.value })}
-                          className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
-                        />
-                      </div>
-                      <div className="flex-1 flex flex-col gap-0.5">
-                        <span className="text-[7px] text-[#64748B] font-bold uppercase pl-0.5">To</span>
-                        <input
-                          type="date"
-                          value={filters.endDate || ""}
-                          max={new Date().toISOString().slice(0, 10)}
-                          onChange={(e) => onFiltersChange({ endDate: e.target.value })}
-                          className="bg-[#050B16]/80 border border-[rgba(20,92,255,0.15)] text-[#F8FAFC] text-[8px] font-extrabold rounded px-1 py-0.5 focus:outline-none focus:border-[#145CFF]/50 [color-scheme:dark] w-full"
-                        />
                       </div>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-4 gap-1 text-center">
-                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                      <span className="text-sm font-black text-[#60A5FA]">{hailCount}</span>
-                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Hail</span>
-                    </div>
-                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                      <span className="text-sm font-black text-[#A78BFA]">{windCount}</span>
-                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Wind</span>
-                    </div>
-                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                      <span className="text-sm font-black text-[#FB7185]">{tornadoCount}</span>
-                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Torn</span>
-                    </div>
-                    <div className="bg-[#050B16]/65 p-1.5 rounded-lg border border-[rgba(20,92,255,0.10)]">
-                      <span className="text-sm font-black text-[#FBBF24]">{warningCount}</span>
-                      <span className="text-[7px] text-[#64748B] block font-bold uppercase leading-none mt-0.5">Warn</span>
-                    </div>
-                  </div>
-
-                  <div className="text-[8px] text-[#64748B] flex justify-between items-center border-t border-slate-900/40 pt-1.5 font-semibold px-0.5">
-                    <span>Total reports: {hailCount + windCount + tornadoCount}</span>
-                    <span>Active watches: {watchCount}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Advanced Map Settings Accordion & Legend */}
-              {activeTab === "filters" && (
-                <div className="pt-1.5 relative text-left">
-                  <details className="group border border-[rgba(20,92,255,0.14)] rounded-xl bg-[rgba(11,25,48,0.40)] overflow-visible">
-                    <summary className="flex items-center justify-between px-3 py-2.5 text-[9.5px] font-extrabold text-[#94A3B8] hover:text-[#F8FAFC] uppercase tracking-wider cursor-pointer hover:bg-[rgba(20,92,255,0.08)] rounded-xl select-none transition-colors">
-                      <span className="flex items-center gap-1.5">
-                        <Layers size={11} className="text-slate-550" />
-                        Advanced Map Settings
-                      </span>
-                      <span className="text-[8px] text-[#64748B] group-open:rotate-180 transition-transform">▼</span>
-                    </summary>
-                    <div className="p-3 border-t border-[rgba(20,92,255,0.14)] rounded-b-xl bg-[#091122]/90 backdrop-blur-md space-y-3.5">
-                      <div className="space-y-1">
-                        <label className="text-[8.5px] font-bold text-[#94A3B8] block uppercase">Basemap style</label>
-                        <select
-                          value={filters.mapStyle}
-                          onChange={(e) => onFiltersChange({ mapStyle: e.target.value as StormMapStyle })}
-                          className="w-full bg-[#050B16] border border-[rgba(20,92,255,0.20)] rounded-lg px-2.5 py-1.5 text-[10px] text-[#F8FAFC] focus:outline-none focus:border-[#145CFF] focus:ring-1 focus:ring-[#145CFF]/30 transition-all cursor-pointer"
-                        >
-                          <option value="streets">Streets</option>
-                          <option value="dark">Operational Dark</option>
-                          <option value="satellite">Satellite Streets</option>
-                        </select>
+                  {/* ===== STEP 4: Ready to Scan ===== */}
+                  {wizardStep === 4 && (
+                    <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3.5 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300">
+                      <div>
+                        <h3 className="text-[14px] font-black text-[#F8FAFC]">Ready to Scan</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
+                          We&apos;ll scan this territory for storm-damage property lead opportunities.
+                        </p>
                       </div>
 
-                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                        <span className="text-[10px] text-[#94A3B8]">Show neighborhood labels</span>
-                        <input
-                          type="checkbox"
-                          checked={filters.showNeighborhoodLabels}
-                          onChange={(e) => onFiltersChange({ showNeighborhoodLabels: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                        />
-                      </label>
-
-                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                        <span className="text-[10px] text-[#94A3B8]">Show building footprints</span>
-                        <input
-                          type="checkbox"
-                          checked={filters.showBuildings}
-                          onChange={(e) => onFiltersChange({ showBuildings: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                        />
-                      </label>
-
-                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                        <span className="text-[10px] text-[#94A3B8]">Show house numbers</span>
-                        <input
-                          type="checkbox"
-                          checked={filters.showHouseNumbers}
-                          onChange={(e) => onFiltersChange({ showHouseNumbers: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                        />
-                      </label>
-
-                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                        <span className="text-[10px] text-[#94A3B8] flex items-center gap-1.5">
-                          <Layers size={11} className="text-[#64748B]" />
-                          NOAA Radar Overlay
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={filters.showRadar}
-                          onChange={(e) => onFiltersChange({ showRadar: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                        />
-                      </label>
-
-                      {filters.showRadar && (
-                        <div className="p-2 bg-[#050B16]/60 border border-[rgba(20,92,255,0.15)] rounded-lg space-y-1">
-                          <div className="flex justify-between text-[9px] text-[#94A3B8] font-bold">
-                            <span>Radar Opacity</span>
-                            <span>{Math.round(filters.radarOpacity * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.1"
-                            max="1.0"
-                            step="0.05"
-                            value={filters.radarOpacity}
-                            onChange={(e) => onFiltersChange({ radarOpacity: parseFloat(e.target.value) })}
-                            className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-[#145CFF]"
-                          />
+                      {/* Confirmation Card */}
+                      <div className="bg-[#050B16]/60 border border-[rgba(20,92,255,0.12)] rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Target Territory</span>
+                          <span className="text-[10.5px] font-black text-[#F8FAFC]">{tCounty?.countyName || "County"}, {tState}</span>
                         </div>
-                      )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Radius</span>
+                          <span className="text-[10.5px] font-black text-[#F8FAFC]">{tRadius} miles</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Scan Dates</span>
+                          <span className="text-[10.5px] font-black text-[#F8FAFC]">{dateRangeSummary}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Storm Signals</span>
+                          <span className="text-[10.5px] font-black text-[#F8FAFC]">{selectedSignals}</span>
+                        </div>
+                        {filters.showHail && filters.minHailSize > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Hail Severity</span>
+                            <span className="text-[10.5px] font-black text-[#F8FAFC]">{hailSeverityLabel}</span>
+                          </div>
+                        )}
+                      </div>
 
-                      <label className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[rgba(11,25,48,0.40)] border border-[rgba(20,92,255,0.10)] hover:border-[rgba(20,92,255,0.20)] hover:bg-[rgba(11,25,48,0.72)] cursor-pointer transition-colors">
-                        <span className="text-[10px] text-[#94A3B8] flex items-center gap-1.5">
-                          <AlertCircle size={11} className="text-amber-500" />
-                          Active NWS Alert Areas
+                      {/* Hero Scan Button */}
+                      <button
+                        type="button"
+                        onClick={handleScanTerritory}
+                        data-tour="scan-button"
+                        className="w-full py-4 px-4 rounded-xl bg-[#091528] border border-[#145CFF]/50 text-[#F8FAFC] font-black uppercase text-[12px] tracking-widest transition-all duration-300 flex flex-col items-center justify-center gap-1 shadow-[0_0_20px_rgba(20,92,255,0.25)] hover:shadow-[0_0_30px_rgba(20,92,255,0.4)] hover:-translate-y-[2px] hover:border-[#145CFF] hover:bg-[#0B1D37] active:translate-y-0 active:scale-[0.98] cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Compass size={15} className="animate-spin text-[#00E676]" style={{ animationDuration: '6s' }} />
+                          <span className="font-extrabold text-[13px] text-[#F8FAFC]">SCAN TERRITORY</span>
+                          <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse shadow-[0_0_8px_#00e676]" />
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 lowercase first-letter:uppercase leading-none tracking-normal">
+                          Find storm-damage property leads
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={filters.showAlerts}
-                          onChange={(e) => onFiltersChange({ showAlerts: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded border-[rgba(20,92,255,0.24)] bg-[#050B16] text-[#145CFF] focus:ring-0 cursor-pointer accent-[#145CFF]"
-                        />
-                      </label>
-                    </div>
-                  </details>
+                      </button>
 
-                  <div className="mt-2.5">
-                    <StormLegend className="bg-[rgba(11,25,48,0.20)] border border-[rgba(20,92,255,0.10)] rounded-lg p-2.5 text-[9.5px] text-slate-400 w-full" />
+                      {/* Back Button */}
+                      <button
+                        type="button"
+                        onClick={() => setWizardStep(3)}
+                        className="w-full py-2 px-4 rounded-xl bg-[#050B16] border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowLeft size={12} />
+                        Back
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+              })()}
+
+              {/* Scan Complete State */}
+              {activeTab === "filters" && scanStatus === "complete" && (
+                <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(0,230,118,0.18)] rounded-xl p-4 space-y-3 shadow-lg shadow-black/20 text-left animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-[#00E676] shrink-0" />
+                    <div>
+                      <h3 className="text-[13px] font-black text-[#00E676]">Scan Complete</h3>
+                      <p className="text-[9.5px] text-slate-400 font-semibold">{tCounty?.countyName || filters.selectedCounty || "County"}, {tState || filters.state} · {tRadius} mi</p>
+                    </div>
                   </div>
+                  <div className="text-[9px] font-semibold text-slate-400">
+                    {[
+                      filters.showHail && "Hail",
+                      filters.showWind && "Wind",
+                      filters.showTornado && "Tornado",
+                      filters.showAlerts && "Alerts",
+                    ].filter(Boolean).join(" + ")}
+                  </div>
+                  {resultLeadEstimate !== null && (
+                    <div className="text-center py-2">
+                      <span className="text-3xl font-black text-[#F8FAFC]">{resultLeadEstimate}</span>
+                      <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Leads Found</span>
+                    </div>
+                  )}
                 </div>
               )}
+
+
+
+
 
               {activeTab === "targets" && (
                 <div className="space-y-4 text-left">
@@ -1420,77 +1562,7 @@ export function StormSidebar({
               )}
             </div>
 
-            {/* Sticky Step 3: Scan Territory Box (only visible on Lead Finder tab and when idle) */}
-            {activeTab === "filters" && scanStatus === "idle" && (
-              <div className="p-3 bg-[#071426]/95 border-t border-[#145CFF]/30 backdrop-blur-md z-30 shadow-2xl flex flex-col gap-2.5 shrink-0 text-left">
-                <div className="flex items-center justify-between border-b border-slate-900/40 pb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-black ${
-                      !isScanUnlockable ? "bg-slate-800 text-slate-500" : "bg-[#145CFF]"
-                    }`}>3</div>
-                    <h3 className={`text-[10.5px] font-black uppercase tracking-wider ${
-                      !isScanUnlockable ? "text-slate-405" : "text-slate-200"
-                    }`}>Scan Territory</h3>
-                  </div>
-                  {isScanUnlockable && (
-                    <span className="flex h-2 w-2 relative shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#145CFF] opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2F7DFF]"></span>
-                    </span>
-                  )}
-                </div>
 
-                {isScanUnlockable ? (
-                  <button
-                    type="button"
-                    onClick={handleScanTerritory}
-                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] via-[#2F7DFF] to-[#00E676] hover:from-[#2570FF] hover:via-[#3b82f6] hover:to-[#00C853] text-[#F8FAFC] font-black uppercase text-[11px] tracking-widest transition-all duration-300 flex flex-col items-center justify-center gap-0.5 shadow-lg shadow-[#145CFF]/30 hover:shadow-[#145CFF]/50 hover:-translate-y-[1.5px] active:translate-y-0 active:scale-[0.98] cursor-pointer group relative overflow-hidden"
-                  >
-                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-                    <div className="flex items-center gap-2">
-                      <Compass size={13} className="animate-spin-slow text-white" style={{ animationDuration: '6s' }} />
-                      <span className="font-extrabold text-[12px]">Scan Territory</span>
-                    </div>
-                    <span className="text-[8.5px] font-bold text-blue-105/90 lowercase first-letter:uppercase leading-none tracking-normal">
-                      Find storm-damage property leads
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full py-3.5 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 font-bold uppercase text-[11px] tracking-wider cursor-not-allowed flex flex-col items-center justify-center gap-1 select-none"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <svg
-                        className="w-3.5 h-3.5 text-slate-650"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                        />
-                      </svg>
-                      <span>Scan Territory</span>
-                    </div>
-                    <span className="text-[8.5px] font-bold text-red-400 bg-red-950/20 border border-red-950/45 px-2 py-0.5 rounded-full mt-0.5 select-none lowercase first-letter:uppercase tracking-normal">
-                      {disabledReasonText}
-                    </span>
-                  </button>
-                )}
-
-                {isScanUnlockable && tCounty && (
-                  <p className="text-[9px] text-slate-400 leading-normal font-semibold text-center bg-[#050B16]/50 p-2 rounded-lg border border-[rgba(20,92,255,0.06)] select-none">
-                    Targeting <span className="text-slate-200 font-bold">{tCounty.countyFullName}</span> (within {tRadius} mi) for B2B leads.
-                  </p>
-                )}
-              </div>
-            )}
 
           </div>
         )}
@@ -1536,7 +1608,7 @@ export function StormSidebar({
       {/* Floating Toggle Button for Mobile */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-[68px] left-3 z-[1001] p-2.5 rounded-lg bg-[#061A2F]/90 border border-[rgba(20,92,255,0.24)] text-[#F8FAFC] shadow-glass backdrop-blur-md md:hidden focus:outline-none hover:bg-[#145CFF]/16 transition-all"
+        className="fixed top-[92px] left-3 z-[1001] p-2.5 rounded-lg bg-[#061A2F]/90 border border-[rgba(20,92,255,0.24)] text-[#F8FAFC] shadow-glass backdrop-blur-md md:hidden focus:outline-none hover:bg-[#145CFF]/16 transition-all"
       >
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
