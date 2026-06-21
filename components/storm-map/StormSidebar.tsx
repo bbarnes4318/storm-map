@@ -101,6 +101,20 @@ export function StormSidebar({
   const [isSearching, setIsSearching] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"filters" | "targets" | "leads">("filters");
 
+  // Guided Selector local inputs state
+  const [localTempState, setLocalTempState] = React.useState(filters.state || "");
+  const [localTempCounty, setLocalTempCounty] = React.useState<USCounty | null>(null);
+  const [localTempRadius, setLocalTempRadius] = React.useState(filters.radius || 15);
+
+  const tState = tempState !== undefined ? tempState : localTempState;
+  const setTState = setTempState !== undefined ? setTempState : setLocalTempState;
+
+  const tCounty = tempCounty !== undefined ? tempCounty : localTempCounty;
+  const setTCounty = setTempCounty !== undefined ? setTempCounty : setLocalTempCounty;
+
+  const tRadius = tempRadius !== undefined ? tempRadius : localTempRadius;
+  const setTRadius = setTempRadius !== undefined ? setTempRadius : setLocalTempRadius;
+
   const [logs, setLogs] = React.useState<string[]>([]);
   React.useEffect(() => {
     if (scanStatus === "scanning") {
@@ -132,20 +146,6 @@ export function StormSidebar({
       onScanStart(tState, tCounty.countyName, tRadius);
     }
   };
-
-  // Guided Selector local inputs state
-  const [localTempState, setLocalTempState] = React.useState(filters.state || "");
-  const [localTempCounty, setLocalTempCounty] = React.useState<USCounty | null>(null);
-  const [localTempRadius, setLocalTempRadius] = React.useState(filters.radius || 15);
-
-  const tState = tempState !== undefined ? tempState : localTempState;
-  const setTState = setTempState !== undefined ? setTempState : setLocalTempState;
-
-  const tCounty = tempCounty !== undefined ? tempCounty : localTempCounty;
-  const setTCounty = setTempCounty !== undefined ? setTempCounty : setLocalTempCounty;
-
-  const tRadius = tempRadius !== undefined ? tempRadius : localTempRadius;
-  const setTRadius = setTempRadius !== undefined ? setTempRadius : setLocalTempRadius;
 
   const [countySearchQuery, setCountySearchQuery] = React.useState("");
   const [countyDropdownOpen, setCountyDropdownOpen] = React.useState(false);
