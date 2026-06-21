@@ -35,6 +35,12 @@ mkdir -p "${TARGET_RELEASE}"
 echo "Extracting release..."
 tar -xf "${TARBALL}" -C "${TARGET_RELEASE}"
 
+# 4b. Copy server-side persistent .env file if present
+if [ -f "/opt/storm-map/.env" ]; then
+  echo "Copying server-side .env to release..."
+  cp "/opt/storm-map/.env" "${TARGET_RELEASE}/.env"
+fi
+
 # 5. Symlink current to new release
 echo "Updating active symlink: ${CURRENT_SYM} -> ${TARGET_RELEASE}"
 ln -sfn "${TARGET_RELEASE}" "${CURRENT_SYM}"
