@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { StormFilterState, StormReport, NwsAlert, TargetCluster, SelectedPropertyTarget, ActivePopupDetail, StormMapStyle } from "@/lib/weather/types";
 import { clusterStormReports, formatSPCDescriptor, getDistanceMiles, expandBbox } from "@/lib/weather/geo";
 import { allStates, getCountiesByState, USCounty, getCountyByStateAndName } from "@/lib/geo/us-counties";
-import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Compass, ShieldAlert, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft, ChevronRight, MapPin, Eye, Info, AlertCircle, MessageSquare, Download, Trash2, ClipboardList, Compass, ShieldAlert, CheckCircle2, ArrowLeft, Calendar, Clock } from "lucide-react";
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
@@ -1452,6 +1452,71 @@ export function StormSidebar({
                       <button onClick={() => setStatusBanner(null)} className="text-[10px] font-bold text-slate-500 hover:text-slate-350 ml-2 shrink-0">X</button>
                     </div>
                   )}
+
+                  {/* Timeframe selector card */}
+                  <div className="bg-[#0B1930]/40 border border-[#145CFF]/15 rounded-xl p-3.5 space-y-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-200 uppercase tracking-wider pl-0.5">
+                        <Clock size={12} className="text-[#145CFF]" />
+                        <span>Filter Storm Timeframe</span>
+                      </div>
+                      {isRefreshing && (
+                        <span className="text-[8.5px] text-[#145CFF] font-bold animate-pulse">Refreshing...</span>
+                      )}
+                    </div>
+                    
+                    <div className="relative">
+                      <select
+                        value={filters.timeWindow || "24h"}
+                        onChange={(e) => onFiltersChange({ timeWindow: e.target.value as any })}
+                        className="w-full bg-[#050B16] border border-[#145CFF]/25 hover:border-[#145CFF]/45 rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:ring-1 focus:ring-[#145CFF]/55 cursor-pointer appearance-none pr-8 relative"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2050/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 10px center',
+                          backgroundSize: '10px',
+                        }}
+                      >
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="today">Today (Live)</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="7d">This Week (7 Days)</option>
+                        <option value="30d">This Month (30 Days)</option>
+                        <option value="custom">Custom Date Range</option>
+                      </select>
+                    </div>
+
+                    {filters.timeWindow === "custom" && (
+                      <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider pl-0.5 flex items-center gap-1">
+                            <Calendar size={9} />
+                            From
+                          </label>
+                          <input
+                            type="date"
+                            value={filters.startDate || ""}
+                            onChange={(e) => onFiltersChange({ startDate: e.target.value })}
+                            style={{ colorScheme: "dark" }}
+                            className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-[10.5px] text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[30px] cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider pl-0.5 flex items-center gap-1">
+                            <Calendar size={9} />
+                            To
+                          </label>
+                          <input
+                            type="date"
+                            value={filters.endDate || ""}
+                            onChange={(e) => onFiltersChange({ endDate: e.target.value })}
+                            style={{ colorScheme: "dark" }}
+                            className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-[10.5px] text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[30px] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="bg-slate-900/40 border border-slate-905 rounded-lg p-3 text-[10.5px] text-slate-350 flex flex-col gap-1.5 shadow-sm">
                     <div className="flex items-center gap-1.5 font-bold text-slate-205">
