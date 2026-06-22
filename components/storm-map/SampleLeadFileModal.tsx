@@ -106,6 +106,21 @@ export function SampleLeadFileModal({
     document.body.removeChild(link);
   };
 
+  const handleSendToSMS = () => {
+    try {
+      const jsonString = JSON.stringify(mockRows);
+      const base64String = btoa(unescape(encodeURIComponent(jsonString)));
+      const targetHost = typeof window !== "undefined" && window.location.hostname.includes("localhost")
+        ? "http://localhost:3000"
+        : "https://sms.leadzer.io";
+      const url = `${targetHost}/?import=storm-map-demo&data=${base64String}&county=${encodeURIComponent(county)}&state=${encodeURIComponent(state)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to send leads to SMS app:", err);
+      alert("Failed to package and send leads.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none animate-in fade-in duration-300">
       
@@ -231,14 +246,26 @@ export function SampleLeadFileModal({
 
         {/* Modal Footer Controls */}
         <div className="p-4 border-t border-[rgba(20,92,255,0.15)] flex items-center justify-between bg-[#0B1930]/40 shrink-0 select-none">
-          <button
-            onClick={handleDownloadCsv}
-            data-tour="sample-csv-button"
-            className="px-4 py-2 bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/30 hover:border-[#145CFF]/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm animate-pulse"
-          >
-            <Download size={13} className="text-[#145CFF]" />
-            <span>Download Sample CSV</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadCsv}
+              data-tour="sample-csv-button"
+              className="px-4 py-2 bg-[#145CFF]/15 hover:bg-[#145CFF]/25 border border-[#145CFF]/30 hover:border-[#145CFF]/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm animate-pulse"
+            >
+              <Download size={13} className="text-[#145CFF]" />
+              <span>Download Sample CSV</span>
+            </button>
+
+            {isDemo && (
+              <button
+                onClick={handleSendToSMS}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-500/90 hover:to-teal-600/90 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-500/10 hover:scale-[1.02]"
+              >
+                <Database size={13} className="text-[#F8FAFC]" />
+                <span>Send Leads to SMS App</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-3">
             <button
