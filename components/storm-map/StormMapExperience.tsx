@@ -72,10 +72,10 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     radius: 15,
     center: null,
     targetZoom: undefined,
-    showHail: true,
-    showWind: true,
-    showTornado: true,
-    showAlerts: true,
+    showHail: isDemo ? false : true,
+    showWind: isDemo ? false : true,
+    showTornado: isDemo ? false : true,
+    showAlerts: isDemo ? false : true,
     showRadar: true,
     radarOpacity: 1.0,
     timeWindow: "custom", // default to custom so From/To Dates are active
@@ -297,10 +297,10 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
       radius: 15,
       center: null,
       targetZoom: undefined,
-      showHail: true,
-      showWind: true,
-      showTornado: true,
-      showAlerts: true,
+      showHail: isDemo ? false : true,
+      showWind: isDemo ? false : true,
+      showTornado: isDemo ? false : true,
+      showAlerts: isDemo ? false : true,
       showRadar: true,
       radarOpacity: 1.0,
       timeWindow: "custom",
@@ -340,10 +340,10 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
       radius: 15,
       center: null,
       targetZoom: undefined,
-      showHail: true,
-      showWind: true,
-      showTornado: true,
-      showAlerts: true,
+      showHail: false,
+      showWind: false,
+      showTornado: false,
+      showAlerts: false,
       showRadar: true,
       radarOpacity: 1.0,
       timeWindow: "custom",
@@ -501,17 +501,6 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     }
   }, [sampleModalOpen, tourStep, isDemo]);
 
-  React.useEffect(() => {
-    if (!isDemo || tourStep <= 0) return;
-
-    // If the user goes back to Step 6 (which is a transition step),
-    // we reset scanStatus to idle and put them back to Step 5
-    if (tourStep === 6 && scanStatus === "complete") {
-      setScanStatus("idle");
-      setTourStep(5);
-    }
-  }, [tourStep, scanStatus, isDemo]);
-
   // Bidirectional synchronization: Coordinates tourStep and wizardStep updates without infinite loops
   React.useEffect(() => {
     if (!isDemo || tourStep <= 0) {
@@ -525,6 +514,15 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
 
     // Detect which state was changed by the user interaction
     if (tourStep !== prevTour) {
+      // Check if user clicked "Back" from Step 7 (which sets tourStep to 6)
+      if (prevTour === 7 && tourStep === 6 && scanStatus === "complete") {
+        setScanStatus("idle");
+        setTourStep(5);
+        prevTourStepRef.current = 5;
+        prevWizardStepRef.current = 4;
+        return;
+      }
+
       // tourStep changed (walkthrough overlay navigation): update wizardStep to match
       let targetWizard = wizardStep;
       if (tourStep === 1 || tourStep === 2) {
@@ -567,7 +565,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
       prevTourStepRef.current = tourStep;
       prevWizardStepRef.current = wizardStep;
     }
-  }, [tourStep, wizardStep, isDemo]);
+  }, [tourStep, wizardStep, isDemo, scanStatus]);
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
