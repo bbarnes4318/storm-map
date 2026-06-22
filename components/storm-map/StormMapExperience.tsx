@@ -496,7 +496,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
       setTourStep(0);
     }
     // If user goes back in tour to Step 8 (or earlier) while sample modal is open, close it
-    if (sampleModalOpen && tourStep < 9) {
+    if (sampleModalOpen && prevTourStepRef.current === 9 && tourStep < 9) {
       setSampleModalOpen(false);
     }
   }, [sampleModalOpen, tourStep, isDemo]);
