@@ -55,7 +55,21 @@ export function UpgradeCheckoutModal({
         : "https://sms.leadzer.io";
       
       const redirectUrl = `${targetHost}/?import=storm-map-demo&data=${base64String}&county=${encodeURIComponent(county)}&state=${encodeURIComponent(state)}`;
-      window.open(redirectUrl, "_blank", "noopener,noreferrer");
+      
+      // Load the redirectUrl in a hidden iframe to send/import the data in the background
+      if (typeof document !== "undefined") {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = redirectUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch (e) {
+            console.error("Failed to clean up iframe:", e);
+          }
+        }, 10000);
+      }
     } catch (err) {
       console.error("Failed to route form data to SMS app:", err);
     }
@@ -106,7 +120,7 @@ export function UpgradeCheckoutModal({
                 Subscription Request Received
               </h3>
               <p className="text-xs text-[#10B981] leading-relaxed font-bold">
-                Thank you. Our territory manager will reach out shortly to help unlock your market.
+                Thank you. We will be sending you an invoice to get started.
               </p>
             </div>
             <button
@@ -136,7 +150,7 @@ export function UpgradeCheckoutModal({
                   <div>
                     <div className="flex justify-between items-start mb-2.5">
                       <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Month to Month Lead Plan</span>
-                      <span className="text-xs font-black text-[#145CFF]">$2.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
+                      <span className="text-xs font-black text-[#38BDF8]">$2.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
                     </div>
                     <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-3">
                       Best for contractors testing a new market.
