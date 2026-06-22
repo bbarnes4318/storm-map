@@ -187,6 +187,10 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
   // Keep track of whether initial data has been fetched to avoid showing full-screen loader on date updates
   const hasFetchedRef = React.useRef(false);
 
+  // Keep track of previous steps to prevent bidirectional sync loops
+  const prevTourStepRef = React.useRef<number>(isDemo ? 1 : 0);
+  const prevWizardStepRef = React.useRef<number>(1);
+
   // Track granular fetch error states
   const [errors, setErrors] = React.useState({
     alerts: false,
@@ -508,43 +512,62 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     }
   }, [tourStep, scanStatus, isDemo]);
 
+  // Bidirectional synchronization: Coordinates tourStep and wizardStep updates without infinite loops
   React.useEffect(() => {
-    if (!isDemo || tourStep <= 0) return;
-
-    // Sync tour step to wizard step
-    if (tourStep === 1 || tourStep === 2) {
-      if (wizardStep !== 1) setWizardStep(1);
-    } else if (tourStep === 3) {
-      if (wizardStep !== 2) setWizardStep(2);
-    } else if (tourStep === 4) {
-      if (wizardStep !== 3) setWizardStep(3);
-    } else if (tourStep >= 5) {
-      if (wizardStep !== 4) setWizardStep(4);
+    if (!isDemo || tourStep <= 0) {
+      prevTourStepRef.current = tourStep;
+      prevWizardStepRef.current = wizardStep;
+      return;
     }
-  }, [tourStep, isDemo, wizardStep]);
 
-  React.useEffect(() => {
-    if (!isDemo || tourStep <= 0) return;
+    const prevTour = prevTourStepRef.current;
+    const prevWizard = prevWizardStepRef.current;
 
-    // Bidirectional sync: Sync wizard step changes back to tour step (supports Back navigation and Continue clicks)
-    if (wizardStep === 1) {
-      if (tourStep > 2) {
-        setTourStep(2);
+    // Detect which state was changed by the user interaction
+    if (tourStep !== prevTour) {
+      // tourStep changed (walkthrough overlay navigation): update wizardStep to match
+      let targetWizard = wizardStep;
+      if (tourStep === 1 || tourStep === 2) {
+        targetWizard = 1;
+      } else if (tourStep === 3) {
+        targetWizard = 2;
+      } else if (tourStep === 4) {
+        targetWizard = 3;
+      } else if (tourStep >= 5) {
+        targetWizard = 4;
       }
-    } else if (wizardStep === 2) {
-      if (tourStep !== 3) {
-        setTourStep(3);
+      if (wizardStep !== targetWizard) {
+        setWizardStep(targetWizard);
+        prevWizardStepRef.current = targetWizard;
       }
-    } else if (wizardStep === 3) {
-      if (tourStep !== 4) {
-        setTourStep(4);
+      prevTourStepRef.current = tourStep;
+    } else if (wizardStep !== prevWizard) {
+      // wizardStep changed (sidebar wizard button navigation): update tourStep to match
+      let targetTour = tourStep;
+      if (wizardStep === 1) {
+        if (tourStep > 2 || tourStep < 1) {
+          targetTour = 2;
+        }
+      } else if (wizardStep === 2) {
+        targetTour = 3;
+      } else if (wizardStep === 3) {
+        targetTour = 4;
+      } else if (wizardStep === 4) {
+        if (tourStep < 5) {
+          targetTour = 5;
+        }
       }
-    } else if (wizardStep === 4) {
-      if (tourStep < 5) {
-        setTourStep(5);
+      if (tourStep !== targetTour) {
+        setTourStep(targetTour);
+        prevTourStepRef.current = targetTour;
       }
+      prevWizardStepRef.current = wizardStep;
+    } else {
+      // Ensure refs are in sync when states match
+      prevTourStepRef.current = tourStep;
+      prevWizardStepRef.current = wizardStep;
     }
-  }, [wizardStep, isDemo, tourStep]);
+  }, [tourStep, wizardStep, isDemo]);
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">
