@@ -154,7 +154,7 @@ export function UpgradeCheckoutModal({
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
                     }`}
                   >
-                    Choose Month to Month Lead Plan
+                    Request Month to Month Lead Plan
                   </button>
                 </div>
 
@@ -193,7 +193,7 @@ export function UpgradeCheckoutModal({
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
                     }`}
                   >
-                    Choose Seasonal Lead Plan
+                    Request Seasonal Lead Plan
                   </button>
                 </div>
 
@@ -330,7 +330,7 @@ export function UpgradeCheckoutModal({
                 className="px-6 py-2.5 bg-[#145CFF] hover:bg-[#2570FF] border-none rounded-lg text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#145CFF]/15 transition-all"
               >
                 <Send size={12} />
-                <span>Submit Subscription Request</span>
+                <span>Submit Request</span>
               </button>
             </div>
           </form>
