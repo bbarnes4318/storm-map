@@ -184,6 +184,9 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   
+  // Keep track of whether initial data has been fetched to avoid showing full-screen loader on date updates
+  const hasFetchedRef = React.useRef(false);
+
   // Track granular fetch error states
   const [errors, setErrors] = React.useState({
     alerts: false,
@@ -247,9 +250,11 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     setIsRefreshing(false);
   }, [filters.timeWindow, filters.startDate, filters.endDate]);
 
-  // Initial load on component mount
+  // Initial load on component mount and background refresh on filter updates
   React.useEffect(() => {
-    fetchWeatherData();
+    const isBackground = hasFetchedRef.current;
+    fetchWeatherData(isBackground);
+    hasFetchedRef.current = true;
 
     // Auto refresh data every 5 minutes (300,000 ms)
     const interval = setInterval(() => {
