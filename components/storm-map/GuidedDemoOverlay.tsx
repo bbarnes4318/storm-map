@@ -4,17 +4,6 @@ import React from "react";
 import { ChevronLeft, ChevronRight, X, RotateCcw } from "lucide-react";
 import { StormFilterState } from "@/lib/weather/types";
 
-// Helper to check if a date is strictly over 1 year ago
-const isDateMoreThanOneYearOld = (dateStr?: string) => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + "T00:00:00");
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  // strict "over 1 year ago" means date <= oneYearAgo - 1 day
-  oneYearAgo.setDate(oneYearAgo.getDate() - 1);
-  oneYearAgo.setHours(23, 59, 59, 999);
-  return date <= oneYearAgo;
-};
 
 interface GuidedDemoOverlayProps {
   step: number;
@@ -105,15 +94,15 @@ export function GuidedDemoOverlay({
     },
     {
       title: "Select Storm Dates",
-      text: "Step 2: Define your date range. Demo mode uses historical storm reports. Please select From and To dates more than 1 year old.",
+      text: "Step 2: Define your date range. Dates are preselected during demo mode, but users can choose any present date or historical data.",
     },
     {
-      title: "Choose Storm Signals",
-      text: "Step 3: Toggle weather hazard layers: Hail impact reports, high Wind indicators, Tornado rotation paths, or active NWS Alerts.",
+      title: "Choose Storm Type",
+      text: "Select one or more storms types",
     },
     {
-      title: "Launch the GIS Scan",
-      text: "Step 4: Everything is set. Click 'Scan Territory' to launch our proprietary GIS lead discovery sweep.",
+      title: "Find Storm Leads",
+      text: "Step 4: Everything is set. Click 'Find Storm Leads' to launch our proprietary GIS lead discovery sweep.",
     },
     {
       title: "Sweeping Radar & Properties",
@@ -129,7 +118,7 @@ export function GuidedDemoOverlay({
     },
     {
       title: "Sample Lead File / Pricing CTA",
-      text: "This Excel-style preview displays names, property addresses, roof age, phone numbers, and storm details. Select 'Check Pricing' to unlock the full dataset for this county.",
+      text: "This Excel-style preview displays names, property addresses, roof age, phone numbers, and storm details. Select 'Check Pricing' to review pricing options.",
     },
   ];
 
@@ -140,8 +129,7 @@ export function GuidedDemoOverlay({
   
   const isDatesValid = React.useMemo(() => {
     if (!filters?.startDate || !filters?.endDate) return false;
-    if (filters.endDate < filters.startDate) return false;
-    return isDateMoreThanOneYearOld(filters.startDate) && isDateMoreThanOneYearOld(filters.endDate);
+    return filters.endDate >= filters.startDate;
   }, [filters?.startDate, filters?.endDate]);
 
   const isSignalsValid = !!(filters?.showHail || filters?.showWind || filters?.showTornado || filters?.showAlerts);
@@ -176,38 +164,17 @@ export function GuidedDemoOverlay({
   const tooltipStyle = React.useMemo(() => {
     if (step === 9) {
       if (typeof window !== "undefined") {
-        const modalWidth = Math.min(1152, window.innerWidth - 32);
-        const modalLeft = (window.innerWidth - modalWidth) / 2;
-        const modalRight = modalLeft + modalWidth;
-        
-        // If there's enough space on the right of the modal (> 380px)
-        if (window.innerWidth - modalRight > 380) {
-          return {
-            position: "fixed" as const,
-            top: "120px",
-            left: `${modalRight + 20}px`,
-            zIndex: 9999,
-            transition: "all 0.3s ease",
-          };
-        } else if (modalLeft > 380) {
-          // If there's enough space on the left
-          return {
-            position: "fixed" as const,
-            top: "120px",
-            left: `${modalLeft - 360}px`,
-            zIndex: 9999,
-            transition: "all 0.3s ease",
-          };
-        } else {
-          // Fallback: Float at the top right inside the modal viewport area
-          return {
-            position: "fixed" as const,
-            top: "100px",
-            right: `${Math.max(20, (window.innerWidth - modalWidth) / 2 + 20)}px`,
-            zIndex: 9999,
-            transition: "all 0.3s ease",
-          };
-        }
+        const width = 340;
+        const height = 240; // estimated max height of step 9 tooltip
+        const left = Math.max(16, Math.min(window.innerWidth - width - 16, window.innerWidth / 2 - width / 2));
+        const top = Math.max(16, Math.min(window.innerHeight - height - 16, window.innerHeight - height - 40));
+        return {
+          position: "fixed" as const,
+          top: `${top}px`,
+          left: `${left}px`,
+          zIndex: 9999,
+          transition: "all 0.3s ease",
+        };
       }
     }
 
@@ -236,6 +203,10 @@ export function GuidedDemoOverlay({
       if (top + 260 > window.innerHeight) {
         top = Math.max(16, window.innerHeight - 260 - 16);
       }
+
+      // Clamp to viewport boundaries with at least 16px padding
+      left = Math.max(16, Math.min(window.innerWidth - 340 - 16, left));
+      top = Math.max(16, Math.min(window.innerHeight - 260 - 16, top));
     }
 
     return {
@@ -294,26 +265,26 @@ export function GuidedDemoOverlay({
             <p className="text-[9px] text-[#60A5FA] font-bold mt-2 animate-pulse">
               {!isTerritoryValid 
                 ? "* Select a State & County in the sidebar to continue." 
-                : "* Use the highlighted 'Continue to Storm Dates' button in the sidebar to proceed."}
+                : "* Use the highlighted 'Continue' button in the sidebar to proceed."}
             </p>
           )}
           {step === 3 && (
             <p className="text-[9px] text-amber-400 font-bold mt-2 animate-pulse">
               {!isDatesValid 
-                ? "* Enter a From & To date more than 1 year old to continue." 
-                : "* Use the highlighted 'Continue to Signals' button in the sidebar to proceed."}
+                ? "* Enter a From & To date to continue." 
+                : "* Use the highlighted 'Continue' button in the sidebar to proceed."}
             </p>
           )}
           {step === 4 && (
             <p className="text-[9px] text-amber-400 font-bold mt-2 animate-pulse">
               {!isSignalsValid 
-                ? "* Select at least one storm hazard in the sidebar." 
-                : "* Use the highlighted 'Continue to Scan' button in the sidebar to proceed."}
+                ? "* Select at least one storm type in the sidebar." 
+                : "* Use the highlighted 'Continue' button in the sidebar to proceed."}
             </p>
           )}
           {step === 5 && (
             <p className="text-[9px] text-[#00E676] font-bold mt-2 animate-pulse">
-              * Use the highlighted 'SCAN TERRITORY' button in the sidebar to proceed.
+              * Use the highlighted 'Find Storm Leads' button in the sidebar to proceed.
             </p>
           )}
           {step === 8 && (
@@ -325,7 +296,7 @@ export function GuidedDemoOverlay({
 
         {/* Action button row */}
         <div className="flex items-center justify-between shrink-0 pt-2 border-t border-[rgba(20,92,255,0.1)] text-[10px]">
-          {step === 9 ? (
+          {step > 1 && step !== 6 ? (
             <button
               onClick={handleBack}
               className="py-1.5 px-2.5 rounded-lg bg-[#050B16] border border-slate-800 text-slate-350 hover:text-[#F8FAFC] font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
@@ -334,24 +305,10 @@ export function GuidedDemoOverlay({
               Back
             </button>
           ) : (
-            <button
-              onClick={handleSkip}
-              className="text-slate-400 hover:text-[#CBD5E1] font-bold uppercase transition-colors tracking-wider cursor-pointer"
-            >
-              Skip Tour
-            </button>
+            <div />
           )}
 
           <div className="flex gap-2">
-            {step > 1 && step !== 6 && step !== 9 && (
-              <button
-                onClick={handleBack}
-                className="py-1.5 px-2.5 rounded-lg bg-[#050B16] border border-slate-800 text-slate-350 hover:text-[#F8FAFC] font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                <ChevronLeft size={12} />
-                Back
-              </button>
-            )}
             {step < 9 && step !== 2 && step !== 3 && step !== 4 && step !== 5 && step !== 6 && step !== 8 && (
               <button
                 onClick={handleNext}
@@ -362,7 +319,7 @@ export function GuidedDemoOverlay({
                     : "bg-[#145CFF] hover:bg-[#2570FF] text-[#F8FAFC] cursor-pointer shadow-md hover:scale-[1.02]"
                 }`}
               >
-                Next
+                Continue
                 <ChevronRight size={12} />
               </button>
             )}
@@ -371,7 +328,7 @@ export function GuidedDemoOverlay({
                 onClick={onUpgrade}
                 className="py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] text-white font-black uppercase flex items-center gap-1 cursor-pointer transition-all hover:scale-[1.02] shadow-lg shadow-indigo-500/20 border border-[#A855F7]/30 active:scale-[0.98]"
               >
-                <span>Checking Pricing</span>
+                <span>Check Pricing</span>
                 <ChevronRight size={12} />
               </button>
             )}

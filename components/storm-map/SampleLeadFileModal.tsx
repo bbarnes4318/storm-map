@@ -145,13 +145,15 @@ export function SampleLeadFileModal({
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={onUpgrade}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] text-white text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-lg shadow-indigo-500/20 border border-[#A855F7]/30 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Lock size={10} className="text-white" />
-              <span>Check Pricing</span>
-            </button>
+            {!isDemo && (
+              <button
+                onClick={onUpgrade}
+                className="px-3.5 py-1.5 bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] text-white text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-lg shadow-indigo-500/20 border border-[#A855F7]/30 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Lock size={10} className="text-white" />
+                <span>Check Pricing</span>
+              </button>
+            )}
             
             <button
               onClick={onClose}
@@ -254,26 +256,18 @@ export function SampleLeadFileModal({
             >
               <Download size={13} className="text-[#145CFF]" />
               <span>Download Sample CSV</span>
-            </button>
-
-            {isDemo && (
-              <button
-                onClick={handleSendToSMS}
-                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-500/90 hover:to-teal-600/90 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-500/10 hover:scale-[1.02]"
-              >
-                <Database size={13} className="text-[#F8FAFC]" />
-                <span>Send Leads to SMS App</span>
-              </button>
-            )}
+            </button>            {/* No Send to SMS button here */}
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={onContinueExploring || onClose}
-              className="px-4 py-2 border border-slate-800 hover:border-slate-705 rounded-lg text-xs font-bold text-slate-300 hover:text-[#F8FAFC] transition-all cursor-pointer hover:bg-slate-900/30"
-            >
-              Continue Exploring Map
-            </button>
+            {!isDemo && (
+              <button
+                onClick={onContinueExploring || onClose}
+                className="px-4 py-2 border border-slate-800 hover:border-slate-705 rounded-lg text-xs font-bold text-slate-350 hover:text-[#F8FAFC] transition-all cursor-pointer hover:bg-slate-900/30"
+              >
+                Continue Exploring Map
+              </button>
+            )}
             <div className="flex flex-col items-end">
               <button
                 onClick={onUpgrade}

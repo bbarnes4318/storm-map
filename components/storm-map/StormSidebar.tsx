@@ -301,13 +301,13 @@ export function StormSidebar({
     }
   }, [filters.center, filters.state, filters.selectedCounty, filters.radius]);
 
-  // Scroll to bottom of sidebar when wizard step changes to expose the main actions
+  // Scroll to top of sidebar when wizard step changes to ensure the active card is fully visible
   React.useEffect(() => {
     if (scrollContainerRef.current) {
       setTimeout(() => {
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTo({
-            top: scrollContainerRef.current.scrollHeight,
+            top: 0,
             behavior: "smooth"
           });
         }
@@ -816,37 +816,13 @@ export function StormSidebar({
 
                 const dateRangeSummary = `${formatDateSummary(filters.startDate)} → ${formatDateSummary(filters.endDate)}`;
 
-                const maxDemoDate = (() => {
-                  const today = new Date();
-                  // Strict over 1 year ago: today - 1 year - 1 day
-                  const maxDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate() - 1);
-                  return maxDate.toISOString().split("T")[0];
-                })();
-
-                const isDateMoreThanOneYearOld = (dateStr?: string) => {
-                  if (!dateStr) return false;
-                  const date = new Date(dateStr + "T00:00:00");
-                  const oneYearAgo = new Date();
-                  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-                  oneYearAgo.setDate(oneYearAgo.getDate() - 1);
-                  oneYearAgo.setHours(23, 59, 59, 999);
-                  return date <= oneYearAgo;
-                };
-
-                const showDateError = isDemo && (
-                  (filters.startDate && !isDateMoreThanOneYearOld(filters.startDate)) ||
-                  (filters.endDate && !isDateMoreThanOneYearOld(filters.endDate))
-                );
+                const showDateError = false;
 
                 const isTerritoryValid = !!tState && !!tCounty;
 
                 const isDatesValid = (() => {
                   if (!filters.startDate || !filters.endDate) return false;
-                  if (filters.endDate < filters.startDate) return false;
-                  if (isDemo) {
-                    return isDateMoreThanOneYearOld(filters.startDate) && isDateMoreThanOneYearOld(filters.endDate);
-                  }
-                  return true;
+                  return filters.endDate >= filters.startDate;
                 })();
 
                 const isSignalsValid = filters.showHail || filters.showWind || filters.showTornado || filters.showAlerts;
@@ -907,7 +883,7 @@ export function StormSidebar({
                       <div className="flex items-center gap-2 min-w-0">
                         <CheckCircle2 size={14} className="text-[#00E676] shrink-0" />
                         <div className="min-w-0">
-                          <span className="text-[10px] font-black text-white block truncate">Storm Signals</span>
+                          <span className="text-[10px] font-black text-white block truncate">{isDemo ? "Storm Types" : "Storm Signals"}</span>
                           <span className="text-[9px] font-semibold text-slate-400 block truncate">{selectedSignals || "None"}{filters.showHail && filters.minHailSize > 0 ? ` · ${hailSeverityLabel}` : ""}</span>
                         </div>
                       </div>
@@ -1082,7 +1058,7 @@ export function StormSidebar({
                           onClick={() => setWizardStep(2)}
                           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
                         >
-                          Continue to Storm Dates
+                          {isDemo ? "Continue" : "Continue to Storm Dates"}
                           <ChevronRight size={14} />
                         </button>
                       ) : (
@@ -1107,7 +1083,7 @@ export function StormSidebar({
                         <h3 className="text-[14px] font-black text-[#F8FAFC]">Select Storm Dates</h3>
                         <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
                           {isDemo 
-                            ? "Demo mode uses historical storm data. Select a From and To date more than 1 year old to continue." 
+                            ? "Dates are preselected during demo mode, but users can choose any present date or historical data." 
                             : "Define the custom date range to scan for storm events."}
                         </p>
                       </div>
@@ -1118,7 +1094,6 @@ export function StormSidebar({
                           <input
                             type="date"
                             value={filters.startDate || ""}
-                            max={isDemo ? maxDemoDate : undefined}
                             onChange={(e) => onFiltersChange({ startDate: e.target.value })}
                             style={{ colorScheme: "dark" }}
                             className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[32px] cursor-pointer"
@@ -1129,7 +1104,6 @@ export function StormSidebar({
                           <input
                             type="date"
                             value={filters.endDate || ""}
-                            max={isDemo ? maxDemoDate : undefined}
                             onChange={(e) => onFiltersChange({ endDate: e.target.value })}
                             style={{ colorScheme: "dark" }}
                             className="w-full bg-[#050B16] border border-[#145CFF]/25 rounded-lg px-2.5 py-1.5 text-xs text-[#F8FAFC] font-extrabold focus:outline-none focus:border-[#145CFF] min-h-[32px] cursor-pointer"
@@ -1159,7 +1133,7 @@ export function StormSidebar({
                             onClick={() => setWizardStep(3)}
                             className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
                           >
-                            Continue to Signals
+                            {isDemo ? "Continue" : "Continue to Signals"}
                             <ChevronRight size={14} />
                           </button>
                         ) : (
@@ -1170,9 +1144,7 @@ export function StormSidebar({
                           >
                             {!filters.startDate || !filters.endDate 
                               ? "Select a From Date and To Date" 
-                              : filters.endDate < filters.startDate 
-                                ? "To Date must be after From Date" 
-                                : "Demo dates must be more than 1 year old"}
+                              : "To Date must be after From Date"}
                           </button>
                         )}
                       </div>
@@ -1186,9 +1158,13 @@ export function StormSidebar({
                       className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300"
                     >
                       <div>
-                        <h3 className="text-[14px] font-black text-[#F8FAFC]">Choose Storm Signals</h3>
+                        <h3 className="text-[14px] font-black text-[#F8FAFC]">
+                          {isDemo ? "Choose Storm Type" : "Choose Storm Signals"}
+                        </h3>
                         <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
-                          Select the storm events you want included in your lead scan.
+                          {isDemo 
+                            ? "Select the storm types you want included on the map" 
+                            : "Select the storm events you want included in your lead scan."}
                         </p>
                       </div>
 
@@ -1270,7 +1246,9 @@ export function StormSidebar({
                             </div>
                             <span className={`w-2 h-2 rounded-full transition-all shrink-0 ${filters.showAlerts ? "bg-[#FBBF24] shadow-[0_0_8px_#fbbf24]" : "bg-slate-800 border border-slate-700"}`} />
                           </div>
-                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showAlerts ? "text-slate-350" : "text-slate-550"}`}>Active NWS watches & warnings</p>
+                          <p className={`text-[8.5px] font-semibold leading-tight line-clamp-2 ${filters.showAlerts ? "text-slate-350" : "text-slate-550"}`}>
+                            {isDemo ? "Active National Weather Service watches and Warnings" : "Active NWS watches & warnings"}
+                          </p>
                         </button>
                       </div>
 
@@ -1315,7 +1293,7 @@ export function StormSidebar({
                             onClick={() => setWizardStep(4)}
                             className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[11px] font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(20,92,255,0.3)] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
                           >
-                            Continue to Scan
+                            {isDemo ? "Continue" : "Continue to Scan"}
                             <ChevronRight size={14} />
                           </button>
                         ) : (
@@ -1324,7 +1302,7 @@ export function StormSidebar({
                             disabled
                             className="flex-1 py-2.5 px-4 rounded-xl bg-[#091528] border border-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-wider cursor-not-allowed select-none"
                           >
-                            Choose at least one storm signal
+                            {isDemo ? "Choose at least one storm type" : "Choose at least one storm signal"}
                           </button>
                         )}
                       </div>
@@ -1356,7 +1334,9 @@ export function StormSidebar({
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{dateRangeSummary}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Storm Signals</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {isDemo ? "Storm Types" : "Storm Signals"}
+                          </span>
                           <span className="text-[10.5px] font-black text-[#F8FAFC]">{selectedSignals}</span>
                         </div>
                         {filters.showHail && filters.minHailSize > 0 && (
@@ -1386,7 +1366,9 @@ export function StormSidebar({
                       >
                         <div className="flex items-center gap-2.5">
                           <Compass size={15} className="animate-spin text-[#00E676]" style={{ animationDuration: '6s' }} />
-                          <span className="font-extrabold text-[13px] text-[#F8FAFC]">SCAN TERRITORY</span>
+                          <span className="font-extrabold text-[13px] text-[#F8FAFC]">
+                            {isDemo ? "FIND STORM LEADS" : "SCAN TERRITORY"}
+                          </span>
                           <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse shadow-[0_0_8px_#00e676]" />
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 lowercase first-letter:uppercase leading-none tracking-normal">
@@ -1790,20 +1772,22 @@ export function StormSidebar({
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 pt-1">
-            <button
-              onClick={onOpenSampleModal}
-              className="py-1.5 px-2 rounded bg-[#0B1930]/60 hover:bg-[#145CFF]/10 border border-[#145CFF]/30 hover:border-[#145CFF]/50 text-slate-350 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
-            >
-              View Sample
-            </button>
-            <button
-              onClick={onOpenUpgradeModal}
-              className="py-1.5 px-2 rounded bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[9.5px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-[#145CFF]/20"
-            >
-              Unlock Leads
-            </button>
-          </div>
+          {!isDemo && (
+            <div className="grid grid-cols-2 gap-1.5 pt-1">
+              <button
+                onClick={onOpenSampleModal}
+                className="py-1.5 px-2 rounded bg-[#0B1930]/60 hover:bg-[#145CFF]/10 border border-[#145CFF]/30 hover:border-[#145CFF]/50 text-slate-350 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+              >
+                View Sample
+              </button>
+              <button
+                onClick={onOpenUpgradeModal}
+                className="py-1.5 px-2 rounded bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[9.5px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-[#145CFF]/20"
+              >
+                Unlock Leads
+              </button>
+            </div>
+          )}
         </div>
       )}
       </div>

@@ -197,15 +197,17 @@ export function TerritoryLeadResultCard({
             <span>View Sample Lead File</span>
           </button>
           
-          <button
-            onClick={onUpgrade}
-            className="w-full bg-gradient-to-r from-[#145CFF] to-[#2F7DFF] hover:from-[#2570FF] hover:to-[#468DFF] border-none py-2.5 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#145CFF]/20 relative group overflow-hidden"
-          >
-            <Lock size={12} className="text-slate-100" />
-            <span>Upgrade to Unlock Territory</span>
-            {/* Glossy reflection sweep animation on hover */}
-            <div className="absolute inset-0 w-[50%] h-full bg-white/10 -skew-x-[20deg] -translate-x-[200%] group-hover:translate-x-[300%] transition-transform duration-1000 ease-out" />
-          </button>
+          {!isDemo && (
+            <button
+              onClick={onUpgrade}
+              className="w-full bg-gradient-to-r from-[#145CFF] to-[#2F7DFF] hover:from-[#2570FF] hover:to-[#468DFF] border-none py-2.5 rounded-lg text-xs font-black text-[#F8FAFC] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#145CFF]/20 relative group overflow-hidden"
+            >
+              <Lock size={12} className="text-slate-100" />
+              <span>Upgrade to Unlock Territory</span>
+              {/* Glossy reflection sweep animation on hover */}
+              <div className="absolute inset-0 w-[50%] h-full bg-white/10 -skew-x-[20deg] -translate-x-[200%] group-hover:translate-x-[300%] transition-transform duration-1000 ease-out" />
+            </button>
+          )}
         </div>
       </div>
     </div>
