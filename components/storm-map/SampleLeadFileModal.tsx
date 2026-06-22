@@ -147,9 +147,9 @@ export function SampleLeadFileModal({
           <div className="flex items-center gap-3">
             <button
               onClick={onUpgrade}
-              className="px-3.5 py-1.5 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-[#071426] text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-[#F59E0B]/10 shrink-0 hover:scale-[1.02]"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] text-white text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-lg shadow-indigo-500/20 border border-[#A855F7]/30 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Lock size={10} className="text-[#071426]" />
+              <Lock size={10} className="text-white" />
               <span>Check Pricing</span>
             </button>
             
@@ -277,9 +277,9 @@ export function SampleLeadFileModal({
             <div className="flex flex-col items-end">
               <button
                 onClick={onUpgrade}
-                className="px-5 py-2 bg-gradient-to-r from-[#F59E0B] to-[#F97316] hover:from-[#F59E0B]/90 hover:to-[#F97316]/90 border-none rounded-lg text-xs font-black text-[#071426] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-[#F59E0B]/20 hover:scale-[1.02]"
+                className="px-5 py-2 bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] border border-[#A855F7]/30 rounded-lg text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Lock size={12} className="text-[#071426]" />
+                <Lock size={12} className="text-white" />
                 <span>Check Pricing</span>
               </button>
               <span className="text-[8.5px] text-slate-400 font-semibold mt-1 mr-1">

@@ -739,6 +739,11 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
           onRestart={() => {
             resetDemoExperience(true);
           }}
+          onUpgrade={() => {
+            setSampleModalOpen(false);
+            setUpgradeModalOpen(true);
+            setTourStep(0);
+          }}
         />
       )}
       {/* Entry Experience Selector Overlay */}

@@ -23,6 +23,7 @@ interface GuidedDemoOverlayProps {
   scanStatus: "idle" | "scanning" | "complete";
   sampleModalOpen: boolean;
   onRestart: () => void;
+  onUpgrade: () => void;
 }
 
 export function GuidedDemoOverlay({
@@ -32,6 +33,7 @@ export function GuidedDemoOverlay({
   scanStatus,
   sampleModalOpen,
   onRestart,
+  onUpgrade,
 }: GuidedDemoOverlayProps) {
   const [rect, setRect] = React.useState<DOMRect | null>(null);
 
@@ -172,6 +174,43 @@ export function GuidedDemoOverlay({
 
   // Tooltip positioning
   const tooltipStyle = React.useMemo(() => {
+    if (step === 9) {
+      if (typeof window !== "undefined") {
+        const modalWidth = Math.min(1152, window.innerWidth - 32);
+        const modalLeft = (window.innerWidth - modalWidth) / 2;
+        const modalRight = modalLeft + modalWidth;
+        
+        // If there's enough space on the right of the modal (> 380px)
+        if (window.innerWidth - modalRight > 380) {
+          return {
+            position: "fixed" as const,
+            top: "120px",
+            left: `${modalRight + 20}px`,
+            zIndex: 9999,
+            transition: "all 0.3s ease",
+          };
+        } else if (modalLeft > 380) {
+          // If there's enough space on the left
+          return {
+            position: "fixed" as const,
+            top: "120px",
+            left: `${modalLeft - 360}px`,
+            zIndex: 9999,
+            transition: "all 0.3s ease",
+          };
+        } else {
+          // Fallback: Float at the top right inside the modal viewport area
+          return {
+            position: "fixed" as const,
+            top: "100px",
+            right: `${Math.max(20, (window.innerWidth - modalWidth) / 2 + 20)}px`,
+            zIndex: 9999,
+            transition: "all 0.3s ease",
+          };
+        }
+      }
+    }
+
     if (!rect) {
       return {
         position: "fixed" as const,
@@ -206,7 +245,7 @@ export function GuidedDemoOverlay({
       zIndex: 9999,
       transition: "all 0.3s ease",
     };
-  }, [rect]);
+  }, [rect, step]);
 
   return (
     <>
@@ -288,11 +327,11 @@ export function GuidedDemoOverlay({
         <div className="flex items-center justify-between shrink-0 pt-2 border-t border-[rgba(20,92,255,0.1)] text-[10px]">
           {step === 9 ? (
             <button
-              onClick={onRestart}
-              className="py-1.5 px-3 rounded-lg bg-[#145CFF] hover:bg-[#2570FF] text-white font-black uppercase flex items-center gap-1 cursor-pointer transition-colors shadow-md hover:scale-[1.02]"
+              onClick={handleBack}
+              className="py-1.5 px-2.5 rounded-lg bg-[#050B16] border border-slate-800 text-slate-350 hover:text-[#F8FAFC] font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <RotateCcw size={10} />
-              Restart Demo
+              <ChevronLeft size={12} />
+              Back
             </button>
           ) : (
             <button
@@ -329,10 +368,11 @@ export function GuidedDemoOverlay({
             )}
             {step === 9 && (
               <button
-                onClick={handleSkip}
-                className="py-1.5 px-3 rounded-lg bg-[#10B981] hover:bg-[#10B981]/90 text-[#071426] font-black uppercase cursor-pointer transition-colors hover:scale-[1.02] shadow-md shadow-[#10B981]/15"
+                onClick={onUpgrade}
+                className="py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-[#6366F1] to-[#A855F7] hover:from-[#5046E5] hover:to-[#9333EA] text-white font-black uppercase flex items-center gap-1 cursor-pointer transition-all hover:scale-[1.02] shadow-lg shadow-indigo-500/20 border border-[#A855F7]/30 active:scale-[0.98]"
               >
-                Explore Map
+                <span>Checking Pricing</span>
+                <ChevronRight size={12} />
               </button>
             )}
           </div>
