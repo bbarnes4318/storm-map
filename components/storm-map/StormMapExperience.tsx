@@ -486,35 +486,60 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
     if (!sampleModalOpen && tourStep === 9) {
       setTourStep(0);
     }
+    // If user goes back in tour to Step 8 (or earlier) while sample modal is open, close it
+    if (sampleModalOpen && tourStep < 9) {
+      setSampleModalOpen(false);
+    }
   }, [sampleModalOpen, tourStep, isDemo]);
+
+  React.useEffect(() => {
+    if (!isDemo || tourStep <= 0) return;
+
+    // If the user goes back to Step 6 (which is a transition step),
+    // we reset scanStatus to idle and put them back to Step 5
+    if (tourStep === 6 && scanStatus === "complete") {
+      setScanStatus("idle");
+      setTourStep(5);
+    }
+  }, [tourStep, scanStatus, isDemo]);
 
   React.useEffect(() => {
     if (!isDemo || tourStep <= 0) return;
 
     // Sync tour step to wizard step
     if (tourStep === 1 || tourStep === 2) {
-      setWizardStep(1);
+      if (wizardStep !== 1) setWizardStep(1);
     } else if (tourStep === 3) {
-      setWizardStep(2);
+      if (wizardStep !== 2) setWizardStep(2);
     } else if (tourStep === 4) {
-      setWizardStep(3);
+      if (wizardStep !== 3) setWizardStep(3);
     } else if (tourStep >= 5) {
-      setWizardStep(4);
+      if (wizardStep !== 4) setWizardStep(4);
     }
-  }, [tourStep, isDemo]);
+  }, [tourStep, isDemo, wizardStep]);
 
   React.useEffect(() => {
     if (!isDemo || tourStep <= 0) return;
 
-    // Sync wizard step changes (like clicking "Continue" in sidebar) back to tour step
-    if (wizardStep === 2 && tourStep < 3) {
-      setTourStep(3);
-    } else if (wizardStep === 3 && tourStep < 4) {
-      setTourStep(4);
-    } else if (wizardStep === 4 && tourStep < 5) {
-      setTourStep(5);
+    // Bidirectional sync: Sync wizard step changes back to tour step (supports Back navigation and Continue clicks)
+    if (wizardStep === 1) {
+      if (tourStep > 2) {
+        setTourStep(2);
+      }
+    } else if (wizardStep === 2) {
+      if (tourStep !== 3) {
+        setTourStep(3);
+      }
+    } else if (wizardStep === 3) {
+      if (tourStep !== 4) {
+        setTourStep(4);
+      }
+    } else if (wizardStep === 4) {
+      if (tourStep < 5) {
+        setTourStep(5);
+      }
     }
-  }, [wizardStep, tourStep, isDemo]);
+  }, [wizardStep, isDemo, tourStep]);
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-950 font-sans relative">

@@ -255,26 +255,12 @@ export function StormSidebar({
 
   // Dropdown states moved to top
 
-  // Auto-open dropdowns depending on demo step
+  // Close all dropdowns when demo step changes (so they start closed, requiring user interaction)
   React.useEffect(() => {
     if (isDemo) {
-      if (demoStep === 2) {
-        setStateDropdownOpen(true);
-        setCountyDropdownOpen(false);
-        setRadiusDropdownOpen(false);
-      } else if (demoStep === 3) {
-        setStateDropdownOpen(false);
-        setCountyDropdownOpen(true);
-        setRadiusDropdownOpen(false);
-      } else if (demoStep === 4) {
-        setStateDropdownOpen(false);
-        setCountyDropdownOpen(false);
-        setRadiusDropdownOpen(true);
-      } else {
-        setStateDropdownOpen(false);
-        setCountyDropdownOpen(false);
-        setRadiusDropdownOpen(false);
-      }
+      setStateDropdownOpen(false);
+      setCountyDropdownOpen(false);
+      setRadiusDropdownOpen(false);
     }
   }, [demoStep, isDemo]);
 
@@ -301,13 +287,31 @@ export function StormSidebar({
     }
   }, [filters.center, filters.state, filters.selectedCounty, filters.radius]);
 
-  // Scroll to top of sidebar when wizard step changes to ensure the active card is fully visible
+  // Scroll the active wizard step into view when step changes
   React.useEffect(() => {
     if (scrollContainerRef.current) {
       setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTo({
-            top: 0,
+        let activeEl: HTMLElement | null = null;
+        if (wizardStep === 1) {
+          activeEl = scrollContainerRef.current?.querySelector('[data-tour="territory"]');
+        } else if (wizardStep === 2) {
+          activeEl = scrollContainerRef.current?.querySelector('[data-tour="dates"]');
+        } else if (wizardStep === 3) {
+          activeEl = scrollContainerRef.current?.querySelector('[data-tour="signals"]');
+        } else if (wizardStep === 4) {
+          activeEl = scrollContainerRef.current?.querySelector('[data-tour="ready-to-scan"]');
+        }
+
+        if (activeEl && scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          const containerRect = container.getBoundingClientRect();
+          const elemRect = activeEl.getBoundingClientRect();
+          
+          // Calculate target offset relative to container
+          const targetTop = elemRect.top - containerRect.top + container.scrollTop;
+          
+          container.scrollTo({
+            top: targetTop,
             behavior: "smooth"
           });
         }
@@ -1311,7 +1315,10 @@ export function StormSidebar({
 
                   {/* ===== STEP 4: Ready to Scan ===== */}
                   {wizardStep === 4 && (
-                    <div className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3.5 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <div 
+                      data-tour="ready-to-scan"
+                      className="bg-[rgba(11,25,48,0.72)] border border-[rgba(20,92,255,0.14)] rounded-xl p-3.5 space-y-3.5 shadow-lg shadow-black/20 animate-in fade-in slide-in-from-right-2 duration-300"
+                    >
                       <div>
                         <h3 className="text-[14px] font-black text-[#F8FAFC]">Ready to Scan</h3>
                         <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
