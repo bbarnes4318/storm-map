@@ -28,10 +28,38 @@ export function UpgradeCheckoutModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) {
-      alert("Please fill in your Name and Email address.");
+    if (!name || !email || !phone) {
+      alert("Please fill in your Name, Email, and Phone number.");
       return;
     }
+
+    try {
+      const lead = {
+        name: company ? `${name} (${company})` : name,
+        address: `Requested Market: ${market}`,
+        city: "",
+        state: state.toUpperCase(),
+        zip: "",
+        county: county,
+        phone: phone,
+        email: email,
+        roofAge: preferredOption, // Display selected plan in the Roof Age / Plan column
+        stormType: "Demo Form",
+        confidence: "High",
+      };
+
+      const jsonString = JSON.stringify([lead]);
+      const base64String = btoa(unescape(encodeURIComponent(jsonString)));
+      const targetHost = typeof window !== "undefined" && window.location.hostname.includes("localhost")
+        ? "http://localhost:3000"
+        : "https://sms.leadzer.io";
+      
+      const redirectUrl = `${targetHost}/?import=storm-map-demo&data=${base64String}&county=${encodeURIComponent(county)}&state=${encodeURIComponent(state)}`;
+      window.open(redirectUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to route form data to SMS app:", err);
+    }
+
     setFormSubmitted(true);
   };
 
@@ -255,6 +283,7 @@ export function UpgradeCheckoutModal({
                       <span className="absolute inset-y-0 left-3 flex items-center text-slate-555"><Phone size={12} /></span>
                       <input
                         type="tel"
+                        required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Direct Phone Number"
