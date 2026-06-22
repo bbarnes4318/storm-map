@@ -22,7 +22,7 @@ export function UpgradeCheckoutModal({
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [market, setMarket] = React.useState(`${county} County, ${state}`);
-  const [preferredOption, setPreferredOption] = React.useState<"Monthly Lead Plan" | "Quarterly Lead Plan" | "Appointment Program">("Quarterly Lead Plan");
+  const [preferredOption, setPreferredOption] = React.useState<"Month to Month Lead Plan" | "Seasonal Lead Plan" | "Appointment Program">("Seasonal Lead Plan");
 
   if (!isOpen) return null;
 
@@ -126,44 +126,43 @@ export function UpgradeCheckoutModal({
                 
                 {/* Monthly Lead Plan Card */}
                 <div
-                  onClick={() => setPreferredOption("Monthly Lead Plan")}
+                  onClick={() => setPreferredOption("Month to Month Lead Plan")}
                   className={`p-4 rounded-xl border transition-all cursor-pointer text-left select-none relative flex flex-col justify-between h-full ${
-                    preferredOption === "Monthly Lead Plan"
+                    preferredOption === "Month to Month Lead Plan"
                       ? "bg-[#0B1930]/80 border-[#145CFF] shadow-[0_0_15px_rgba(20,92,255,0.15)] ring-1 ring-[#145CFF]"
                       : "bg-[#050B16]/50 border-slate-800 hover:border-slate-700"
                   }`}
                 >
                   <div>
                     <div className="flex justify-between items-start mb-2.5">
-                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Monthly Lead Plan</span>
-                      <span className="text-xs font-black text-[#145CFF]">$2.30<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
+                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Month to Month Lead Plan</span>
+                      <span className="text-xs font-black text-[#145CFF]">$2.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
                     </div>
                     <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-3">
                       Best for contractors testing a new market.
                     </p>
                     <ul className="space-y-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-4">
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Paid monthly for first 3 mos</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Then $0.99/lead for year rest</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Full homeowner details</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 100 leads minimum per order</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Month to Month No Contract</li>
                     </ul>
                   </div>
                   <button
                     type="button"
                     className={`w-full py-1.5 rounded text-[9.5px] font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
-                      preferredOption === "Monthly Lead Plan"
+                      preferredOption === "Month to Month Lead Plan"
                         ? "bg-[#145CFF] text-white"
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
                     }`}
                   >
-                    Choose Monthly Lead Plan
+                    Choose Month to Month Lead Plan
                   </button>
                 </div>
 
                 {/* Quarterly Lead Plan Card */}
                 <div
-                  onClick={() => setPreferredOption("Quarterly Lead Plan")}
+                  onClick={() => setPreferredOption("Seasonal Lead Plan")}
                   className={`p-4 rounded-xl border transition-all cursor-pointer text-left select-none relative flex flex-col justify-between h-full ${
-                    preferredOption === "Quarterly Lead Plan"
+                    preferredOption === "Seasonal Lead Plan"
                       ? "bg-[#0B1930]/80 border-[#10B981] shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-[#10B981]"
                       : "bg-[#050B16]/50 border-slate-800 hover:border-slate-700"
                   }`}
@@ -173,27 +172,28 @@ export function UpgradeCheckoutModal({
                   </span>
                   <div>
                     <div className="flex justify-between items-start mb-2.5 mt-1">
-                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Quarterly Lead Plan</span>
-                      <span className="text-xs font-black text-[#10B981]">$1.50<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
+                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Seasonal Lead Plan</span>
+                      <span className="text-xs font-black text-[#10B981]">$1.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
                     </div>
                     <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-3">
                       Best value for contractors committed to consistent storm lead flow.
                     </p>
                     <ul className="space-y-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-4">
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Paid quarterly</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Then $0.99/lead for year rest</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Direct CRM integration sync</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 130 leads minimum per order</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 3 month contract paid monthly</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Automatically billed each month for 3 months</li>
+                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> After 3 months, $.99 per lead</li>
                     </ul>
                   </div>
                   <button
                     type="button"
                     className={`w-full py-1.5 rounded text-[9.5px] font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
-                      preferredOption === "Quarterly Lead Plan"
+                      preferredOption === "Seasonal Lead Plan"
                         ? "bg-[#10B981] text-white"
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
                     }`}
                   >
-                    Choose Quarterly Lead Plan
+                    Choose Seasonal Lead Plan
                   </button>
                 </div>
 
