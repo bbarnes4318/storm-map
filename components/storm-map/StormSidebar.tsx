@@ -9,8 +9,7 @@ import { Search, Tornado, Wind, Zap, Layers, Navigation, RefreshCw, ChevronLeft,
 import { StormLegend } from "./StormLegend";
 import { LeadIntelligencePanel } from "./enrichment/LeadIntelligencePanel";
 import { collectRadiusLeads } from "./enrichment/enrichment-client";
-import { StormProductActionPanel, ProductType } from "./enrichment/StormProductActionPanel";
-import { ProductRequestModal } from "./enrichment/ProductRequestModal";
+
 
 interface StormSidebarProps {
   filters: StormFilterState;
@@ -50,6 +49,8 @@ interface StormSidebarProps {
   onOpenUpgradeModal?: () => void;
   resultLeadEstimate?: number | null;
   scanError?: string | null;
+  experienceMode?: "choice" | "explore" | "target";
+  setExperienceMode?: (mode: "choice" | "explore" | "target") => void;
 }
 
 const US_STATES = [
@@ -103,6 +104,8 @@ export function StormSidebar({
   onOpenUpgradeModal,
   resultLeadEstimate = null,
   scanError = null,
+  experienceMode,
+  setExperienceMode,
 }: StormSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -110,6 +113,14 @@ export function StormSidebar({
   const [localWizardStep, localSetWizardStep] = React.useState<1 | 2 | 3 | 4>(1);
   const wizardStep = externalWizardStep !== undefined ? externalWizardStep : localWizardStep;
   const setWizardStep = externalSetWizardStep !== undefined ? externalSetWizardStep : localSetWizardStep;
+
+  React.useEffect(() => {
+    if (experienceMode === "explore") {
+      setActiveTab("targets");
+    } else if (experienceMode === "target") {
+      setActiveTab("filters");
+    }
+  }, [experienceMode]);
 
   // Dropdown & Search states declared at the top to prevent ReferenceErrors during early useEffect initialization
   const [countySearchQuery, setCountySearchQuery] = React.useState("");
@@ -318,40 +329,7 @@ export function StormSidebar({
   const [loadingClusterId, setLoadingClusterId] = React.useState<string | null>(null);
   const [statusBanner, setStatusBanner] = React.useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
-  const [modalOpen, setModalOpen] = React.useState(false);
-  const [modalProduct, setModalProduct] = React.useState<ProductType | null>(null);
-  const [modalContextType, setModalContextType] = React.useState<"storm-area" | "property" | null>(null);
-  const [modalContextData, setModalContextData] = React.useState<any | null>(null);
 
-  const handleOpenRequestModal = (contextType: "storm-area" | "property", contextData: any, product: ProductType) => {
-    setModalContextType(contextType);
-    if (contextType === "storm-area") {
-      const cluster = contextData as TargetCluster;
-      setModalContextData({
-        label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
-        county: cluster.county,
-        state: cluster.state,
-        center: cluster.center,
-        radius: cluster.suggestedRadius,
-        reportsCount: cluster.reportsCount,
-        primaryThreat: cluster.mainStormType,
-        score: cluster.totalScore,
-      });
-    } else {
-      const prop = contextData as SelectedPropertyTarget;
-      setModalContextData({
-        fullAddress: prop.fullAddress,
-        latitude: prop.latitude,
-        longitude: prop.longitude,
-        city: prop.city,
-        state: prop.state,
-        postcode: prop.postcode,
-        confidence: prop.confidence,
-      });
-    }
-    setModalProduct(product);
-    setModalOpen(true);
-  };
 
   const handleCollectRadiusLeads = async (cluster: TargetCluster) => {
     setLoadingClusterId(cluster.id);
@@ -577,6 +555,17 @@ export function StormSidebar({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {experienceMode && experienceMode !== "choice" && !isDemo && setExperienceMode && (
+              <button
+                onClick={() => setExperienceMode("choice")}
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase cursor-pointer"
+                title="Change Map Mode"
+                type="button"
+              >
+                <Compass size={10} className="text-[#145CFF] shrink-0" />
+                <span>Mode</span>
+              </button>
+            )}
             <a
               href="https://sms.leadzer.io"
               target="_blank"
@@ -697,22 +686,27 @@ export function StormSidebar({
                     </div>
                   </div>
 
-                  {/* Product Actions */}
-                  <div className="border-t border-slate-950/40 pt-2">
-                    <StormProductActionPanel
-                      contextType="storm-area"
-                      contextData={{
-                        label: cluster.county ? `${cluster.county} County, ${cluster.state || "ST"}` : `${cluster.name}, ${cluster.state || "ST"}`,
-                        county: cluster.county,
-                        state: cluster.state,
-                        center: cluster.center,
-                        radius: cluster.suggestedRadius,
-                        reportsCount: cluster.reportsCount,
-                        primaryThreat: cluster.mainStormType,
-                        score: cluster.totalScore,
-                      }}
-                      onSelectProduct={(prod) => handleOpenRequestModal("storm-area", cluster, prod)}
-                    />
+                  {/* CTAs incorporating the new purchasing process */}
+                  <div className="border-t border-[rgba(20,92,255,0.15)] pt-3 mt-1 flex flex-col gap-2 animate-in fade-in duration-200">
+                    <span className="text-[8.5px] font-black text-slate-455 uppercase tracking-widest block pl-0.5 leading-none">
+                      Lead Packages Available
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={onOpenSampleModal}
+                        className="py-2.5 px-3 rounded-xl bg-[#0B1930]/60 hover:bg-[#145CFF]/10 border border-[#145CFF]/30 hover:border-[#145CFF]/50 text-slate-350 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        View Sample
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onOpenUpgradeModal}
+                        className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#145CFF] to-[#2570FF] hover:from-[#2570FF] hover:to-[#3b82f6] text-white text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#145CFF]/20"
+                      >
+                        Unlock Leads
+                      </button>
+                    </div>
                   </div>
                 </>
               );
@@ -733,6 +727,18 @@ export function StormSidebar({
             >
               Lead Finder
             </button>
+            {experienceMode === "explore" && (
+              <button
+                onClick={() => setActiveTab("targets")}
+                className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 uppercase tracking-wider ${
+                  activeTab === "targets"
+                    ? "border-[#145CFF] text-[#F8FAFC] bg-[rgba(20,92,255,0.08)]"
+                    : "border-transparent text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#145CFF]/5"
+                }`}
+              >
+                Opportunities
+              </button>
+            )}
             <button
               onClick={() => setActiveTab("leads")}
               className={`flex-1 py-3 text-center text-[10.5px] font-extrabold transition-all border-b-2 flex items-center justify-center gap-1.5 uppercase tracking-wider ${
@@ -1484,6 +1490,10 @@ export function StormSidebar({
                                     coordinates: cluster.center,
                                     data: cluster,
                                   });
+                                  onFiltersChange({
+                                    selectedCounty: cluster.county,
+                                    state: cluster.state,
+                                  });
                                 }}
                                 className="flex justify-between items-start gap-1.5 cursor-pointer"
                               >
@@ -1546,6 +1556,10 @@ export function StormSidebar({
                                       type: "cluster",
                                       coordinates: cluster.center,
                                       data: cluster,
+                                    });
+                                    onFiltersChange({
+                                      selectedCounty: cluster.county,
+                                      state: cluster.state,
                                     });
                                   }}
                                   className="py-2 px-2.5 rounded-lg border border-[rgba(20,92,255,0.20)] hover:border-[rgba(20,92,255,0.40)] bg-[rgba(20,92,255,0.08)] hover:bg-[rgba(20,92,255,0.16)] text-[#94A3B8] hover:text-[#F8FAFC] text-[10px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center"
@@ -1737,24 +1751,7 @@ export function StormSidebar({
         {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
 
-      {modalProduct && modalContextType && modalContextData && (
-        <ProductRequestModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          productType={modalProduct}
-          contextType={modalContextType}
-          contextData={modalContextData}
-          isEnrichmentEnabled={false}
-          onAddLeads={(newLeads) => {
-            if (onAddLeads) {
-              onAddLeads(newLeads);
-            }
-          }}
-          onTriggerEnrichmentFlow={() => {
-            setActiveTab("leads");
-          }}
-        />
-      )}
+
     </>
   );
 }

@@ -9,7 +9,7 @@ import {
   UnlockedDataDetailResponse, 
   EnrichmentApiError 
 } from "./enrichment-client";
-import { StormProductActionPanel, ProductType } from "./StormProductActionPanel";
+import { ProductType } from "./StormProductActionPanel";
 import { ProductRequestModal } from "./ProductRequestModal";
 import { ComplianceAttestationModal } from "./ComplianceAttestationModal";
 import { UnlockLeadModal } from "./UnlockLeadModal";

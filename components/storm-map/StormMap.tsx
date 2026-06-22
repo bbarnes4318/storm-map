@@ -15,9 +15,7 @@ import { getDistanceMiles, clusterStormReports, calculateReportScore, formatSPCD
 import { reverseGeocodeAddress } from "@/lib/weather/geocoding";
 import { parseAlertCounties, resolveCountyBounds } from "@/lib/weather/county-resolver";
 import { Compass, Maximize2, RefreshCw, EyeOff, Eye, AlertCircle, MapPin, Target, Tornado, Wind, Zap, ShieldAlert, Award, Calendar, Clock, Lock, Sparkles, TrendingUp, AlertTriangle, ArrowLeft } from "lucide-react";
-import { collectRadiusLeads } from "./enrichment/enrichment-client";
-import { StormProductActionPanel } from "./enrichment/StormProductActionPanel";
-import { ProductRequestModal } from "./enrichment/ProductRequestModal";
+
 import { getCountyByStateAndName } from "@/lib/geo/us-counties";
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -217,10 +215,7 @@ export function StormMap({
     return null;
   }, [filters.selectedCounty, filters.state]);
 
-  const [mapModalOpen, setMapModalOpen] = React.useState(false);
-  const [mapModalProduct, setMapModalProduct] = React.useState<any>(null);
-  const [mapModalContextType, setMapModalContextType] = React.useState<any>(null);
-  const [mapModalContextData, setMapModalContextData] = React.useState<any>(null);
+
 
   React.useEffect(() => {
     if (!activeDetail || activeDetail.type !== "warning") {
@@ -506,23 +501,7 @@ export function StormMap({
     }
   };
 
-  const handleClusterClick = (clusterCenter: [number, number]) => {
-    const targetZoom = 14.0;
-    onFiltersChange({ center: clusterCenter, targetZoom });
-    setViewState((prev) => ({
-      ...prev,
-      latitude: clusterCenter[0],
-      longitude: clusterCenter[1],
-      zoom: targetZoom,
-    }));
-    if (mapRef.current) {
-      mapRef.current.flyTo({
-        center: [clusterCenter[1], clusterCenter[0]], // [lon, lat]
-        zoom: targetZoom,
-        duration: 1200,
-      });
-    }
-  };
+
 
   const handleCountyClick = async (county: AlertTargetCounty, alert: NwsAlert) => {
     const countyKey = `${county.countyName}_${county.stateCode || ""}`;
@@ -725,6 +704,10 @@ export function StormMap({
               type: "cluster",
               coordinates: [cluster.center[0], cluster.center[1]],
               data: cluster,
+            });
+            onFiltersChange({
+              selectedCounty: cluster.county,
+              state: cluster.state,
             });
             return;
           }
@@ -2162,21 +2145,7 @@ export function StormMap({
         </MapDetailOverlay>
       )}
 
-      {mapModalProduct && mapModalContextType && mapModalContextData && (
-        <ProductRequestModal
-          isOpen={mapModalOpen}
-          onClose={() => setMapModalOpen(false)}
-          productType={mapModalProduct}
-          contextType={mapModalContextType}
-          contextData={mapModalContextData}
-          isEnrichmentEnabled={false}
-          onAddLeads={(newLeads) => {
-            if (onAddLeads) {
-              onAddLeads(newLeads);
-            }
-          }}
-        />
-      )}
+
 
 
 

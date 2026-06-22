@@ -6,7 +6,7 @@ import { StormFilterState, StormReport, NwsAlert, SelectedPropertyTarget, Active
 import { StormSidebar } from "@/components/storm-map/StormSidebar";
 import { AppHeader } from "@/components/storm-map/AppHeader";
 import { LeadIntelligencePanel } from "@/components/storm-map/enrichment/LeadIntelligencePanel";
-import { AlertCircle, RefreshCw, Zap } from "lucide-react";
+import { AlertCircle, RefreshCw, Zap, Layers, Compass } from "lucide-react";
 import { TerritoryScanOverlay } from "@/components/storm-map/TerritoryScanOverlay";
 import { TerritoryLeadResultCard } from "@/components/storm-map/TerritoryLeadResultCard";
 import { MapErrorBoundary } from "./MapErrorBoundary";
@@ -108,6 +108,7 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
   // Guided Walkthrough State (0 = disabled, 1..10 = steps)
   const [tourStep, setTourStep] = React.useState<number>(isDemo ? 1 : 0);
   const [wizardStep, setWizardStep] = React.useState<1 | 2 | 3 | 4>(1);
+  const [experienceMode, setExperienceMode] = React.useState<"choice" | "explore" | "target">(isDemo ? "target" : "choice");
 
   // Sidebar open state
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -553,6 +554,8 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
           wizardStep={wizardStep}
           onWizardStepChange={setWizardStep}
           scanError={scanError}
+          experienceMode={experienceMode}
+          setExperienceMode={setExperienceMode}
         />
 
         {/* Main Map Viewer Panel */}
@@ -737,6 +740,61 @@ export function StormMapExperience({ isDemo = false }: StormMapExperienceProps) 
             resetDemoExperience(true);
           }}
         />
+      )}
+      {/* Entry Experience Selector Overlay */}
+      {!isDemo && experienceMode === "choice" && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 select-none animate-in fade-in duration-300">
+          <div className="w-full max-w-2xl bg-[#071426] border border-[#145CFF]/30 rounded-2xl p-8 flex flex-col items-center text-center space-y-6 shadow-2xl relative overflow-hidden animate-in scale-in duration-300">
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#145CFF] via-[#00E676] to-[#145CFF]" />
+            
+            <div>
+              <h2 className="text-xl md:text-2xl font-black text-[#F8FAFC] uppercase tracking-wider">Welcome to StormTarget</h2>
+              <p className="text-xs text-slate-400 font-semibold max-w-md mt-1.5 leading-relaxed">
+                Choose how you want to interact with our live storm-damage property intelligence console.
+              </p>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 w-full pt-2">
+              {/* Option 1: Explore Map */}
+              <div 
+                onClick={() => setExperienceMode("explore")}
+                className="flex-1 p-6 rounded-xl border border-slate-800 hover:border-[#00E676]/50 bg-[#050B16]/50 hover:bg-[#00E676]/5 cursor-pointer transition-all duration-300 flex flex-col items-center justify-between text-center group h-64 hover:shadow-[0_0_20px_rgba(0,230,118,0.15)]"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-450 group-hover:text-[#00E676] group-hover:border-[#00E676]/30 transition-all">
+                  <Layers className="w-6 h-6" />
+                </div>
+                <div className="space-y-1.5 my-4">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wide group-hover:text-[#00E676] transition-colors">Explore Map Myself</h3>
+                  <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed">
+                    Browse live SPC storm damage reports, radar loops, and opportunity territories at your own pace.
+                  </p>
+                </div>
+                <button type="button" className="w-full py-2.5 bg-slate-900 group-hover:bg-[#00E676] text-slate-350 group-hover:text-[#050B16] text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border-none cursor-pointer">
+                  Start Exploring
+                </button>
+              </div>
+
+              {/* Option 2: Target Location */}
+              <div 
+                onClick={() => setExperienceMode("target")}
+                className="flex-1 p-6 rounded-xl border border-slate-800 hover:border-[#145CFF]/50 bg-[#050B16]/50 hover:bg-[#145CFF]/5 cursor-pointer transition-all duration-300 flex flex-col items-center justify-between text-center group h-64 hover:shadow-[0_0_20px_rgba(20,92,255,0.15)]"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-450 group-hover:text-[#145CFF] group-hover:border-[#145CFF]/30 transition-all">
+                  <Compass className="w-6 h-6" />
+                </div>
+                <div className="space-y-1.5 my-4">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wide group-hover:text-[#145CFF] transition-colors">Target a Location</h3>
+                  <p className="text-[10.5px] text-slate-400 font-semibold leading-relaxed">
+                    Follow our step-by-step territory scan to generate a precise list of storm-damage property leads.
+                  </p>
+                </div>
+                <button type="button" className="w-full py-2.5 bg-slate-900 group-hover:bg-[#145CFF] text-slate-350 group-hover:text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border-none cursor-pointer">
+                  Target Location
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
