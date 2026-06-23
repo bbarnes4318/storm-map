@@ -149,20 +149,20 @@ export function UpgradeCheckoutModal({
                 >
                   <div>
                     <div className="flex justify-between items-start mb-2.5">
-                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Month to Month Lead Plan</span>
-                      <span className="text-xs font-black text-[#38BDF8]">$2.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
+                      <span className="text-sm font-black text-[#F8FAFC] uppercase tracking-wide">Month to Month Lead Plan</span>
+                      <span className="text-base font-black text-[#38BDF8]">$2.99<span className="text-[10px] text-slate-400 font-bold uppercase">/lead</span></span>
                     </div>
-                    <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-3">
+                    <p className="text-xs text-slate-300 font-medium leading-relaxed mb-3">
                       Best for contractors testing a new market.
                     </p>
-                    <ul className="space-y-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-4">
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 100 leads minimum per order</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Month to Month No Contract</li>
+                    <ul className="space-y-2 text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-4">
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> 100 leads minimum per order</li>
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> Month to Month No Contract</li>
                     </ul>
                   </div>
                   <button
                     type="button"
-                    className={`w-full py-1.5 rounded text-[9.5px] font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
+                    className={`w-full py-2 rounded text-xs font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
                       preferredOption === "Month to Month Lead Plan"
                         ? "bg-[#145CFF] text-white"
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
@@ -181,27 +181,27 @@ export function UpgradeCheckoutModal({
                       : "bg-[#050B16]/50 border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  <span className="absolute -top-2.5 right-4 px-2 py-0.5 bg-[#10B981] text-white text-[8px] font-black uppercase tracking-widest rounded-full shadow-sm">
+                  <span className="absolute -top-2.5 right-4 px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black uppercase tracking-widest rounded-full shadow-sm">
                     Recommended / Best Value
                   </span>
                   <div>
                     <div className="flex justify-between items-start mb-2.5 mt-1">
-                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Seasonal Lead Plan</span>
-                      <span className="text-xs font-black text-[#10B981]">$1.99<span className="text-[8.5px] text-slate-400 font-bold uppercase">/lead</span></span>
+                      <span className="text-sm font-black text-[#F8FAFC] uppercase tracking-wide">Seasonal Lead Plan</span>
+                      <span className="text-base font-black text-[#10B981]">$1.99<span className="text-[10px] text-slate-400 font-bold uppercase">/lead</span></span>
                     </div>
-                    <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-3">
+                    <p className="text-xs text-slate-300 font-medium leading-relaxed mb-3">
                       Best value for contractors committed to consistent storm lead flow.
                     </p>
-                    <ul className="space-y-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-4">
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 130 leads minimum per order</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> 3 month contract paid monthly</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> Automatically billed each month for 3 months</li>
-                      <li className="flex items-center gap-1.5"><Check size={10} className="text-[#10B981] shrink-0" /> After 3 months, $.99 per lead</li>
+                    <ul className="space-y-2 text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-4">
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> 130 leads minimum per order</li>
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> 3 month contract paid monthly</li>
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> Automatically billed each month for 3 months</li>
+                      <li className="flex items-center gap-1.5"><Check size={12} className="text-[#10B981] shrink-0" /> After 3 months, $.99 per lead</li>
                     </ul>
                   </div>
                   <button
                     type="button"
-                    className={`w-full py-1.5 rounded text-[9.5px] font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
+                    className={`w-full py-2 rounded text-xs font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
                       preferredOption === "Seasonal Lead Plan"
                         ? "bg-[#10B981] text-white"
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
@@ -222,19 +222,19 @@ export function UpgradeCheckoutModal({
                 >
                   <div>
                     <div className="flex justify-between items-start mb-2.5">
-                      <span className="text-xs font-black text-[#F8FAFC] uppercase tracking-wide">Guaranteed Inspections</span>
-                      <span className="text-xs font-black text-[#F59E0B]">$250<span className="text-[8.5px] text-slate-400 font-bold uppercase">/appt</span></span>
+                      <span className="text-sm font-black text-[#F8FAFC] uppercase tracking-wide">Guaranteed Inspections</span>
+                      <span className="text-base font-black text-[#F59E0B]">$250<span className="text-[10px] text-slate-400 font-bold uppercase">/appt</span></span>
                     </div>
-                    <p className="text-[9.5px] text-slate-300 font-medium leading-relaxed mb-3">
+                    <p className="text-xs text-slate-300 font-medium leading-relaxed mb-3">
                       We set exclusive roof inspection appointments. No charge for no-shows. Minimum 5 appointments.
                     </p>
-                    <p className="text-[8.5px] text-slate-400 font-bold italic leading-normal mb-4">
+                    <p className="text-[10.5px] text-slate-400 font-bold italic leading-normal mb-4">
                       Our process is built to drive high show rates, with a target of 9 out of 10 appointments showing.
                     </p>
                   </div>
                   <button
                     type="button"
-                    className={`w-full py-1.5 rounded text-[9.5px] font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
+                    className={`w-full py-2 rounded text-xs font-black uppercase tracking-wider transition-all border-0 cursor-pointer ${
                       preferredOption === "Appointment Program"
                         ? "bg-[#F59E0B] text-[#071426]"
                         : "bg-slate-800 text-slate-300 hover:bg-slate-755"
@@ -248,7 +248,7 @@ export function UpgradeCheckoutModal({
 
               {/* Contact Form Section */}
               <div className="border-t border-[rgba(20,92,255,0.15)] pt-5">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-3.5 pl-0.5">
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3.5 pl-0.5">
                   Complete Your Subscription Request
                 </span>
 
@@ -320,7 +320,7 @@ export function UpgradeCheckoutModal({
                     />
                   </div>
 
-                  <div className="bg-[#050B16]/50 border border-slate-850 p-2 rounded-lg text-[9.5px] font-bold text-[#CBD5E1] flex items-center justify-between">
+                  <div className="bg-[#050B16]/50 border border-slate-850 p-2.5 rounded-lg text-[11px] font-bold text-[#CBD5E1] flex items-center justify-between">
                     <span>Selected Plan: <strong className="text-white uppercase font-black">{preferredOption}</strong></span>
                     <span>Area: <strong className="text-[#145CFF] uppercase font-black">{market || `${county} County, ${state}`}</strong></span>
                   </div>
