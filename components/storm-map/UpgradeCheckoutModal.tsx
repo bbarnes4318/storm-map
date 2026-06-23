@@ -95,7 +95,7 @@ export function UpgradeCheckoutModal({
                 Unlock StormTarget Intelligence
               </h2>
               <p className="text-[10.5px] text-slate-350 font-semibold mt-0.5">
-                Choose how you want to unlock storm-damage property leads and inspection opportunities.
+                Select the program tier tailored to your team's storm inspection and volume goals.
               </p>
             </div>
           </div>
