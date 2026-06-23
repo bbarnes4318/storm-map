@@ -138,9 +138,6 @@ export function SampleLeadFileModal({
               <h2 className="text-sm font-black text-[#F8FAFC] uppercase tracking-wider leading-tight">
                 Sample Lead File Preview {isDemo && "· DEMO MODE"}
               </h2>
-              <p className="text-[10px] text-slate-400 font-medium">
-                Example fields included with a StormTarget subscription. Showing mock data for {county} County, {state}.
-              </p>
             </div>
           </div>
 
