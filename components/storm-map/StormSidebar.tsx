@@ -570,16 +570,18 @@ export function StormSidebar({
                 <span>Mode</span>
               </button>
             )}
-            <a
-              href="https://sms.leadzer.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
-              title="Open SMS App"
-            >
-              <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
-              <span>SMS</span>
-            </a>
+            {!isDemo && (
+              <a
+                href="https://sms.leadzer.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all flex items-center gap-0.5 text-[9px] font-extrabold uppercase"
+                title="Open SMS App"
+              >
+                <MessageSquare size={10} className="text-[#145CFF] shrink-0" />
+                <span>SMS</span>
+              </a>
+            )}
             <button
               onClick={onResetView}
               className="p-1 rounded border border-[#145CFF]/15 text-slate-400 hover:text-[#F8FAFC] bg-[#0B1930]/40 hover:bg-[#145CFF]/10 hover:border-[#145CFF]/30 transition-all"
