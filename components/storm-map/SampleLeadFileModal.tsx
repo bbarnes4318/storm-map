@@ -170,7 +170,7 @@ export function SampleLeadFileModal({
           <CheckCircle size={12} className="text-amber-400 shrink-0" />
           <span>
             {isDemo 
-              ? "Demo mode lets you preview sample property leads. Columns contain realistic but fake homeowner data for safety and privacy."
+              ? "Demo mode lets you preview sample property leads."
               : "This sheet shows sample preview rows for marketing purposes. To unlock live, verified homeowner contact details for this county, upgrade to a subscription."}
           </span>
         </div>
