@@ -866,6 +866,52 @@ export function StormMap({
     }
   }, [filters.showNeighborhoodLabels, filters.mapStyle, mapZoom]);
 
+  // Dynamically change map text color to white for base style layers for better readability
+  React.useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const colorizeBaseLabels = () => {
+      try {
+        const layers = map.getStyle()?.layers || [];
+        const labelLayers = layers.filter(
+          (l) => l.type === "symbol" &&
+                 !l.id.includes("storm") &&
+                 !l.id.includes("report") &&
+                 !l.id.includes("warning") &&
+                 !l.id.includes("circle") &&
+                 !l.id.includes("cluster") &&
+                 !l.id.includes("hail") &&
+                 !l.id.includes("wind") &&
+                 !l.id.includes("tornado") &&
+                 !l.id.includes("county-label") &&
+                 !l.id.includes("county-polygon") &&
+                 !l.id.includes("aurum-house-number-labels")
+        );
+
+        labelLayers.forEach((layer) => {
+          if (map.getLayer(layer.id)) {
+            map.setPaintProperty(layer.id, "text-color", "#FFFFFF");
+            // Add or reinforce dark halo for maximum readability
+            map.setPaintProperty(layer.id, "text-halo-color", "rgba(0, 0, 0, 0.85)");
+            map.setPaintProperty(layer.id, "text-halo-width", 1.5);
+          }
+        });
+      } catch (err) {
+        console.warn("Could not colorize base map label layers:", err);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      colorizeBaseLabels();
+    } else {
+      map.on("style.load", colorizeBaseLabels);
+      return () => {
+        map.off("style.load", colorizeBaseLabels);
+      };
+    }
+  }, [filters.mapStyle]);
+
   const handleMapLoad = (evt: mapboxgl.MapboxEvent) => {
     const map = evt.target;
     try {
